@@ -1,0 +1,1993 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>✦ 천운 상담도구</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<style>
+:root{
+  --bg:#0d0d0f;--card:#15151a;--card2:#1c1c24;
+  --gold:#c8860a;--gold2:#f0c060;--gold3:#fff8e8;
+  --purple:#7a2da0;--purple2:#b06ad0;
+  --mint:#3abfa0;--pink:#d060a0;
+  --border:#2a2a38;--muted:#888;--red:#e05050;
+  --text:#f0e8d8;--sub:#c8b898;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);color:var(--text);font-family:'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;font-size:14px;min-height:100dvh;}
+
+/* ── 상단바 ── */
+.topbar{background:rgba(13,13,15,.97);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;backdrop-filter:blur(10px);}
+.topbar-title{font-size:.95rem;font-weight:700;background:linear-gradient(90deg,var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.key-btn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 10px;font-size:.72rem;cursor:pointer;}
+
+/* ── 탭 ── */
+.tabs{display:flex;border-bottom:1px solid var(--border);background:rgba(13,13,15,.97);position:sticky;top:45px;z-index:199;}
+.tab{flex:1;text-align:center;padding:12px 4px;font-size:.78rem;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;transition:.2s;white-space:nowrap;}
+.tab.on{color:var(--gold2);border-color:var(--gold);}
+
+/* ── 페이지 ── */
+.page{display:none;padding:14px;max-width:680px;margin:0 auto;}
+.page.on{display:block;}
+
+/* ── 카드 ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;}
+.card-title{font-size:.82rem;font-weight:700;color:var(--gold2);margin-bottom:12px;letter-spacing:.04em;}
+
+/* ── 입력 ── */
+label{font-size:.75rem;color:var(--muted);display:block;margin-bottom:4px;}
+input,select,textarea{width:100%;background:#0d0d14;border:1px solid var(--border);border-radius:9px;padding:10px 12px;color:var(--text);font-size:.85rem;font-family:inherit;outline:none;transition:.2s;}
+input:focus,select:focus,textarea:focus{border-color:var(--gold);}
+textarea{resize:vertical;min-height:70px;line-height:1.6;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.field{margin-bottom:10px;}
+
+/* ── 버튼 ── */
+.btn{display:block;width:100%;padding:13px;border-radius:10px;border:none;font-size:.88rem;font-weight:700;font-family:inherit;cursor:pointer;transition:.2s;letter-spacing:.03em;}
+.btn-gold{background:linear-gradient(135deg,#a06800,#c8860a,#f0c060);color:#1a0a00;}
+.btn-gold:hover{filter:brightness(1.1);}
+.btn-ghost{background:var(--card2);border:1px solid var(--border);color:var(--muted);}
+.btn-sm{padding:8px 14px;font-size:.78rem;border-radius:8px;width:auto;display:inline-block;}
+
+/* ── 말풍선 ── */
+.bubs-wrap{margin-top:14px;}
+.bub{background:var(--card2);border:1px solid var(--border);border-radius:16px 16px 16px 4px;padding:14px 16px;margin-bottom:10px;line-height:1.75;font-size:.86rem;position:relative;}
+.bub-num{position:absolute;top:-8px;left:12px;background:var(--gold);color:#1a0a00;font-size:.62rem;font-weight:800;padding:2px 7px;border-radius:20px;}
+.bub-copy{position:absolute;bottom:8px;right:10px;background:none;border:1px solid var(--border);color:var(--muted);font-size:.68rem;padding:5px 10px;border-radius:6px;cursor:pointer;min-width:44px;min-height:28px;}
+.bub-copy:hover{border-color:var(--gold);color:var(--gold2);}
+
+/* ── 채팅 ── */
+.chat-wrap{display:none;margin-top:14px;}
+.chat-box{background:#0a0a12;border:1px solid var(--border);border-radius:12px;height:220px;overflow-y:auto;padding:12px;margin-bottom:10px;}
+.msg{margin-bottom:10px;}
+.msg.ai .bubble{background:var(--card2);border-radius:14px 14px 14px 4px;padding:10px 13px;font-size:.83rem;line-height:1.7;max-width:88%;}
+.msg.me .bubble{background:linear-gradient(135deg,#2a1800,#3a2200);border:1px solid var(--gold);border-radius:14px 14px 4px 14px;padding:10px 13px;font-size:.83rem;line-height:1.7;max-width:88%;margin-left:auto;}
+.chat-input-row{display:flex;gap:8px;}
+.chat-input-row input{flex:1;}
+.chat-send{padding:10px 16px;border-radius:9px;background:var(--gold);color:#1a0a00;border:none;font-weight:700;font-size:.82rem;cursor:pointer;white-space:nowrap;}
+
+/* ── 로딩 ── */
+.loading{text-align:center;padding:28px;color:var(--muted);font-size:.84rem;}
+.dot-spin{display:inline-flex;gap:5px;margin-bottom:8px;}
+.dot-spin span{width:7px;height:7px;background:var(--gold);border-radius:50%;animation:ds .8s infinite alternate;}
+.dot-spin span:nth-child(2){animation-delay:.2s;}
+.dot-spin span:nth-child(3){animation-delay:.4s;}
+@keyframes ds{from{opacity:.2;transform:translateY(0)}to{opacity:1;transform:translateY(-5px)}}
+
+/* ── 타로 카드 ── */
+.deck{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.card-item{background:var(--card2);border:1.5px solid var(--border);border-radius:9px;padding:6px 9px;font-size:.73rem;cursor:pointer;transition:.15s;user-select:none;}
+.card-item.sel{background:var(--purple);border-color:var(--purple2);color:#fff;}
+.spread-sel{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.sp-btn{padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--muted);font-size:.76rem;cursor:pointer;}
+.sp-btn.on{border-color:var(--gold);color:var(--gold2);background:#1a1000;}
+.drawn-cards{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;}
+.drawn-card{background:linear-gradient(135deg,#1a0a3a,#2d0a5a);border:1px solid var(--purple2);border-radius:10px;padding:8px 12px;font-size:.78rem;text-align:center;min-width:80px;}
+.drawn-card .pos{font-size:.65rem;color:var(--purple2);margin-bottom:3px;}
+.drawn-card .name{color:var(--gold2);font-weight:700;}
+
+/* ── 전화상담 탭 ── */
+.quick-btns{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+.q-btn{padding:8px 12px;border-radius:9px;border:1px solid var(--border);background:var(--card2);color:var(--sub);font-size:.76rem;cursor:pointer;transition:.15s;}
+.q-btn:hover{border-color:var(--gold);color:var(--gold2);}
+.call-info{background:#0a0a12;border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:10px;font-size:.8rem;line-height:1.9;color:var(--sub);}
+
+/* ── 왜요 탭 ── */
+.why-cats{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;}
+.wcat{padding:8px 14px;border-radius:20px;border:1px solid var(--border);background:var(--card2);color:var(--muted);font-size:.76rem;cursor:pointer;transition:.15s;}
+.wcat.on{background:var(--purple);border-color:var(--purple2);color:#fff;}
+.why-result{background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-top:12px;line-height:1.85;font-size:.84rem;display:none;}
+.why-bub{background:#0d0d14;border-radius:12px;padding:12px 14px;margin-bottom:9px;border-left:3px solid var(--gold);}
+.copy-all-btn{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;padding:10px;border-radius:9px;background:var(--card2);border:1px solid var(--border);color:var(--muted);font-size:.78rem;cursor:pointer;}
+.copy-all-btn:hover{border-color:var(--mint);color:var(--mint);}
+
+/* ── 스낵 ── */
+.snack{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1a2a;border:1px solid var(--border);color:var(--gold2);padding:9px 18px;border-radius:20px;font-size:.78rem;opacity:0;pointer-events:none;transition:.3s;z-index:999;white-space:nowrap;}
+.snack.show{opacity:1;}
+
+/* ── 키 모달 ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:none;align-items:center;justify-content:center;}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px;width:calc(100% - 32px);max-width:400px;}
+.modal h3{font-size:.95rem;color:var(--gold2);margin-bottom:14px;}
+.modal input{margin-bottom:8px;}
+.modal-btns{display:flex;gap:8px;margin-top:14px;}
+.modal-btns .btn{flex:1;}
+
+/* ── 사주 명식 표 ── */
+.pillars-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:.82rem;}
+.pillars-table th{background:#1a1000;color:var(--gold);padding:7px;text-align:center;font-size:.72rem;border:1px solid var(--border);}
+.pillars-table td{padding:9px;text-align:center;border:1px solid var(--border);font-weight:700;font-size:1rem;}
+.oh-bar{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;}
+.oh-chip{padding:3px 9px;border-radius:12px;font-size:.7rem;font-weight:700;}
+.oh-목{background:#1a3a1a;color:#6ad06a;}
+.oh-화{background:#3a1a1a;color:#e06060;}
+.oh-토{background:#2a2010;color:#c0a040;}
+.oh-금{background:#202028;color:#a0a8c0;}
+.oh-수{background:#0a1a2a;color:#4090d0;}
+
+/* ── 모바일 최적화 전면 ── */
+@media(max-width:480px){
+  /* 탭 */
+  .tab{font-size:.7rem;padding:10px 2px;}
+  /* 레이아웃 */
+  .page{padding:10px;}
+  .row2{grid-template-columns:1fr;}
+  .row3{grid-template-columns:1fr 1fr;}
+  .card{padding:13px 12px;border-radius:12px;}
+  /* 입력폼 */
+  input,select,textarea{font-size:.83rem;padding:9px 10px;}
+  label{font-size:.73rem;}
+  /* 버튼 */
+  .btn{padding:12px;font-size:.85rem;}
+  .btn-sm{padding:7px 10px;font-size:.73rem;}
+  /* 고객 관리 버튼 줄바꿈 */
+  .client-btn-row{flex-wrap:wrap;gap:5px;}
+  .client-btn-row .btn-sm{flex:1 1 calc(50% - 5px);text-align:center;}
+  /* 말풍선 */
+  .bub{font-size:.83rem;padding:12px 12px 30px;border-radius:14px 14px 14px 4px;}
+  .bub-num{font-size:.6rem;}
+  .bub-copy{font-size:.66rem;padding:2px 6px;}
+  /* 카드 */
+  .drawn-card{min-width:70px;padding:6px 9px;font-size:.74rem;}
+  .sp-btn{font-size:.72rem;padding:6px 9px;}
+  .q-btn{font-size:.73rem;padding:6px 10px;}
+  /* 왜요탭 */
+  .wcat{font-size:.72rem;padding:6px 10px;}
+  .why-bub{font-size:.82rem;padding:10px 12px;}
+  /* 채팅 */
+  .chat-box{height:180px;}
+  .chat-send{padding:9px 12px;font-size:.78rem;}
+  /* 스낵바 */
+  .snack{font-size:.75rem;padding:8px 14px;bottom:70px;}
+  /* 상단바 */
+  .topbar-title{font-size:.88rem;}
+  /* 전체복사 버튼 */
+  .copy-all-btn{font-size:.75rem;padding:9px;}
+}
+@media(max-width:360px){
+  .tab{font-size:.65rem;}
+  .row3{grid-template-columns:1fr;}
+  .client-btn-row .btn-sm{flex:1 1 100%;}
+}
+</style>
+</head>
+<body>
+
+<!-- 상단바 -->
+<div class="topbar">
+  <span class="topbar-title">✦ 천운 상담도구</span>
+  <span id="syncBadge" style="font-size:.65rem;border:1px solid #222;border-radius:4px;padding:3px 7px;color:#444;opacity:.6" title="Supabase 동기화 상태">☁</span>
+  <span id="dbSetupBtn" onclick="openDbModal()" style="font-size:.65rem;border:1px solid var(--border);border-radius:4px;padding:3px 7px;color:var(--muted);cursor:pointer;margin-left:4px" title="DB 설정">⚙</span>
+</div>
+
+<!-- 탭 -->
+<div class="tabs">
+  <div class="tab on" onclick="go('consulting')">💬 상담</div>
+  <div class="tab" onclick="go('call')">📞 전화상담</div>
+  <div class="tab" onclick="go('why')">🤔 왜요?</div>
+</div>
+
+<!-- ══════════════════════════════════════
+     상담 탭
+══════════════════════════════════════ -->
+<div id="consultingPage" class="page on">
+
+  <!-- 내담자 정보 -->
+  <!-- 고객 저장/불러오기 -->
+  <div class="card" style="padding:12px 16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <span style="font-size:.8rem;color:var(--gold2);font-weight:700">💾 고객 관리</span>
+      <div class="client-btn-row" style="display:flex;gap:7px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="toggleClientList()" style="font-size:.75rem">📋 저장된 고객 불러오기</button>
+        <button class="btn btn-ghost btn-sm" onclick="saveClient()" style="font-size:.75rem;border-color:var(--gold);color:var(--gold2)">💾 현재 고객 저장</button>
+
+      </div>
+    </div>
+    <div id="clientList" style="display:none;margin-top:12px;max-height:220px;overflow-y:auto"></div>
+
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 내담자 정보</div>
+    <div class="field"><label>이름 / 닉네임</label><input id="cName" placeholder="예) 김미나님"></div>
+    <div class="row2">
+      <div class="field"><label>성별</label>
+        <select id="cGender"><option value="여성">여성</option><option value="남성">남성</option></select>
+      </div>
+      <div class="field"><label>양/음력</label>
+        <select id="cLunar"><option value="양력">양력</option><option value="음력">음력</option></select>
+      </div>
+    </div>
+    <div class="field"><label>생년월일</label><input id="cBirth" type="date"></div>
+    <div class="field"><label>태어난 시간</label>
+      <select id="cHour">
+        <option value="">모름</option>
+        <option value="자시">자시 (23:30~01:29)</option>
+        <option value="축시">축시 (01:30~03:29)</option>
+        <option value="인시">인시 (03:30~05:29)</option>
+        <option value="묘시">묘시 (05:30~07:29)</option>
+        <option value="진시">진시 (07:30~09:29)</option>
+        <option value="사시">사시 (09:30~11:29)</option>
+        <option value="오시">오시 (11:30~13:29)</option>
+        <option value="미시">미시 (13:30~15:29)</option>
+        <option value="신시">신시 (15:30~17:29)</option>
+        <option value="유시">유시 (17:30~19:29)</option>
+        <option value="술시">술시 (19:30~21:29)</option>
+        <option value="해시">해시 (21:30~23:29)</option>
+      </select>
+    </div>
+    <div class="field"><label>상담 주제</label>
+      <select id="cTopic">
+        <option>재회운 ⭐</option><option>연애운</option><option>속마음 확인</option><option>짝사랑/고백</option><option>결혼운/결혼시기</option><option>궁합</option><option>재물/돈버는시기</option><option>직업/사업운</option><option>이직/취업</option><option>건강운</option><option>가족관계</option><option>이사시기</option><option>합격운</option><option>종합운</option>
+      </select>
+    </div>
+    <!-- 상대방 정보 -->
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="partnerToggle" onchange="togglePartner()" style="width:auto;margin:0">
+        상대방 정보 추가 (재회/연애/궁합 상담 시)
+      </label>
+    </div>
+    <div id="partnerSection" style="display:none;background:#0d0d14;border:1px solid var(--purple);border-radius:12px;padding:14px;margin-bottom:10px">
+      <div class="card-title" style="font-size:.78rem;margin-bottom:10px;color:var(--purple2)">💜 상대방 정보</div>
+      <div class="field"><label>상대방 이름/닉네임</label><input id="pName" placeholder="예) 전남친, 홍길동"></div>
+      <div class="row2">
+        <div class="field"><label>성별</label>
+          <select id="pGender"><option value="남성">남성</option><option value="여성">여성</option></select>
+        </div>
+        <div class="field"><label>양/음력</label>
+          <select id="pLunar"><option>양력</option><option>음력</option></select>
+        </div>
+      </div>
+      <div class="field"><label>생년월일 (모르면 비워도 됨)</label><input id="pBirth" type="date"></div>
+      <div class="field"><label>현재 관계</label>
+        <select id="pRelation">
+          <option>헤어진 사이 (재회 원함)</option>
+          <option>썸 타는 중</option>
+          <option>짝사랑 중</option>
+          <option>현재 연인</option>
+          <option>결혼 고려 중</option>
+          <option>이별 후 연락 없음</option>
+          <option>카톡/연락은 됨</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>질문 / 고민 (선택)</label>
+      <textarea id="cQ" placeholder="내담자님이 하신 말씀이나 구체적인 질문을 적어주세요..."></textarea>
+    </div>
+  </div>
+
+  <!-- 상담 모드 선택 -->
+  <div class="card">
+    <div class="card-title">🎯 상담 방식</div>
+    <div class="spread-sel" id="modeSelect">
+      <button class="sp-btn on" onclick="setMode(this,'saju')">📜 사주상담</button>
+      <button class="sp-btn" onclick="setMode(this,'tarot')">🔮 타로상담</button>
+      <button class="sp-btn" onclick="setMode(this,'both')">✦ 사주+타로</button>
+    </div>
+
+    <!-- 타로 뽑기 영역 (타로/둘다 모드일 때) -->
+    <div id="tarotSection" style="display:none">
+      <div class="card-title" style="margin-top:8px">🔮 타로 스프레드</div>
+      <div class="spread-sel" id="spreadSel">
+        <button class="sp-btn on" onclick="setSpread(this,1)">원카드</button>
+        <button class="sp-btn" onclick="setSpread(this,3)">쓰리카드</button>
+        <button class="sp-btn" onclick="setSpread(this,5)">다섯카드</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="drawCards()" style="margin-bottom:10px">🃏 카드 뽑기</button>
+      <div id="drawnCards" class="drawn-cards"></div>
+    </div>
+
+    <button class="btn btn-gold" id="startBtn" onclick="startConsulting()" style="margin-top:6px">✦ 상담 시작</button>
+  </div>
+
+  <!-- 결과 -->
+  <div id="consultResult"></div>
+
+  <!-- 사주 명식표 -->
+  <div id="sajuTableWrap" style="display:none"></div>
+
+  <!-- 왜요? 연계 빠른 질문 -->
+  <div id="whyLinkSection" style="display:none" class="card">
+    <div class="card-title" style="margin-bottom:10px">🤔 내담자가 물어볼 수 있는 질문</div>
+    <p style="font-size:.75rem;color:var(--muted);margin-bottom:10px">클릭하면 "왜요?" 탭에서 이 내담자 맞춤 답변을 바로 받아요</p>
+    <div id="whyLinkBtns" style="display:flex;flex-wrap:wrap;gap:7px"></div>
+  </div>
+
+  <!-- 채팅 -->
+  <div class="chat-wrap" id="consultChat">
+    <div class="card-title" style="padding:0 2px 8px">💬 이어서 질문하기</div>
+    <div class="chat-box" id="chatBox"></div>
+    <div class="chat-input-row">
+      <input id="chatInput" placeholder="추가 질문을 입력하세요..." onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="chat-send" onclick="sendChat()">전송</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     전화상담 탭
+══════════════════════════════════════ -->
+<div id="callPage" class="page">
+  <div class="card">
+    <div class="card-title">📞 전화상담 실시간 도우미</div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn btn-ghost btn-sm" onclick="toggleCallClientList()" style="font-size:.75rem">📋 저장된 고객 불러오기</button>
+    </div>
+    <div id="callClientList" style="display:none;margin-bottom:10px;max-height:200px;overflow-y:auto"></div>
+    <div class="field"><label>내담자 이름</label><input id="callName" placeholder="예) 김미나님"></div>
+    <div class="field"><label>생년월일</label><input id="callBirth" type="date"></div>
+    <div class="row2">
+      <div class="field"><label>성별</label>
+        <select id="callGender"><option>여성</option><option>남성</option></select>
+      </div>
+      <div class="field"><label>상담 주제</label>
+        <select id="callTopic">
+          <option>재회운 ★</option><option>연애운</option><option>결혼운</option><option>재물운</option><option>직업운</option><option>종합운</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-gold" onclick="startCall()">✦ 전화상담 준비</button>
+  </div>
+
+  <!-- 전화 중 빠른 질문 -->
+  <div id="callReady" style="display:none">
+    <div class="card">
+      <div class="card-title">⚡ 전화 중 즉시 참고</div>
+      <div id="callInfoBox" class="call-info"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💬 전화 중 나온 질문 → 바로 답변</div>
+
+      <!-- 주제별 빠른 질문 탭 -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="wcat on" id="cqTab0" onclick="setCqTab(0)" style="font-size:.72rem">💔 재회/이별</button>
+        <button class="wcat" id="cqTab1" onclick="setCqTab(1)" style="font-size:.72rem">❤️ 연애/결혼</button>
+        <button class="wcat" id="cqTab2" onclick="setCqTab(2)" style="font-size:.72rem">💰 재물/직업</button>
+        <button class="wcat" id="cqTab3" onclick="setCqTab(3)" style="font-size:.72rem">🌟 운세/기타</button>
+      </div>
+
+      <!-- 재회/이별 질문 -->
+      <div id="cqPanel0" class="quick-btns">
+        <button class="q-btn" onclick="callQ('재회가 가능할까요?')">재회 가능할까요?</button>
+        <button class="q-btn" onclick="callQ('언제쯤 연락이 올까요?')">연락 오는 시기</button>
+        <button class="q-btn" onclick="callQ('상대방이 저를 그리워하고 있나요?')">상대방 마음</button>
+        <button class="q-btn" onclick="callQ('먼저 연락해도 될까요?')">먼저 연락해도 될까요?</button>
+        <button class="q-btn" onclick="callQ('재회하면 잘 될 수 있을까요?')">재회하면 잘 될까요?</button>
+        <button class="q-btn" onclick="callQ('왜 헤어지게 된 건지 사주로 봐주세요')">헤어진 이유</button>
+        <button class="q-btn" onclick="callQ('상대방이 다른 사람 만나고 있나요?')">다른 사람 있나요?</button>
+        <button class="q-btn" onclick="callQ('지금 이 감정을 정리해야 할까요?')">정리해야 할까요?</button>
+      </div>
+      <!-- 연애/결혼 질문 -->
+      <div id="cqPanel1" class="quick-btns" style="display:none">
+        <button class="q-btn" onclick="callQ('지금 연애 될까요?')">연애 될까요?</button>
+        <button class="q-btn" onclick="callQ('이 사람이 나한테 관심 있을까요?')">관심 있을까요?</button>
+        <button class="q-btn" onclick="callQ('언제 결혼할 수 있을까요?')">결혼 시기</button>
+        <button class="q-btn" onclick="callQ('이 사람이랑 잘 될 수 있을까요?')">잘 될 수 있을까요?</button>
+        <button class="q-btn" onclick="callQ('궁합이 어떤가요?')">궁합</button>
+        <button class="q-btn" onclick="callQ('연락이 왜 줄었을까요?')">연락이 줄었어요</button>
+      </div>
+      <!-- 재물/직업 질문 -->
+      <div id="cqPanel2" class="quick-btns" style="display:none">
+        <button class="q-btn" onclick="callQ('돈이 들어오는 시기가 언제예요?')">돈 들어오는 시기</button>
+        <button class="q-btn" onclick="callQ('직장을 옮겨야 할까요?')">이직 시기</button>
+        <button class="q-btn" onclick="callQ('지금 사업 시작해도 될까요?')">사업 타이밍</button>
+        <button class="q-btn" onclick="callQ('왜 돈이 모이지 않는 건가요?')">돈이 안 모여요</button>
+        <button class="q-btn" onclick="callQ('합격운이 있나요?')">합격운</button>
+      </div>
+      <!-- 운세/기타 질문 -->
+      <div id="cqPanel3" class="quick-btns" style="display:none">
+        <button class="q-btn" onclick="callQ('올해 건강 조심할 게 있나요?')">건강 주의</button>
+        <button class="q-btn" onclick="callQ('이사 가도 괜찮을까요?')">이사 시기</button>
+        <button class="q-btn" onclick="callQ('지금 힘든 이유가 뭔가요?')">힘든 이유</button>
+        <button class="q-btn" onclick="callQ('언제쯤 좋아질까요?')">좋아지는 시기</button>
+        <button class="q-btn" onclick="callQ('올해 조심해야 할 게 뭐가 있나요?')">올해 주의사항</button>
+        <button class="q-btn" onclick="callQ('제 팔자가 원래 이런 건가요?')">팔자 질문</button>
+      </div>
+
+      <div class="field" style="margin-top:10px;display:flex;gap:7px">
+        <input id="callCustomQ" placeholder="직접 입력..." style="flex:1"
+          onkeydown="if(event.key==='Enter'){callQ(this.value);}">
+        <button class="btn btn-ghost btn-sm" onclick="callQ(document.getElementById('callCustomQ').value)">전송</button>
+      </div>
+    </div>
+
+    <!-- 대화 누적창 -->
+    <div class="card" id="callChatCard" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="card-title" style="margin:0">📝 전화상담 대화</div>
+        <button onclick="clearCallChat()" style="font-size:.7rem;color:var(--muted);background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer">대화 초기화</button>
+      </div>
+      <div id="callChatLog" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     왜요? 탭
+══════════════════════════════════════ -->
+<div id="whyPage" class="page">
+  <div class="card">
+    <div class="card-title">🤔 "왜요?" 즉시 답변 — 내담자 질문 대응</div>
+
+    <!-- 현재 상담 내담자 연계 배너 -->
+    <div id="whyContextBanner" style="display:none;background:linear-gradient(135deg,rgba(180,130,255,.13),rgba(255,185,0,.09));border:1px solid rgba(180,130,255,.35);border-radius:12px;padding:11px 14px;margin-bottom:14px;font-size:.78rem;line-height:1.7">
+      <span style="color:var(--gold2);font-weight:700">✦ 현재 상담 내담자</span><br>
+      <span id="whyContextText" style="color:#e0d8ff"></span><br>
+      <span style="color:var(--muted);font-size:.72rem">→ 아래 질문 선택 시 이 내담자 정보가 자동 반영됩니다</span>
+    </div>
+
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px;line-height:1.7">
+      내담자님이 "왜 그런 거예요?" 물어볼 때 바로 참고하세요.<br>
+      카테고리 선택 → 질문 선택 → 복사해서 답변!
+    </p>
+
+    <!-- 카테고리 -->
+    <div class="why-cats">
+      <div class="wcat on" onclick="setWcat(this,'fortune')">🌙 운세/기운</div>
+      <div class="wcat" onclick="setWcat(this,'reunion')">💔 재회/이별</div>
+      <div class="wcat" onclick="setWcat(this,'love')">❤️ 연애/결혼</div>
+      <div class="wcat" onclick="setWcat(this,'money')">💰 재물/직업</div>
+      <div class="wcat" onclick="setWcat(this,'tarot')">🔮 타로</div>
+      <div class="wcat" onclick="setWcat(this,'custom')">✏️ 직접 질문</div>
+    </div>
+
+    <!-- 질문 목록 -->
+    <div id="whyQList"></div>
+
+    <!-- 직접 입력 -->
+    <div id="whyCustom" style="display:none">
+      <div class="field"><textarea id="whyCustomQ" placeholder="내담자님이 하신 질문을 그대로 적어주세요..." style="min-height:80px"></textarea></div>
+      <button class="btn btn-gold" onclick="whyCustomAsk()">✦ 답변 받기</button>
+    </div>
+  </div>
+
+  <!-- 답변 결과 -->
+  <div id="whyResult" class="why-result"></div>
+</div>
+
+<!-- DB 설정은 하단 dbModal에서 처리 -->
+
+<div class="snack" id="snack"></div>
+
+<script>
+// ════════════════════════════════
+// ✦ 천운 상담도구 — Vercel + Supabase 버전
+// ════════════════════════════════
+
+// ── Vercel API 엔드포인트 ──
+// 개발 환경이면 localhost, 배포 환경이면 자동으로 같은 도메인
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3000'
+  : '';  // 같은 도메인 → 상대경로
+
+// ── Supabase 설정 (환경변수 대신 localStorage에 저장) ──
+const SB_KEY = 'cheonun_supabase';
+let _sbUrl = '';
+let _sbAnonKey = '';
+let _sbReady = false;
+
+// ── DB 모달 ──
+function openDbModal(){
+  const m = document.getElementById('dbModal');
+  if(m){ m.style.display='flex'; }
+  // 현재 저장된 값 표시
+  const stored = JSON.parse(localStorage.getItem(SB_KEY)||'{}');
+  const urlEl = document.getElementById('sbUrlInput');
+  const keyEl = document.getElementById('sbKeyInput');
+  if(urlEl && stored.url) urlEl.value = stored.url;
+  if(keyEl && stored.key) keyEl.value = stored.key;
+}
+function closeDbModal(){
+  const m = document.getElementById('dbModal');
+  if(m) m.style.display='none';
+}
+
+function saveDbConfig(){
+  const url = (document.getElementById('sbUrlInput')?.value||'').trim();
+  const key = (document.getElementById('sbKeyInput')?.value||'').trim();
+  if(!url||!key){ snack('URL과 Anon Key를 모두 입력해주세요.'); return; }
+  localStorage.setItem(SB_KEY, JSON.stringify({url, key}));
+  _sbUrl = url; _sbAnonKey = key; _sbReady = true;
+  closeDbModal();
+  updateSyncBadge(true);
+  snack('✅ Supabase 연결됨! 고객 데이터가 클라우드에 저장됩니다.');
+  loadClients(); // 즉시 로드
+}
+
+function loadDbConfig(){
+  try{
+    const stored = JSON.parse(localStorage.getItem(SB_KEY)||'{}');
+    if(stored.url && stored.key){
+      _sbUrl = stored.url; _sbAnonKey = stored.key; _sbReady = true;
+      updateSyncBadge(true);
+    }
+  }catch(e){}
+}
+
+function updateSyncBadge(ok){
+  const b = document.getElementById('syncBadge');
+  if(!b) return;
+  if(ok){ b.textContent='☁ 동기화 ON'; b.style.color='#4caf84'; b.style.borderColor='#2a4a2a'; b.style.opacity='1'; }
+  else { b.textContent='☁ 로컬 모드'; b.style.color='var(--muted)'; b.style.borderColor='#333'; b.style.opacity='.6'; }
+}
+
+// ── Supabase REST API 헬퍼 ──
+async function sbFetch(method, path, body){
+  if(!_sbReady) return null;
+  const res = await fetch(_sbUrl + '/rest/v1' + path, {
+    method,
+    headers:{
+      'Content-Type':'application/json',
+      'apikey': _sbAnonKey,
+      'Authorization': 'Bearer ' + _sbAnonKey,
+      'Prefer': method==='POST' ? 'return=representation' : 'return=minimal'
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if(!res.ok){
+    const err = await res.text();
+    throw new Error('Supabase 오류: ' + err);
+  }
+  try{ return await res.json(); }catch(e){ return null; }
+}
+
+// ── AI 호출 — Vercel Serverless Function ──
+async function ai(prompt, maxT){
+  maxT = maxT || 4096;
+  const res = await fetch(API_BASE + '/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, maxTokens: maxT })
+  });
+  if(!res.ok){
+    const err = await res.json().catch(()=>({error:'서버 오류'}));
+    throw new Error(err.error || 'AI 응답 오류');
+  }
+  const data = await res.json();
+  if(data.source === 'paid') snack('💎 유료 키 사용 중');
+  return data.text || '';
+}
+
+// 구버전 호환 더미 (쓰이지 않지만 에러 방지)
+function loadKeys(){}
+function updateBadge(){}
+function openKeyModal(){ openDbModal(); }
+function closeKeyModal(){ closeDbModal(); }
+
+// ════════════════════════════════
+// 탭 전환
+// ════════════════════════════════
+function go(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById(id+'Page').classList.add('on');
+  const tabs = ['consulting','call','why'];
+  document.querySelectorAll('.tab')[tabs.indexOf(id)].classList.add('on');
+  if(id==='why') updateWhyContextBanner();
+}
+
+// ════════════════════════════════
+// 스낵바
+// ════════════════════════════════
+function snack(msg){
+  const el = document.getElementById('snack');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 2500);
+}
+
+// ════════════════════════════════
+// 상담 탭
+// ════════════════════════════════
+let consultMode = 'saju';
+let spreadCount = 1;
+let drawnCards = [];
+let chatHistory = [];
+let lastConsultInfo = {};
+
+const TAROT_78 = [
+  '바보','마법사','여사제','황후','황제','교황','연인','전차','힘','은둔자',
+  '운명의 수레바퀴','정의','매달린 사람','죽음','절제','악마','탑','별','달','태양',
+  '심판','세계',
+  '완드에이스','완드2','완드3','완드4','완드5','완드6','완드7','완드8','완드9','완드10',
+  '완드시종','완드기사','완드여왕','완드왕',
+  '컵에이스','컵2','컵3','컵4','컵5','컵6','컵7','컵8','컵9','컵10',
+  '컵시종','컵기사','컵여왕','컵왕',
+  '검에이스','검2','검3','검4','검5','검6','검7','검8','검9','검10',
+  '검시종','검기사','검여왕','검왕',
+  '펜타클에이스','펜타클2','펜타클3','펜타클4','펜타클5','펜타클6',
+  '펜타클7','펜타클8','펜타클9','펜타클10','펜타클시종','펜타클기사','펜타클여왕','펜타클왕'
+];
+
+const SPREAD_NAMES = {
+  1: ['현재 에너지'],
+  3: ['과거','현재','미래'],
+  5: ['현재 상황','장애물','조언','가까운 미래','결과']
+};
+
+function setMode(btn, mode){
+  document.querySelectorAll('#modeSelect .sp-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  consultMode = mode;
+  document.getElementById('tarotSection').style.display = (mode==='tarot'||mode==='both') ? 'block' : 'none';
+  drawnCards = [];
+  document.getElementById('drawnCards').innerHTML = '';
+}
+
+function setSpread(btn, n){
+  document.querySelectorAll('#spreadSel .sp-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  spreadCount = n;
+  drawnCards = [];
+  document.getElementById('drawnCards').innerHTML = '';
+}
+
+function drawCards(){
+  const shuffled = [...TAROT_78].sort(()=>Math.random()-.5);
+  drawnCards = shuffled.slice(0, spreadCount);
+  const names = SPREAD_NAMES[spreadCount];
+  document.getElementById('drawnCards').innerHTML = drawnCards.map((c,i)=>`
+    <div class="drawn-card">
+      <div class="pos">${names[i]||'카드'+(i+1)}</div>
+      <div class="name">${c}</div>
+    </div>`).join('');
+  snack(`${spreadCount}장 뽑았습니다 ✓`);
+}
+
+async function startConsulting(){
+  const name = document.getElementById('cName').value.trim() || '내담자';
+  const gender = document.getElementById('cGender').value;
+  const birth = document.getElementById('cBirth').value;
+  const hour = document.getElementById('cHour').value;
+  const topic = document.getElementById('cTopic').value;
+  const q = document.getElementById('cQ').value.trim();
+
+  if((consultMode==='saju'||consultMode==='both') && !birth){
+    snack('생년월일을 입력해주세요.'); return;
+  }
+  if((consultMode==='tarot'||consultMode==='both') && !drawnCards.length){
+    snack('카드를 먼저 뽑아주세요.'); return;
+  }
+
+  // 상대방 정보 수집
+  let partnerInfo = '';
+  if(document.getElementById('partnerToggle').checked){
+    const pName = document.getElementById('pName').value.trim();
+    const pGender = document.getElementById('pGender').value;
+    const pBirth = document.getElementById('pBirth').value;
+    const pRelation = document.getElementById('pRelation').value;
+    if(pName || pBirth){
+      partnerInfo = `\n상대방: ${pName||'미상'}(${pGender}) ${pBirth||'생년미상'} / 현재관계: ${pRelation}`;
+    }
+  }
+
+  const btn = document.getElementById('startBtn');
+  btn.disabled = true; btn.textContent = '분석 중...';
+  document.getElementById('sajuTableWrap').style.display='none';
+  document.getElementById('consultResult').innerHTML = `<div class="card"><div class="loading"><div class="dot-spin"><span></span><span></span><span></span></div>천운이 분석 중입니다...</div></div>`;
+  document.getElementById('consultChat').style.display = 'none';
+
+  try{
+    let prompt = '';
+
+    if(consultMode === 'saju'){
+      prompt = buildSajuPrompt(name, gender, birth, hour, topic, q, partnerInfo);
+    } else if(consultMode === 'tarot'){
+      prompt = buildTarotPrompt(name, topic, q, partnerInfo);
+    } else {
+      prompt = buildBothPrompt(name, gender, birth, hour, topic, q, partnerInfo);
+    }
+
+    const txt = await ai(prompt, 8192);
+    const bubs = parseBubs(txt);
+    
+    // 사주 명식표 먼저 렌더링 (사주/사주+타로 모드)
+    if(consultMode !== 'tarot'){
+      renderSajuTable(birth, hour, gender, name);
+    }
+    renderBubs(bubs, 'consultResult');
+
+    lastConsultInfo = {name, gender, birth, hour, topic, q, mode: consultMode, cards: drawnCards.join('/')};
+    renderWhyLink(lastConsultInfo);
+    chatHistory = [{role:'assistant', content: bubs.join('\n\n')}];
+    document.getElementById('chatBox').innerHTML = '';
+    document.getElementById('consultChat').style.display = 'block';
+    snack('분석 완료! 💬 추가 질문 가능 / 💾 고객 저장 가능');
+  } catch(e){
+    document.getElementById('consultResult').innerHTML = `<div class="card" style="color:var(--red)">오류: ${e.message}</div>`;
+  }
+  btn.disabled=false; btn.textContent='✦ 상담 시작';
+}
+
+
+// ── 사주 명식표 화면 렌더링 ──
+function renderSajuTable(birth, hour, gender, name){
+  const saju = calcSaju(birth, hour, gender);
+  if(!saju) return;
+  
+  const el = document.getElementById('sajuTableWrap');
+  if(!el) return;
+  
+  const OH_COLOR = {
+    '갑':'#2d6a2d','을':'#2d6a2d','병':'#8b2020','정':'#8b2020',
+    '무':'#7a5a00','기':'#7a5a00','경':'#3a3a5c','신':'#3a3a5c',
+    '임':'#1a3a5c','계':'#1a3a5c'
+  };
+  const B_COLOR = {
+    '자':'#1a3a5c','축':'#7a5a00','인':'#2d6a2d','묘':'#2d6a2d',
+    '진':'#7a5a00','사':'#8b2020','오':'#8b2020','미':'#7a5a00',
+    '신':'#3a3a5c','유':'#3a3a5c','술':'#7a5a00','해':'#1a3a5c'
+  };
+  
+  function cell(char, isB){
+    const c = isB ? B_COLOR[char]||'#333' : OH_COLOR[char]||'#333';
+    return `<td style="text-align:center;font-weight:800;font-size:1.1rem;padding:8px 4px;color:#fff;background:${c};border:1px solid rgba(255,255,255,.1)">${char}</td>`;
+  }
+  
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-title">🔮 ${name}님 사주 명식</div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:10px">
+        <thead>
+          <tr style="font-size:.7rem;color:var(--muted)">
+            <th style="padding:4px;text-align:center;font-weight:400">시</th>
+            <th style="padding:4px;text-align:center;font-weight:400">일</th>
+            <th style="padding:4px;text-align:center;font-weight:400">월</th>
+            <th style="padding:4px;text-align:center;font-weight:400">년</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>${cell(saju.hp[0]||'?',false)}${cell(saju.dp[0],false)}${cell(saju.mp[0],false)}${cell(saju.yp[0],false)}</tr>
+          <tr>${cell(saju.hp[1]||'?',true)}${cell(saju.dp[1],true)}${cell(saju.mp[1],true)}${cell(saju.yp[1],true)}</tr>
+        </tbody>
+      </table>
+      <div style="font-size:.74rem;color:var(--muted);line-height:1.9">
+        일간 <span style="color:var(--gold2);font-weight:700">${saju.dp[0]}</span> · 
+        현재 대운 <span style="color:var(--purple2);font-weight:700">${saju.curDaeun}</span>(${saju.curDaeunAge}세~) · 
+        세운 <span style="color:var(--mint);font-weight:700">${saju.seun2026}</span>(${saju.thisYear})
+      </div>
+    </div>`;
+  el.style.display = 'block';
+}
+
+// ════════════════════════════════
+// 사주 계산 엔진 (만세력 기반 정확 계산)
+// ════════════════════════════════
+const _S = ['갑','을','병','정','무','기','경','신','임','계'];
+const _B = ['자','축','인','묘','진','사','오','미','신','유','술','해'];
+
+function _gz(n){ n=((n%60)+60)%60; return _S[n%10]+_B[n%12]; }
+
+// 일주: 기준일 1999-12-28 = 갑자
+function _dayPillar(y,m,d){
+  const base = new Date(1999,11,28); // 갑자일
+  const target = new Date(y,m-1,d);
+  const diff = Math.round((target-base)/86400000);
+  return _gz(diff);
+}
+
+// 년주: 입춘(2월4일) 기준
+function _yearPillar(y,m,d){
+  const sy = (m<2||(m===2&&d<4)) ? y-1 : y;
+  const idx = ((sy-1984)%60+60)%60;
+  return _gz(idx);
+}
+
+// 월주: 오호둔월법 + 절기 기준
+function _monthPillar(y,m,d){
+  // 절입일 (평균값, ±1일 오차 가능)
+  const TERM_DAY = [0,6,4,6,5,6,6,7,7,8,8,7,7]; // [미사용,축,인,묘,진,사,오,미,신,유,술,해,자]
+  // 양력월→지지 (절기 이전이면 전월)
+  const M2B = [0,1,2,3,4,5,6,7,8,9,10,11,0]; // 1월→축(1)? 아니면 자(0)?
+  // 절기 기준 지지 (절입일 이후)
+  // 1월 소한(6일) 이후→축월, 2월 입춘(4일) 이후→인월
+  const termDay = [0,6,4,6,5,6,6,7,7,8,8,7,7]; // index=month
+  const branchAfter = [0,1,2,3,4,5,6,7,8,9,10,11,0]; // index=month
+  const branchBefore= [0,0,1,2,3,4,5,6,7,8,9,10,11]; // 절기 이전
+  
+  let branch;
+  if(d >= termDay[m]){
+    branch = branchAfter[m];
+  } else {
+    branch = branchBefore[m];
+  }
+  
+  // 해당 월의 년도 기준 (입춘 기준 년)
+  const refYear = (m<2||(m===2&&d<4)) ? y-1 : y;
+  const yStemIdx = ((refYear-1984)%10+10)%10;
+  
+  // 오호둔월법: 년간별 인월 시작 천간
+  const START = [2,4,6,8,0,2,4,6,8,0]; // 갑~계 순서
+  const startStem = START[yStemIdx];
+  const rel = ((branch-2)%12+12)%12;
+  const stemIdx = (startStem+rel)%10;
+  
+  return _S[stemIdx]+_B[branch];
+}
+
+// 시주: 오자둔시법
+const _HOUR_BRANCH = {
+  '자시':0,'축시':1,'인시':2,'묘시':3,'진시':4,'사시':5,
+  '오시':6,'미시':7,'신시':8,'유시':9,'술시':10,'해시':11
+};
+function _hourPillar(dayStr, hourStr){
+  if(!hourStr||!_HOUR_BRANCH.hasOwnProperty(hourStr)) return null;
+  const ds = _S.indexOf(dayStr[0]);
+  const hb = _HOUR_BRANCH[hourStr];
+  const START_H = [0,2,4,6,8,0,2,4,6,8];
+  return _S[(START_H[ds]+hb)%10]+_B[hb];
+}
+
+// 대운수 계산 (양남음녀: 순행 / 음남양녀: 역행)
+function _calcDaeun(y,m,d,gender){
+  const yp = _yearPillar(y,m,d);
+  const yStemIdx = _S.indexOf(yp[0]);
+  const isYang = yStemIdx%2===0; // 양간
+  const isForward = (isYang && gender==='남성') || (!isYang && gender==='여성');
+  
+  // 현재 월주 절입일에서 가장 가까운 절기까지 날수
+  const termDays = [0,6,4,6,5,6,6,7,7,8,8,7,7];
+  let days;
+  if(isForward){
+    // 다음 절기까지 날수
+    const nextTerm = termDays[m===12?1:m+1];
+    const nextTermDate = new Date(m===12?y+1:y, m===12?0:m, nextTerm);
+    const birth = new Date(y,m-1,d);
+    days = Math.round((nextTermDate-birth)/86400000);
+  } else {
+    // 이전 절기까지 날수
+    const thisTerm = termDays[m];
+    if(d >= thisTerm){
+      days = d - thisTerm;
+    } else {
+      const prevM = m===1?12:m-1;
+      const prevTerm = termDays[prevM];
+      days = d + (new Date(m===1?y-1:y,m===2?0:m-1,1)-new Date(m===1?y-1:y,m===2?0:m-1,prevTerm))/86400000;
+      days = Math.max(0, Math.round(days));
+    }
+  }
+  
+  const years = Math.round(days/3); // 3일 = 1년
+  return {startAge: years, isForward};
+}
+
+// 핵심 함수: 전체 사주 명식 계산
+function calcSaju(birthStr, hourStr, gender){
+  if(!birthStr) return null;
+  const d = new Date(birthStr);
+  if(isNaN(d)) return null;
+  const y=d.getFullYear(), m=d.getMonth()+1, day=d.getDate();
+  
+  const yp = _yearPillar(y,m,day);
+  const mp = _monthPillar(y,m,day);
+  const dp = _dayPillar(y,m,day);
+  const hp = _hourPillar(dp, hourStr) || '미상';
+  const daeun = _calcDaeun(y,m,day,gender);
+  
+  // 현재 대운 계산 (2026년 기준)
+  const currentYear = new Date().getFullYear(); // 실제 현재 연도 자동 인식
+  const nextYear = currentYear + 1;
+  const age = currentYear - y;
+  const daeunNum = daeun.startAge;
+  
+  // 대운 천간지지 순서
+  const mpBranchIdx = _B.indexOf(mp[1]);
+  const mpStemIdx = _S.indexOf(mp[0]);
+  
+  let currentDaeunPillars = [];
+  for(let i=0; i<8; i++){
+    const offset = daeun.isForward ? i+1 : -(i+1);
+    const s = ((_S.indexOf(mp[0])+10+offset)%10+10)%10;
+    const b = ((_B.indexOf(mp[1])+12+offset)%12+12)%12;
+    const startAge2 = daeunNum + i*10;
+    currentDaeunPillars.push({pillar:_S[s]+_B[b], startAge:startAge2});
+  }
+  
+  // 현재 대운 찾기
+  let curDaeun = currentDaeunPillars[0];
+  for(const de of currentDaeunPillars){
+    if(age >= de.startAge) curDaeun = de;
+  }
+  
+  // 세운 — 현재 연도 자동 계산
+  const seunIdx = ((currentYear-1984)%60+60)%60;
+  const seun2026 = _gz(seunIdx); // 변수명 유지 (호환성)
+  const seunIdx27 = ((nextYear-1984)%60+60)%60;
+  const seun2027 = _gz(seunIdx27);
+  
+  return {
+    year:y, month:m, day,
+    yp, mp, dp, hp,
+    ilgan: dp[0],
+    daeunStart: daeunNum,
+    curDaeun: curDaeun.pillar,
+    curDaeunAge: curDaeun.startAge,
+    seun2026, seun2027,
+    thisYear: currentYear,
+    nextYear: nextYear,
+    age,
+    pillarsText: `년주 ${yp} / 월주 ${mp} / 일주 ${dp} / 시주 ${hp}`
+  };
+}
+
+
+// ════════════════════════════════
+// 답변 다양성 엔진
+// ════════════════════════════════
+
+// 분석 각도 목록 (매번 다른 각도 강제)
+const ANALYSIS_ANGLES = [
+  {name:'일간 특성', hint:'일간(일주 천간)의 오행 특성과 성격에서 출발해서 분석하세요. 이 사람이 타고난 기질이 어떻게 이 상황에 영향을 주는지 중심으로.'},
+  {name:'대운 흐름', hint:'현재 대운의 천간지지가 어떤 에너지를 만들어내는지 중심으로 분석하세요. 대운이 바뀌는 시기와 그 의미를 구체적으로.'},
+  {name:'올해 세운', hint:'올해 세운의 오행이 이 사람 사주와 어떻게 작용하는지 중심으로. 올해 특히 어떤 달이 중요한지 월별로.'},
+  {name:'월주 분석', hint:'월주(생월의 기운)가 이 사람의 삶에 어떤 패턴을 만드는지 중심으로. 성장 환경과 현재 상황의 연결고리를.'},
+  {name:'일주 궁합', hint:'일주 전체(천간+지지)의 조합이 가진 특별한 의미와 이 사람의 대인관계 패턴을 중심으로.'},
+  {name:'용신/기신', hint:'이 사람에게 힘이 되는 기운(용신)과 조심해야 할 기운(기신)을 중심으로. 일상에서 활용할 수 있는 구체적인 방법으로.'},
+  {name:'시기와 흐름', hint:'앞으로 3~6개월의 월별 흐름을 구체적으로. "○월에는~", "○월 지나면~" 식으로 시기를 명확히.'},
+  {name:'감정과 심리', hint:'사주에서 보이는 이 사람의 감정 패턴과 내면의 흐름 중심으로. 지금 마음속에서 일어나는 것들을 공감하며.'},
+];
+
+// 상담 카운터 (같은 주제 반복 시 각도 순환)
+const _angleCount = {};
+
+function getAngle(topic) {
+  const key = topic || 'general';
+  if(!_angleCount[key]) _angleCount[key] = 0;
+  const angle = ANALYSIS_ANGLES[_angleCount[key] % ANALYSIS_ANGLES.length];
+  _angleCount[key]++;
+  return angle;
+}
+
+// 다양한 비유 풀 (매번 다른 비유 사용)
+const METAPHORS = [
+  '봄에 씨앗이 땅속에서 준비하다가 때가 되면 싹을 틔우듯',
+  '파도가 쉬지 않고 치다가 어느 순간 잔잔해지듯',
+  '겨울이 가장 추울 때가 봄이 가장 가까운 때이듯',
+  '터널을 달리는 기차가 출구가 없어 보여도 반드시 끝이 있듯',
+  '밤하늘이 가장 어두울 때 별이 가장 밝게 빛나듯',
+  '강물이 바위에 막혀도 결국 돌아가서 흐르듯',
+  '매화가 눈 속에서도 꽃을 피우듯',
+  '나무가 폭풍에 흔들려도 뿌리는 더 깊이 내리듯',
+];
+
+function getMetaphor() {
+  return METAPHORS[Math.floor(Math.random() * METAPHORS.length)];
+}
+
+// 이미 한 말 추적 (전화상담용)
+function getSaidTopics(history) {
+  if(!history || history.length === 0) return '';
+  const topics = [];
+  if(history.some(h => h.a && h.a.includes('대운'))) topics.push('대운');
+  if(history.some(h => h.a && h.a.includes('세운'))) topics.push('세운');
+  if(history.some(h => h.a && h.a.includes('일간'))) topics.push('일간 특성');
+  if(history.some(h => h.a && h.a.includes('월'))) topics.push('월별 시기');
+  if(topics.length === 0) return '';
+  return '\n⚠️ 이미 언급한 내용: ' + topics.join(', ') + ' → 이 내용과 겹치지 않게 새로운 각도로만 답하세요.';
+}
+
+function buildSajuPrompt(name, gender, birth, hour, topic, q, partnerInfo){
+  const d = new Date(birth);
+  const y = d.getFullYear(), m = d.getMonth()+1, day = d.getDate();
+  const hourTxt = hour ? `${hour}` : '시간 모름';
+  
+  // ── 사주 정확 계산 ──
+  const saju = calcSaju(birth, hour, gender);
+  const sajuInfo = saju ? `
+사주 명식 (계산 완료):
+  년주: ${saju.yp} / 월주: ${saju.mp} / 일주: ${saju.dp} / 시주: ${saju.hp}
+  일간: ${saju.ilgan}
+  현재 대운: ${saju.curDaeun} (${saju.curDaeunAge}세 시작)
+  올해(${saju.thisYear}년) 세운: ${saju.seun2026} / 내년(${saju.nextYear}년) 세운: ${saju.seun2027}
+  현재 나이: ${saju.age}세` : `생년월일: ${y}년 ${m}월 ${day}일`;
+
+  // 이번 상담 각도 결정
+  const _angle = getAngle(topic);
+  const _metaphor = getMetaphor();
+
+  return `당신은 30년 경력의 명리학 전문 상담사 천운입니다.
+지금 ${name}님과 카카오톡으로 실시간 상담 중이에요.
+동네 언니나 오빠처럼 편하고 따뜻하게, 사람 냄새 나는 말투로 써주세요.
+
+━━━ 이번 상담 핵심 각도 (반드시 이 각도 중심으로) ━━━
+분석 포인트: ${_angle.name}
+${_angle.hint}
+비유 힌트: "${_metaphor}" 이런 식의 비유를 자연스럽게 하나 녹여서.
+
+━━━ 절대 금지 ━━━
+"~나타냅니다" "~의미합니다" "~시사합니다" "~상징합니다" "~할 수 있습니다"
+"종합적으로" "전반적으로" "이는~" "이러한~" "~음을" "~것으로 보입니다"
+→ 이런 AI 보고서 말투 쓰면 실패. 진짜 사람처럼 말할 것.
+
+━━━ 좋은 예시 ━━━
+❌ "현재 대운은 변화의 시기를 나타냅니다"
+✅ "지금 딱 운이 바뀌는 시기거든요~ 그래서 요즘 뭔가 흔들리는 느낌 드시죠?"
+❌ "용신을 활용하시면 좋은 결과가 기대됩니다"
+✅ "${name}님한테 잘 맞는 기운이 있어요, 이걸 생활에서 써보시면 달라져요"
+
+━━━ 내담자 & 사주 명식 ━━━
+이름: ${name}(${gender}) / ${y}년 ${m}월 ${day}일생 / ${hourTxt}
+${sajuInfo}
+상담 주제: ${topic}${partnerInfo}
+질문: ${q||'없음'}
+
+━━━ 규칙 ━━━
+• 위 사주 명식을 반드시 그대로 사용. 절대 임의로 계산하지 말 것.
+• [말풍선] 태그로 정확히 5개. 5개 안 쓰면 실패.
+• 말풍선 하나에 2~3문장. 짧고 임팩트 있게.
+• 한자 절대 금지. ${name}님 호칭. 존댓말이지만 친근하게.
+• 흐름: 공감 → 지금 운 → 시기 → 조언 → 응원
+
+[말풍선]
+첫인상 공감 — 사주 딱 보자마자 느낀 것. "${name}님 일간이~" 또는 "어, 이분~" 식으로 (2~3문장)
+
+[말풍선]
+지금 운 흐름 — 대운·세운을 생활 언어로. "요즘 이런 느낌 드시죠?" ${topic} 자연 연결 (2~3문장)
+
+[말풍선]
+시기 — "${topic} 언제냐면~" 월별로 "○월에는~" 식 (2~3문장)
+
+[말풍선]
+실용 팁 — 용신을 일상 팁으로. "이렇게 해보시면~" (2~3문장)
+
+[말풍선]
+진심 마무리 — 상담사 천운의 진심. 따뜻하고 힘이 되는 한마디 (2~3문장)`;
+}
+
+function buildTarotPrompt(name, topic, q, partnerInfo){
+  const cardStr = drawnCards.map((c,i)=>{
+    const pos = SPREAD_NAMES[spreadCount][i] || `카드${i+1}`;
+    return `${pos}: ${c}`;
+  }).join(' / ');
+
+  // 최소 5개 보장 — 카드 수 적으면 종합 말풍선 추가로 채움
+  const cardCount = drawnCards.length;
+  const totalBubs = Math.max(5, cardCount + 1);
+
+  const _tAngle = getAngle(topic + '_tarot');
+  const _tMetaphor = getMetaphor();
+
+  return `당신은 20년 경력 타로 상담사 천운입니다.
+지금 ${name}님과 카카오톡으로 타로 상담 중이에요.
+카드를 같이 보면서 이야기 나누듯, 편하고 따뜻한 말투로 써주세요.
+
+━━━ 이번 리딩 핵심 각도 ━━━
+${_tAngle.hint}
+비유: "${_tMetaphor}" 느낌으로 한 번 자연스럽게.
+
+━━━ 절대 금지 ━━━
+"~나타냅니다" "~의미합니다" "~시사합니다" "~상징합니다" "~할 수 있습니다"
+"종합적으로" "전반적으로" "이는~" "~것으로 보입니다"
+→ AI 보고서 말투 금지. 타로 선생님이 카드 보며 이야기하듯.
+
+━━━ 좋은 예시 ━━━
+❌ "이 카드는 새로운 시작을 의미합니다"
+✅ "어, 이 카드 나왔네요! 이거 진짜 좋은 카드거든요~ 뭔가 새로 열리는 느낌이에요"
+❌ "장애물 카드는 어려움을 나타냅니다"
+✅ "이 자리에 이 카드가 나왔다는 건~ 지금 이 부분이 좀 막혀있다는 거거든요"
+
+━━━ 내담자 ━━━
+이름: ${name} / 주제: ${topic}
+질문: ${q||'없음'}
+뽑힌 카드: ${cardStr}
+
+━━━ 규칙 ━━━
+• [말풍선] 태그로 정확히 ${totalBubs}개. ${totalBubs}개 미만이면 실패.
+• 각 말풍선 2~3문장. 짧고 생생하게.
+• 한자 절대 금지. ${name}님 호칭.
+• 카드 이름 자연스럽게 대화에 녹이기.
+• 마지막은 전체 흐름 종합 + 따뜻한 마무리.
+
+[말풍선]
+"${name}님 카드 뽑으셨네요! 오늘 패가~" 식으로 첫 인상 + 전체 분위기 읽기 (2~3문장)
+
+${drawnCards.map((c,i)=>{
+  const pos = SPREAD_NAMES[spreadCount][i]||`카드${i+1}`;
+  return `[말풍선]\n${pos} 자리에 나온 "${c}" 카드 — ${topic}에 대해 이 카드가 전하는 메시지를 대화체로 (2~3문장)`;
+}).join('\n\n')}
+
+${totalBubs > cardCount + 1 ? `[말풍선]\n카드들의 전체 흐름을 보면~ (2~3문장)\n` : ''}
+[말풍선]
+모든 카드를 종합해서 ${name}님께 드리는 천운의 한마디. 따뜻하고 힘이 되는 마무리 (2~3문장)`;
+}
+
+function buildBothPrompt(name, gender, birth, hour, topic, q, partnerInfo){
+  const d = new Date(birth);
+  const y = d.getFullYear(), m = d.getMonth()+1, day = d.getDate();
+  // 중첩 백틱 방지 — 사주 미리 계산
+  const _bs = calcSaju(birth, hour, gender);
+  const _bsCtx = _bs
+    ? '사주: 년'+_bs.yp+'/월'+_bs.mp+'/일'+_bs.dp+'/시'+_bs.hp+' | 일간:'+_bs.ilgan+' | 대운:'+_bs.curDaeun+'('+_bs.curDaeunAge+'세) | 세운:'+_bs.seun2026
+    : y+'년 '+m+'월 '+day+'일생';
+  const cardStr = drawnCards.map((c,i)=>{
+    const pos = SPREAD_NAMES[spreadCount][i]||`카드${i+1}`;
+    return `${pos}: ${c}`;
+  }).join(' / ');
+
+  const _bAngle = getAngle(topic + '_both');
+  const _bMetaphor = getMetaphor();
+
+  return `당신은 30년 경력 명리학·타로 통합 상담사 천운입니다.
+지금 ${name}님과 카카오톡으로 실시간 상담 중입니다.
+사주와 타로 두 개를 같이 보면서 이야기를 풀어가듯, 친근한 티키타카 말투로 작성하세요.
+
+━━━ 이번 통합 분석 각도 ━━━
+${_bAngle.hint}
+비유: "${_bMetaphor}" 느낌으로 자연스럽게 하나.
+
+━━━ 절대 금지 표현 ━━━
+"~을 나타냅니다" "~을 의미합니다" "~라고 할 수 있습니다" "~음을 시사합니다"
+"종합적으로 볼 때" "전반적으로" "상징합니다" "암시합니다"
+→ 이런 AI 보고서 말투 절대 쓰지 마세요. 실제 상담사처럼 말하세요.
+
+━━━ 올바른 말투 예시 ━━━
+❌ "현재 대운은 변화를 나타냅니다"
+✅ "지금 대운이 딱 바뀌는 시기거든요, 그래서 이게 좀 흔들리는 느낌이 드시는 거예요"
+❌ "이 카드는 새로운 시작을 의미합니다"  
+✅ "어머, 이 카드 나왔네요! 이거 좋은 카드예요. 뭔가 새로 시작되는 기운이 딱~"
+
+━━━ 내담자 & 사주 명식 ━━━
+이름: ${name}(${gender}) / ${y}년 ${m}월 ${day}일생 / ${hour||'시간모름'}
+${_bsCtx}
+상담 주제: ${topic}${partnerInfo} / 질문: ${q||'없음'}
+타로 카드: ${cardStr}
+⚠️ 위 사주 명식을 그대로 사용. AI가 임의 계산 금지.
+
+━━━ 핵심 규칙 ━━━
+• [말풍선] 태그로 정확히 5개 작성. 5개 미만이면 실패.
+• 각 말풍선 2~3문장. 절대로 길게 쓰지 말 것.
+• 한자 절대 금지. ${name}님 호칭.
+• 말풍선마다 내용이 자연스럽게 이어져야 함 (대화처럼).
+
+[말풍선]
+처음 보는 순간 느낌 — "${name}님 사주 보자마자~", "어, 이 일간이~" 식으로 첫인상 공감 (2~3문장)
+
+[말풍선]
+지금 흐름 — "요즘 이런 느낌 드시죠?" 식으로 현재 대운·세운을 생활 밀착형으로 풀기. ${topic} 연결 (2~3문장)
+
+[말풍선]
+타로 카드 읽기 — "${drawnCards[0]||'이 카드'} 나왔네요~" 식으로 카드 메시지를 사주와 연결해서 (2~3문장)
+
+[말풍선]
+구체적 시기 — "그러면 ${topic}은 언제가 좋냐면~" 식으로 월별로 자연스럽게 (2~3문장)
+
+[말풍선]
+마무리 — "그래서 제가 드리고 싶은 말씀은~" 식으로 진심 담은 조언 + 응원 (2~3문장)`;
+}
+
+function parseBubs(txt){
+  const parts = txt.split(/\[말풍선\]/);
+  return parts.map(p=>p.trim()).filter(p=>p.length>10);
+}
+
+function renderBubs(bubs, targetId){
+  const wrap = document.createElement('div');
+  wrap.className = 'card bubs-wrap';
+  wrap.innerHTML = `<div class="card-title">💬 상담 말풍선 (복사해서 카톡 전송)</div>`;
+  bubs.forEach((b,i)=>{
+    const div = document.createElement('div');
+    div.className = 'bub';
+    div.style.paddingTop = '20px';
+    div.innerHTML = `<span class="bub-num">말풍선 ${i+1}</span>${b.replace(/\n/g,'<br>')}
+      <button class="bub-copy" onclick="copyText(this.previousSibling.textContent)">복사</button>`;
+    wrap.appendChild(div);
+  });
+
+  // 전체 복사 버튼
+  const copyAll = document.createElement('button');
+  copyAll.className = 'copy-all-btn';
+  copyAll.innerHTML = '📋 전체 복사 (말풍선 사이 줄바꿈 포함)';
+  copyAll.onclick = () => {
+    const allText = bubs.join('\n\n──────────────\n\n');
+    navigator.clipboard.writeText(allText).then(()=>snack('전체 복사됨 ✓'));
+  };
+  wrap.appendChild(copyAll);
+  document.getElementById(targetId).innerHTML = '';
+  document.getElementById(targetId).appendChild(wrap);
+}
+
+function copyText(txt){
+  const clean = txt.replace(/복사$/,'').trim();
+  navigator.clipboard.writeText(clean).then(()=>snack('복사됨 ✓'));
+}
+
+// ── 채팅 이어서 ──
+async function sendChat(){
+  const input = document.getElementById('chatInput');
+  const q = input.value.trim();
+  if(!q) return;
+  input.value = '';
+
+  const box = document.getElementById('chatBox');
+  box.innerHTML += `<div class="msg me"><div class="bubble">${q}</div></div>`;
+  box.scrollTop = box.scrollHeight;
+
+  chatHistory.push({role:'user', content: q});
+
+  const info = lastConsultInfo;
+  const ctx = chatHistory.slice(-4).map(h=>`${h.role==='user'?'내담자':'천운'}: ${h.content}`).join('\n\n');
+
+  const prompt = `당신은 30년 경력 명리학·타로 상담사 천운입니다.
+현재 ${info.name||'내담자'}님과 ${info.topic} 상담 중입니다.
+이전 대화를 이어서, 새 질문에 카카오톡 대화체로 답변하세요.
+한자 금지. 2~4문장으로 짧고 명확하게. [말풍선] 1개만 작성.
+
+이전 대화:
+${ctx}
+
+새 질문: ${q}
+
+[말풍선]`;
+
+  try{
+    const txt = await ai(prompt, 4096);
+    const answer = txt.replace(/\[말풍선\]/g,'').trim();
+    box.innerHTML += `<div class="msg ai"><div class="bubble">${answer.replace(/\n/g,'<br>')}<br><button onclick="navigator.clipboard.writeText(this.parentElement.innerText.replace('복사','').trim()).then(()=>snack('복사됨 ✓'))" style="font-size:.65rem;color:var(--muted);background:none;border:none;cursor:pointer;margin-top:4px">복사</button></div></div>`;
+    box.scrollTop = box.scrollHeight;
+    chatHistory.push({role:'assistant', content: answer});
+  } catch(e){
+    box.innerHTML += `<div class="msg ai"><div class="bubble" style="color:var(--red)">오류: ${e.message}</div></div>`;
+  }
+}
+
+// ════════════════════════════════
+// 전화상담 탭
+// ════════════════════════════════
+let callData = {};
+let callHistory = []; // 전화상담 대화 기록
+
+
+// 전화상담 탭 고객 불러오기
+// toggleCallClientList, loadCallClient — 하단 Supabase 버전 사용
+
+async function startCall(){
+  const name = document.getElementById('callName').value.trim() || '내담자';
+  const birth = document.getElementById('callBirth').value;
+  const gender = document.getElementById('callGender').value;
+  const topic = document.getElementById('callTopic').value;
+
+  if(!birth){ snack('생년월일을 입력하세요.'); return; }
+
+  const d = new Date(birth);
+  const y = d.getFullYear(), m = d.getMonth()+1, day = d.getDate();
+  callData = {name, birth, gender, topic, y, m, day};
+
+  // 기본 정보 표시
+  // 사주 계산
+  const callSaju = calcSaju(birth, '', gender);
+  const sajuLine = callSaju
+    ? `<span style="color:var(--purple2);font-size:.74rem">일간 ${callSaju.ilgan} · 대운 ${callSaju.curDaeun} · 세운 ${callSaju.seun2026}</span>`
+    : '';
+
+  document.getElementById('callInfoBox').innerHTML = `
+    <b style="color:var(--gold2)">${name}님</b> · ${gender} · ${y}년생<br>
+    ${sajuLine}<br>
+    상담 주제: <b style="color:var(--gold2)">${topic}</b><br>
+    <span style="color:var(--muted);font-size:.75rem">전화 중 나온 질문을 아래 버튼으로 바로 확인하세요</span>`;
+
+  document.getElementById('callReady').style.display = 'block';
+  callHistory = []; // 새 전화 시작 시 초기화
+  document.getElementById('callChatCard').style.display='none';
+  document.getElementById('callChatLog').innerHTML='';
+  snack('전화상담 준비 완료 ✓');
+}
+
+// 전화상담 빠른질문 탭 전환
+function setCqTab(idx){
+  for(let i=0;i<4;i++){
+    document.getElementById('cqTab'+i).classList.toggle('on', i===idx);
+    document.getElementById('cqPanel'+i).style.display = i===idx?'flex':'none';
+  }
+}
+
+// 대화 초기화
+function clearCallChat(){
+  callHistory = [];
+  document.getElementById('callChatLog').innerHTML='';
+  document.getElementById('callChatCard').style.display='none';
+  snack('대화 초기화됨');
+}
+
+async function callQ(question){
+  if(!question || !question.trim()){ return; }
+  if(!callData.name){ snack('전화상담 정보를 먼저 입력하세요.'); return; }
+
+  const {name, gender, birth, topic} = callData;
+
+  // 대화창 표시 + 질문 추가
+  const chatCard = document.getElementById('callChatCard');
+  const chatLog  = document.getElementById('callChatLog');
+  chatCard.style.display = 'block';
+
+  // 질문 말풍선 추가
+  const qDiv = document.createElement('div');
+  qDiv.style.cssText = 'align-self:flex-end;background:rgba(255,185,0,.15);border:1px solid rgba(255,185,0,.3);border-radius:14px 14px 4px 14px;padding:10px 14px;font-size:.83rem;max-width:85%;color:#ffd060';
+  qDiv.textContent = question;
+  chatLog.appendChild(qDiv);
+
+  // 로딩 표시
+  const loadDiv = document.createElement('div');
+  loadDiv.style.cssText = 'align-self:flex-start;color:var(--muted);font-size:.78rem;padding:6px 10px';
+  loadDiv.innerHTML = '<div class="dot-spin"><span></span><span></span><span></span></div>';
+  chatLog.appendChild(loadDiv);
+  chatLog.scrollTop = chatLog.scrollHeight;
+
+  // 사주 계산
+  const saju = calcSaju(birth, '', gender);
+  const sajuCtx = saju
+    ? `사주: 년${saju.yp}/월${saju.mp}/일${saju.dp} | 일간:${saju.ilgan} | 대운:${saju.curDaeun}(${saju.curDaeunAge}세~) | 세운:${saju.seun2026}`
+    : `${callData.y}년 ${callData.m}월 ${callData.day}일생`;
+
+  // 이전 대화 컨텍스트 구성
+  const NL = String.fromCharCode(10);
+  const historyCtx = callHistory.length > 0
+    ? NL+NL+'━━━ 이전 대화 ━━━'+NL
+      + callHistory.slice(-4).map(h=>'Q: '+h.q+NL+'A: '+h.a).join(NL+NL)
+    : '';
+  // 이번 답변 각도 + 다양성
+  const _cAngle = getAngle(topic + '_call');
+  const _cMetaphor = getMetaphor();
+  const _saidWarn = getSaidTopics(callHistory);
+
+  // 재회운 전용 추가 지시
+  const isReunion = topic.includes('재회');
+  const reunionExtra = isReunion ? `
+━━━ 재회운 전용 ━━━
+• 상대방 마음 상태를 사주 대운·세운으로 구체적으로 분석
+• 재회 가능 시기를 월별로 언급 ("○월에는~", "○월 넘어가면~")
+• 매번 다른 각도에서 답변 — 이전 대화와 겹치지 않게
+• 희망적이되 현실적으로. 무조건 된다 금지.` : '';
+
+  const prompt = `당신은 30년 경력 명리학 상담사 천운입니다.
+지금 ${name}님과 전화 통화 중입니다.
+
+내담자: ${name}(${gender})
+${sajuCtx}
+상담 주제: ${topic}${historyCtx}${reunionExtra}
+
+━━━ 지금 질문 ━━━
+"${question}"
+
+━━━ 이번 답변 핵심 각도 (반드시 이 각도로만) ━━━
+${_cAngle.hint}
+비유: "${_cMetaphor}" 느낌의 비유 하나 자연스럽게.${_saidWarn}
+
+━━━ 금지 ━━━
+"나타냅니다" "의미합니다" "시사합니다" AI 보고서 말투 금지.
+이전 대화와 똑같은 답변 절대 금지.
+
+━━━ 규칙 ━━━
+• [말풍선] 태그 3개. 각 2~3문장.
+• 위 사주 명식 그대로. AI 임의계산 금지.
+• 전화 통화체 — "네~", "그게요~", "있잖아요~"
+• 질문에 직접 답하고, 마지막은 따뜻하게.`;
+
+  try{
+    const txt = await ai(prompt, 4096);
+    const bubs = parseBubs(txt);
+
+    // 로딩 제거
+    chatLog.removeChild(loadDiv);
+
+    // 답변 말풍선 누적
+    const ansDiv = document.createElement('div');
+    ansDiv.style.cssText = 'align-self:flex-start;display:flex;flex-direction:column;gap:8px;width:100%';
+    bubs.forEach((b,i)=>{
+      const bDiv = document.createElement('div');
+      bDiv.className = 'bub';
+      bDiv.style.paddingTop = '20px';
+      const NL = String.fromCharCode(10);
+      bDiv.innerHTML = `<span class="bub-num">${i+1}</span>${b.split(NL).join('<br>')}
+        <button class="bub-copy" onclick="navigator.clipboard.writeText(this.previousSibling.textContent).then(()=>snack('복사됨 ✓'))">복사</button>`;
+      ansDiv.appendChild(bDiv);
+    });
+    chatLog.appendChild(ansDiv);
+    chatLog.scrollTop = chatLog.scrollHeight;
+
+    // 대화 기록 저장 (최근 8개만 유지)
+    callHistory.push({q: question, a: bubs.join(' ')});
+    if(callHistory.length > 8) callHistory.shift();
+
+    document.getElementById('callCustomQ').value = '';
+  } catch(e){
+    chatLog.removeChild(loadDiv);
+    const errDiv = document.createElement('div');
+    errDiv.style.cssText = 'color:var(--red);font-size:.8rem;padding:8px';
+    errDiv.textContent = '오류: ' + e.message;
+    chatLog.appendChild(errDiv);
+  }
+}
+
+// ════════════════════════════════
+// 왜요? 연계 로직
+// ════════════════════════════════
+
+// 주제별 연관 질문 매핑
+const WHY_LINK_MAP = {
+  '재회':    ['재회가 가능한가요? 언제쯤 될까요?','상대방이 저를 그리워하고 있나요?','먼저 연락해도 될까요?','재회하면 잘 될 수 있을까요?','왜 헤어지게 된 건가요? 사주로 보면?'],
+  '연애':    ['왜 저는 연애가 안 되는 거예요?','이 사람이 왜 저한테 이러는 거예요?','이 사람 마음이 왜 이렇게 안 열리는 거예요?','이 사람이 저를 좋아하는 건가요?','연락이 갑자기 줄었어요. 왜 그런 건가요?'],
+  '결혼':    ['결혼 운이 없다는 게 정말인가요?','결혼을 결정해도 될까요?','궁합이 안 좋으면 절대 안 되나요?','이 관계가 어디로 가는 건가요?'],
+  '직업':    ['왜 열심히 해도 돈이 안 모이나요?','이직하면 더 나아질까요?','지금 사업 시작해도 될까요?','취업이 잘 안 되는 이유가 뭔가요?','합격운이 있나요?'],
+  '재물':    ['왜 돈이 들어와도 나가버리는 거예요?','왜 투자할 때마다 손해를 보는 거예요?','돈 들어오는 시기가 언제예요?','주식/코인 해도 될까요?'],
+  '사업':    ['왜 지금은 사업이 잘 안 풀리나요?','지금 사업 시작해도 될까요?','왜 열심히 해도 돈이 안 모이나요?','부동산 투자 타이밍은요?'],
+  '운세':    ['왜 올해 이렇게 힘든 거예요?','왜 저는 이렇게 안 풀리는 거예요?','앞으로 좋아지는 시기가 언제예요?','올해 조심해야 할 게 뭐가 있나요?','제 팔자가 원래 이런 건가요?'],
+  '건강':    ['왜 올해 이렇게 힘든 거예요?','올해 조심해야 할 게 뭐가 있나요?','앞으로 좋아지는 시기가 언제예요?'],
+  '이사':    ['왜 올해 변화가 많이 생기는 건가요?','올해 조심해야 할 게 뭐가 있나요?','앞으로 좋아지는 시기가 언제예요?'],
+  '타로':    ['나쁜 카드가 나왔는데 정말 나쁜 건가요?','왜 같은 카드가 자꾸 나오나요?','역방향 카드는 무조건 나쁜 건가요?','카드가 미래를 바꿀 수 있나요?'],
+};
+
+function renderWhyLink(info){
+  const sec = document.getElementById('whyLinkSection');
+  const btns = document.getElementById('whyLinkBtns');
+  if(!sec || !btns) return;
+
+  // 주제에 맞는 질문 찾기
+  const topic = info.topic || '';
+  let qs = [];
+  for(const [key, arr] of Object.entries(WHY_LINK_MAP)){
+    if(topic.includes(key)){ qs = arr; break; }
+  }
+  // 못 찾으면 운세 기본
+  if(!qs.length) qs = WHY_LINK_MAP['운세'];
+
+  btns.innerHTML = qs.map(q =>
+    `<button class="q-btn" onclick="goWhyWithQ(this.dataset.q,this)" data-q="${q.replace(/'/g,'&#39;')}">${q}</button>`
+  ).join('');
+  sec.style.display = 'block';
+}
+
+function goWhyWithQ(questionOrEl, btn){
+  // dataset.q 또는 직접 문자열 둘 다 처리
+  const question = (typeof questionOrEl === 'string') 
+    ? questionOrEl 
+    : (btn && btn.dataset && btn.dataset.q) ? btn.dataset.q : questionOrEl;
+  go('why');
+  setTimeout(()=>{ askWhyWithContext(question); }, 50);
+}
+
+function updateWhyContextBanner(){
+  const banner = document.getElementById('whyContextBanner');
+  const text = document.getElementById('whyContextText');
+  if(!banner || !text) return;
+  if(lastConsultInfo && lastConsultInfo.name){
+    const info = lastConsultInfo;
+    const cardInfo = info.cards ? ` | 카드: ${info.cards}` : '';
+    text.textContent = `${info.name}님 · ${info.topic}${cardInfo}`;
+    banner.style.display = 'block';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+async function askWhyWithContext(question){
+  // 카테고리 자동 선택
+  const topic = lastConsultInfo.topic || '';
+  let cat = 'fortune';
+  if(topic.includes('재회')||topic.includes('이별')) cat='reunion';
+  else if(topic.includes('연애')||topic.includes('결혼')) cat='love';
+  else if(topic.includes('재물')||topic.includes('직업')||topic.includes('사업')) cat='money';
+  else if(topic.includes('타로')) cat='tarot';
+
+  // UI 카테고리 버튼 on 처리
+  document.querySelectorAll('.wcat').forEach(w=>w.classList.remove('on'));
+  const catIdx = {fortune:0,reunion:1,love:2,money:3,tarot:4};
+  const allWcats = document.querySelectorAll('.wcat');
+  if(allWcats[catIdx[cat]]) allWcats[catIdx[cat]].classList.add('on');
+  whyCat = cat;
+
+  await askWhy(question);
+}
+
+// ════════════════════════════════
+// 왜요? 탭
+// ════════════════════════════════
+let whyCat = 'fortune';
+
+const WHY_QS = {
+  reunion: [
+    '재회가 가능한가요? 언제쯤 될까요?',
+    '헤어진 후 상대방 마음이 어떤가요?',
+    '재회하면 잘 될 수 있을까요?',
+    '먼저 연락해도 될까요?',
+    '상대방이 저를 그리워하고 있나요?',
+    '재회 후 결혼까지 갈 수 있을까요?',
+    '왜 헤어지게 된 건가요? 사주로 보면?',
+    '다른 사람 생겼을까요?',
+    '재회하려면 제가 어떻게 해야 하나요?',
+    '연락을 끊어야 할까요, 계속해야 할까요?',
+    '상대방이 저한테 미련이 있나요?',
+    '재회가 되더라도 오래 갈 수 있을까요?',
+  ],
+  fortune: [
+    '왜 올해 이렇게 힘든 거예요?',
+    '왜 저는 이렇게 안 풀리는 거예요?',
+    '왜 대운이 중요한 건가요?',
+    '기운이 약하다는 게 무슨 뜻인가요?',
+    '용신이 뭔가요? 왜 필요한가요?',
+    '왜 사주가 잘 맞는 거예요?',
+    '왜 올해 변화가 많이 생기는 건가요?',
+    '일주가 뭔가요? 왜 중요한가요?',
+    '제 사주에 특이한 게 있나요?',
+    '삼재가 뭔가요? 올해 삼재인가요?',
+    '왜 이 시기가 이렇게 힘든지 사주로 설명해줄 수 있나요?',
+    '앞으로 좋아지는 시기가 언제예요?',
+    '제 팔자가 원래 이런 건가요?',
+    '올해 조심해야 할 게 뭐가 있나요?',
+  ],
+  love: [
+    '왜 저는 연애가 안 되는 거예요?',
+    '이 사람이 왜 저한테 이러는 거예요?',
+    '왜 만나면 좋은데 헤어지게 되나요?',
+    '결혼 운이 없다는 게 정말인가요?',
+    '왜 인연이 오다가 사라지는 건가요?',
+    '궁합이 안 좋으면 절대 안 되나요?',
+    '왜 연애할 때마다 같은 패턴이 반복되나요?',
+    '이 사람 마음이 왜 이렇게 안 열리는 거예요?',
+    '상대방 속마음을 알 수 있나요?',
+    '이 사람이 저를 좋아하는 건가요?',
+    '연락이 갑자기 줄었어요. 왜 그런 건가요?',
+    '결혼을 결정해도 될까요?',
+    '이 관계가 어디로 가는 건가요?',
+    '썸인데 왜 고백을 안 하는 거예요?',
+    '바람피우는 건 아닐까요?',
+  ],
+  money: [
+    '왜 열심히 해도 돈이 안 모이나요?',
+    '재물운이 없다는 게 뭔 뜻인가요?',
+    '왜 지금은 사업이 잘 안 풀리나요?',
+    '이직 타이밍이 왜 중요한가요?',
+    '왜 돈이 들어와도 나가버리는 거예요?',
+    '편재격이 뭔가요? 돈 잘 번다는 건가요?',
+    '왜 투자할 때마다 손해를 보는 거예요?',
+    '돈 들어오는 시기가 언제예요?',
+    '지금 사업 시작해도 될까요?',
+    '주식/코인 해도 될까요?',
+    '부동산 투자 타이밍은요?',
+    '취업이 잘 안 되는 이유가 뭔가요?',
+    '이직하면 더 나아질까요?',
+    '합격운이 있나요?',
+  ],
+  tarot: [
+    '왜 타로가 맞는 거예요?',
+    '나쁜 카드가 나왔는데 정말 나쁜 건가요?',
+    '왜 같은 카드가 자꾸 나오나요?',
+    '역방향 카드는 무조건 나쁜 건가요?',
+    '타로랑 사주 중에 어떤 게 더 맞아요?',
+    '죽음 카드나 탑 카드가 나오면 정말 큰일인가요?',
+    '카드가 미래를 바꿀 수 있나요?',
+    '왜 마음이 달라지면 카드도 달라지나요?',
+    '악마 카드가 나왔는데 무슨 뜻인가요?',
+    '탑 카드가 나왔어요, 정말 무너지는 건가요?',
+    '컵 카드가 많이 나오면 뭔가요?',
+    '완드 카드가 많이 나오면?',
+    '검 카드가 많이 나오면?',
+    '펜타클 카드가 많이 나오면?',
+    '대아르카나랑 소아르카나 차이가 뭐예요?',
+    '정방향이 좋고 역방향이 나쁜 건가요?',
+  ]
+};
+
+function setWcat(el, cat){
+  document.querySelectorAll('.wcat').forEach(w=>w.classList.remove('on'));
+  el.classList.add('on');
+  whyCat = cat;
+  document.getElementById('whyCustom').style.display = cat==='custom' ? 'block' : 'none';
+  document.getElementById('whyResult').style.display = 'none';
+
+  if(cat==='custom'){
+    document.getElementById('whyQList').innerHTML = '';
+    return;
+  }
+
+  const qs = WHY_QS[cat] || [];
+  document.getElementById('whyQList').innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:4px">
+      ${qs.map(q=>`<button class="q-btn" onclick="askWhy('${q}')">${q}</button>`).join('')}
+    </div>`;
+}
+
+async function askWhy(question){
+  const result = document.getElementById('whyResult');
+  result.style.display = 'block';
+  result.innerHTML = `<div class="loading"><div class="dot-spin"><span></span><span></span><span></span></div>답변 만드는 중...</div>`;
+
+  const catNames = {fortune:'운세/기운', reunion:'재회/이별', love:'연애/결혼', money:'재물/직업', tarot:'타로'};
+
+  // ── 현재 상담 내담자 컨텍스트 ──
+  let clientCtx = '';
+  let clientName = '';
+  if(lastConsultInfo && lastConsultInfo.name){
+    const ci = lastConsultInfo;
+    const d = ci.birth ? new Date(ci.birth) : null;
+    const birthStr = d ? `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일생` : '';
+    const cardStr = ci.cards ? `\n타로 카드: ${ci.cards}` : '';
+    clientName = ci.name;
+    clientCtx = `\n\n━━━ 내담자 정보 ━━━\n이름: ${ci.name}(${ci.gender||''}) ${birthStr}\n주제: ${ci.topic}${cardStr}\n→ 이 내담자 상황에 맞게 구체적으로. 이름 호칭 사용.\n━━━━━━━━━━━━━━━━━━`;
+  }
+
+  const prompt = `당신은 30년 경력 명리학·타로 전문 상담사 천운입니다.
+내담자가 "${question}" 라고 물었습니다.
+분야: ${catNames[whyCat]||'상담'}${clientCtx}
+
+반드시 아래 3개 섹션을 정확히 이 형식으로 작성하세요.
+각 섹션 제목은 대괄호로 시작하고, 내용은 그 다음 줄부터.
+
+[쉬운설명]
+비유·일상 예시로 따뜻하게 3문장.${clientName?` ${clientName}님 상황 반영.`:''}
+
+[전문근거]
+명리학/타로 이론 근거 2문장. 한자 금지.
+
+[복사용답변]
+카카오톡 대화체 2문장. "사실~" 또는 "있잖아요~"로 시작.${clientName?` ${clientName}님 호칭.`:''}`;
+
+  try{
+    const txt = await ai(prompt, 4096);
+    window._lastWhyTxt = txt;
+
+    // ── 섹션 파싱 (인덱스 방식 — 가장 안정적) ──
+    const TAGS = ['쉬운설명','전문근거','복사용답변'];
+    const parsed = {};
+    TAGS.forEach(tag => {
+      const start = txt.indexOf('[' + tag + ']');
+      if(start === -1){ parsed[tag] = ''; return; }
+      const contentStart = start + tag.length + 2;
+      // 다음 [ 또는 끝까지
+      let end = txt.length;
+      for(const other of TAGS){
+        if(other === tag) continue;
+        const pos = txt.indexOf('[' + other + ']', contentStart);
+        if(pos !== -1 && pos < end) end = pos;
+      }
+      parsed[tag] = txt.slice(contentStart, end).trim();
+    });
+
+    const easy   = parsed['쉬운설명'];
+    const theory = parsed['전문근거'];
+    const copy   = parsed['복사용답변'];
+
+    const clientBadge = clientName
+      ? `<div style="font-size:.7rem;background:rgba(180,130,255,.15);border:1px solid rgba(180,130,255,.3);border-radius:8px;padding:6px 12px;margin-bottom:12px;color:#c8b8ff">✦ ${clientName}님 맞춤 답변</div>`
+      : '';
+
+    // 복사 버튼 — data 속성 방식 (백틱 이스케이프 문제 완전 해결)
+    function whyBlock(label, color, text, dataKey){
+      if(!text) return '';
+      const safeText = text.replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return `
+        <div style="font-size:.72rem;color:${color};font-weight:700;margin:12px 0 5px">${label}</div>
+        <div class="why-bub" data-why="${dataKey}">${text.split(String.fromCharCode(10)).join('<br>')}
+          <br><button onclick="copyWhyBlock(this.parentElement)"
+            style="font-size:.65rem;color:var(--muted);background:none;border:none;cursor:pointer;margin-top:6px;padding:4px 8px;border:1px solid var(--border);border-radius:5px">📋 복사</button>
+        </div>`;
+    }
+
+    result.innerHTML = `
+      ${clientBadge}
+      <div class="card-title" style="margin-bottom:4px">💡 "${question}"</div>
+      ${whyBlock('쉬운 설명 💬','var(--mint)', easy, 'easy')}
+      ${whyBlock('전문 근거 📚','var(--purple2)', theory, 'theory')}
+      ${whyBlock('복사용 답변 ✉️','var(--gold)', copy, 'copy')}
+      <button class="copy-all-btn" onclick="copyWhyAll()" style="margin-top:10px">📋 복사용 답변 복사</button>
+    `;
+
+    // 파싱 실패 시 원본 전체 표시
+    if(!easy && !theory && !copy){
+      result.innerHTML = `
+        ${clientBadge}
+        <div class="card-title" style="margin-bottom:8px">💡 "${question}"</div>
+        <div class="why-bub">${txt.split(String.fromCharCode(10)).join('<br>')}
+          <br><button onclick="copyWhyBlock(this.parentElement)"
+            style="font-size:.65rem;color:var(--muted);background:none;border:none;cursor:pointer;margin-top:6px;padding:4px 8px;border:1px solid var(--border);border-radius:5px">📋 복사</button>
+        </div>
+        <button class="copy-all-btn" onclick="copyWhyAll()" style="margin-top:10px">📋 복사</button>`;
+    }
+
+  } catch(e){
+    result.innerHTML = `<div style="color:var(--red)">오류: ${e.message}</div>`;
+  }
+}
+
+async function whyCustomAsk(){
+  const q = document.getElementById('whyCustomQ').value.trim();
+  if(!q){ snack('질문을 입력하세요.'); return; }
+  await askWhy(q);
+}
+
+// why-bub 블록 텍스트 복사
+function copyWhyBlock(el){
+  // br태그를 줄바꿈으로, 버튼 텍스트 제외
+  const clone = el.cloneNode(true);
+  clone.querySelectorAll('button').forEach(b=>b.remove());
+  const text = clone.innerText || clone.textContent;
+  navigator.clipboard.writeText(text.trim()).then(()=>snack('복사됨 ✓'));
+}
+
+function copyWhyAll(){
+  if(!window._lastWhyTxt) return;
+  const txt = window._lastWhyTxt;
+  const start = txt.indexOf('[복사용답변]');
+  if(start === -1){
+    // 태그 없으면 전체 복사
+    navigator.clipboard.writeText(txt.trim()).then(()=>snack('전체 복사됨 ✓'));
+    return;
+  }
+  const copy = txt.slice(start + '[복사용답변]'.length).trim();
+  navigator.clipboard.writeText(copy).then(()=>snack('복사용 답변 복사됨 ✓'));
+}
+// (구버전 호환용 더미)
+function _copyWhyAllOld(){
+  if(!window._lastWhyTxt) return;
+  const match = window._lastWhyTxt.match(/\[복사용답변\]([\s\S]+?)(?:\[|$)/);
+  const toCopy = match ? match[1].trim() : window._lastWhyTxt;
+  navigator.clipboard.writeText(toCopy).then(()=>snack('복사됨 ✓'));
+}
+
+// ── 상대방 정보 토글 ──
+function togglePartner(){
+  const on = document.getElementById('partnerToggle').checked;
+  document.getElementById('partnerSection').style.display = on ? 'block' : 'none';
+}
+
+// ════════════════════════════════
+// 고객 저장/불러오기 + 화면 보존
+// ════════════════════════════════
+// 고객 저장/불러오기 — Supabase + localStorage 이중화
+// ════════════════════════════════
+const CK  = 'cheonun_clients_v1';
+
+// ── 안전한 localStorage 래퍼 ──
+function lsGet(key, fallback='[]'){
+  try{ return localStorage.getItem(key) || fallback; }
+  catch(e){ return fallback; }
+}
+function lsSet(key, val){
+  try{ localStorage.setItem(key, val); return true; }
+  catch(e){ return false; }
+}
+
+// ── 클라이언트 로컬 목록 ──
+let _clients = [];
+
+async function loadClients(){
+  // 1. localStorage에서 먼저 로드 (빠른 표시)
+  try{
+    _clients = JSON.parse(lsGet(CK, '[]'));
+  }catch(e){ _clients = []; }
+
+  // 2. Supabase에서 최신 데이터 동기화
+  if(_sbReady){
+    try{
+      const rows = await sbFetch('GET', '/cheonun_clients?select=*&order=updated_at.desc&limit=50');
+      if(rows && Array.isArray(rows)){
+        _clients = rows.map(r => ({
+          id: r.id,
+          name: r.name,
+          gender: r.gender,
+          birth: r.birth,
+          hour: r.hour,
+          topic: r.topic,
+          q: r.question,
+          savedAt: r.saved_at || new Date(r.updated_at).toLocaleDateString('ko-KR')
+        }));
+        lsSet(CK, JSON.stringify(_clients)); // 로컬에도 캐시
+      }
+    }catch(e){
+      console.warn('Supabase 로드 실패, 로컬 사용:', e.message);
+    }
+  }
+}
+
+async function saveClient(){
+  const name = document.getElementById('cName').value.trim();
+  if(!name){ snack('이름을 입력해주세요.'); return; }
+  
+  const newC = {
+    name,
+    gender: document.getElementById('cGender').value,
+    birth: document.getElementById('cBirth').value,
+    hour: document.getElementById('cHour').value,
+    topic: document.getElementById('cTopic').value,
+    q: document.getElementById('cQ').value,
+    savedAt: new Date().toLocaleDateString('ko-KR')
+  };
+
+  // 로컬 업데이트
+  _clients = _clients.filter(c=>c.name!==name);
+  _clients.unshift(newC);
+  if(_clients.length>50) _clients.pop();
+  lsSet(CK, JSON.stringify(_clients));
+  snack('💾 저장 중...');
+
+  // Supabase 저장
+  if(_sbReady){
+    try{
+      await sbFetch('POST', '/cheonun_clients', {
+        name: newC.name,
+        gender: newC.gender,
+        birth: newC.birth || null,
+        hour: newC.hour || null,
+        topic: newC.topic,
+        question: newC.q,
+        saved_at: newC.savedAt,
+        updated_at: new Date().toISOString()
+      });
+      snack('☁ 클라우드 저장됨: ' + name + '님');
+    }catch(e){
+      snack('💾 로컬 저장됨 (클라우드 연결 확인): ' + name + '님');
+    }
+  } else {
+    snack('💾 저장됨: ' + name + '님 (☁ 설정 시 클라우드 동기화)');
+  }
+}
+
+function loadClient(idx){
+  const c = _clients[idx];
+  if(!c) return;
+  document.getElementById('cName').value = c.name;
+  document.getElementById('cGender').value = c.gender;
+  document.getElementById('cBirth').value = c.birth||'';
+  document.getElementById('cHour').value = c.hour||'';
+  document.getElementById('cTopic').value = c.topic||'연애운';
+  document.getElementById('cQ').value = c.q||'';
+  document.getElementById('clientList').style.display='none';
+  snack('📂 불러옴: '+c.name+'님');
+}
+
+async function deleteClient(idx, e){
+  e.stopPropagation();
+  const c = _clients[idx];
+  if(!c) return;
+  
+  _clients.splice(idx,1);
+  lsSet(CK, JSON.stringify(_clients));
+
+  // Supabase 삭제
+  if(_sbReady && c.id){
+    try{
+      await sbFetch('DELETE', '/cheonun_clients?id=eq.' + c.id);
+    }catch(e){ console.warn('Supabase 삭제 실패:', e.message); }
+  }
+  renderClientList();
+}
+
+function toggleClientList(){
+  const el = document.getElementById('clientList');
+  if(el.style.display==='none'){
+    if(_sbReady){ loadClients().then(()=>{ renderClientList(); el.style.display='block'; }); }
+    else{ renderClientList(); el.style.display='block'; }
+  } else {
+    el.style.display='none';
+  }
+}
+
+function renderClientList(){
+  const el = document.getElementById('clientList');
+  if(!_clients.length){ el.innerHTML='<div style="font-size:.78rem;color:var(--muted);padding:8px">저장된 고객 없음</div>'; return; }
+  el.innerHTML = _clients.map((c,i)=>`
+    <div onclick="loadClient(${i})" style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;border:1px solid var(--border);margin-bottom:6px;cursor:pointer;background:var(--card2)">
+      <div style="flex:1">
+        <span style="color:var(--gold2);font-weight:700">${c.name}</span>
+        <span style="color:var(--muted);font-size:.74rem;margin-left:6px">${c.gender} · ${c.birth||'날짜미상'} · ${c.topic}</span>
+      </div>
+      <span style="font-size:.7rem;color:var(--muted)">${c.savedAt}</span>
+      <button onclick="deleteClient(${i},event)" style="background:none;border:none;color:var(--red);font-size:.8rem;cursor:pointer">✕</button>
+    </div>`).join('');
+}
+
+// 전화상담 탭 고객 불러오기 (같은 _clients 사용)
+function loadCallClient(idx){
+  const c = _clients[idx];
+  if(!c) return;
+  document.getElementById('callName').value  = c.name;
+  document.getElementById('callBirth').value = c.birth||'';
+  document.getElementById('callGender').value= c.gender;
+  document.getElementById('callTopic').value = c.topic||'연애운';
+  document.getElementById('callClientList').style.display='none';
+  snack('📂 불러옴: '+c.name+'님');
+}
+
+function toggleCallClientList(){
+  const el = document.getElementById('callClientList');
+  if(el.style.display==='none'){
+    if(!_clients.length){ el.innerHTML='<div style="font-size:.78rem;color:var(--muted);padding:8px">저장된 고객 없음</div>'; }
+    else{
+      el.innerHTML = _clients.map((c,i)=>`
+        <div onclick="loadCallClient(${i})" style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;border:1px solid var(--border);margin-bottom:6px;cursor:pointer;background:var(--card2)">
+          <div style="flex:1"><span style="color:var(--gold2);font-weight:700">${c.name}</span>
+          <span style="color:var(--muted);font-size:.74rem;margin-left:6px">${c.gender} · ${c.birth||'날짜미상'} · ${c.topic}</span></div>
+          <span style="font-size:.7rem;color:var(--muted)">${c.savedAt}</span>
+        </div>`).join('');
+    }
+    el.style.display='block';
+  } else {
+    el.style.display='none';
+  }
+}
+
+// ════════════════════════════════
+// 초기화
+// ════════════════════════════════
+loadDbConfig();    // Supabase 설정 복원
+loadClients();     // 고객 목록 로드
+setWcat(document.querySelector('.wcat.on'), 'fortune');
+</script>
+
+<!-- ── Supabase DB 설정 모달 ── -->
+<div id="dbModal" style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:600;display:none;align-items:center;justify-content:center;padding:16px">
+  <div style="background:#15151a;border:1px solid #2a2a38;border-radius:18px;padding:22px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span style="font-size:.95rem;font-weight:700;color:var(--gold2)">☁ Supabase 클라우드 설정</span>
+      <button onclick="closeDbModal()" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer">✕</button>
+    </div>
+
+    <!-- 안내 -->
+    <div style="background:#0a1a1a;border:1px solid #1a3a3a;border-radius:10px;padding:12px;margin-bottom:14px;font-size:.74rem;line-height:1.9;color:#7aaaaa">
+      ✦ <a href="https://supabase.com" target="_blank" style="color:#aaffee">supabase.com</a> 에서 무료 프로젝트 생성<br>
+      ✦ Settings → API → Project URL & anon key 복사<br>
+      ✦ 설정하면 여러 기기에서 고객 데이터 동기화됩니다<br>
+      <span style="color:#666">✦ 설정 안 해도 로컬 저장으로 정상 사용 가능</span>
+    </div>
+
+    <!-- SQL 안내 -->
+    <div style="background:#0a0a1a;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px">
+      <div style="font-size:.76rem;font-weight:700;color:var(--sub);margin-bottom:6px">📋 Supabase SQL Editor에서 실행 (최초 1회)</div>
+      <pre style="font-size:.68rem;color:#88aacc;background:#080810;border-radius:6px;padding:8px;overflow-x:auto;line-height:1.6">CREATE TABLE IF NOT EXISTS cheonun_clients (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name text NOT NULL,
+  gender text,
+  birth text,
+  hour text,
+  topic text,
+  question text,
+  saved_at text,
+  updated_at timestamptz DEFAULT now()
+);
+ALTER TABLE cheonun_clients ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all" ON cheonun_clients FOR ALL USING (true);</pre>
+      <button onclick="navigator.clipboard.writeText(document.querySelector('pre').textContent).then(()=>snack('SQL 복사됨 ✓'))" style="margin-top:6px;font-size:.7rem;color:var(--muted);background:none;border:1px solid var(--border);border-radius:5px;padding:4px 10px;cursor:pointer">📋 SQL 복사</button>
+    </div>
+
+    <!-- 입력 -->
+    <div style="margin-bottom:10px">
+      <label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:4px">Project URL</label>
+      <input id="sbUrlInput" placeholder="https://xxxxxxxxxxxx.supabase.co" style="width:100%;background:#080810;border:1px solid var(--border);border-radius:9px;padding:10px;color:var(--text);font-size:.8rem;outline:none">
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:4px">Anon (public) Key</label>
+      <input id="sbKeyInput" type="password" placeholder="eyJ..." style="width:100%;background:#080810;border:1px solid var(--border);border-radius:9px;padding:10px;color:var(--text);font-size:.8rem;outline:none">
+    </div>
+
+    <div style="display:flex;gap:8px">
+      <button onclick="saveDbConfig()" style="flex:1;padding:11px;border-radius:10px;background:linear-gradient(135deg,#1a5a4a,#2a8a6a);border:none;color:#e0fff8;font-weight:700;font-size:.85rem;cursor:pointer">✦ 연결 저장</button>
+      <button onclick="closeDbModal()" style="flex:1;padding:11px;border-radius:10px;background:var(--card2);border:1px solid var(--border);color:var(--muted);font-size:.85rem;cursor:pointer">닫기</button>
+    </div>
+    <div style="margin-top:10px;font-size:.72rem;color:#555;text-align:center">설정 정보는 이 기기 localStorage에만 저장됩니다</div>
+  </div>
+</div>
+
+</body>
+</html>

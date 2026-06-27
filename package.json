@@ -1,0 +1,12 @@
+{
+  "name": "cheonun-consulting",
+  "version": "2.0.0",
+  "description": "천운 상담도구 — Vercel + Supabase 버전",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
