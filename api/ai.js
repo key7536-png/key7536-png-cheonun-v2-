@@ -1,19 +1,14 @@
-// /api/ai.js — 천운 상담도구 Vercel Serverless Function
-// Gemini API 키를 서버사이드에서 안전하게 관리
 
-export const config = { runtime: 'edge' };
+// /api/ai.js — 천운 상담도구 Vercel Serverless Function
 
 const MODEL = 'gemini-2.5-flash';
-const MAX_RETRIES = 3;
 
-// 환경변수에서 키 로드 (GEMINI_KEY_1 ~ GEMINI_KEY_10)
 function getKeys() {
   const keys = [];
   for (let i = 1; i <= 10; i++) {
     const k = process.env[`GEMINI_KEY_${i}`];
     if (k && k.trim()) keys.push(k.trim());
   }
-  // 유료 키
   const paid = process.env.GEMINI_PAID_KEY;
   return { keys, paid: paid || '' };
 }
@@ -23,7 +18,7 @@ async function callGemini(key, prompt, maxTokens) {
   const url = isAuth
     ? `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`
     : `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`;
-  
+
   const headers = { 'Content-Type': 'application/json' };
   if (isAuth) headers['x-goog-api-key'] = key;
 
@@ -45,77 +40,44 @@ async function callGemini(key, prompt, maxTokens) {
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
-export default async function handler(req) {
-  // CORS
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  };
+module.exports = async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 200, headers: corsHeaders });
-  }
-
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { prompt, maxTokens } = await req.json();
-    if (!prompt) {
-      return new Response(JSON.stringify({ error: '프롬프트가 없습니다.' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    const { prompt, maxTokens } = req.body;
+    if (!prompt) return res.status(400).json({ error: '프롬프트가 없습니다.' });
 
     const { keys, paid } = getKeys();
-    
+
     if (keys.length === 0 && !paid) {
-      return new Response(JSON.stringify({ error: 'API 키가 설정되지 않았습니다. Vercel 환경변수를 확인하세요.' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return res.status(500).json({ error: 'API 키가 설정되지 않았습니다.' });
     }
 
-    // 무료 키 순환 시도
-    let lastError = null;
+    // 무료 키 순환
     for (const key of keys) {
       try {
         const text = await callGemini(key, prompt, maxTokens);
-        return new Response(JSON.stringify({ text, source: 'free' }), {
-          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+        return res.status(200).json({ text, source: 'free' });
       } catch (e) {
-        if (e.code === 429 || e.code === 503) {
-          lastError = e; continue; // 다음 키 시도
-        }
+        if (e.code === 429 || e.code === 503) continue;
         throw e;
       }
     }
 
     // 유료 키 폴백
     if (paid) {
-      try {
-        const text = await callGemini(paid, prompt, maxTokens);
-        return new Response(JSON.stringify({ text, source: 'paid' }), {
-          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ error: `유료 키 오류: ${e.message}` }), {
-          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
+      const text = await callGemini(paid, prompt, maxTokens);
+      return res.status(200).json({ text, source: 'paid' });
     }
 
-    return new Response(JSON.stringify({ error: '모든 키 한도 초과. 자정 후 재시도하세요.' }), {
-      status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return res.status(429).json({ error: '모든 키 한도 초과. 자정 후 재시도하세요.' });
 
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return res.status(500).json({ error: e.message });
   }
-}
+};
