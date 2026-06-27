@@ -187,6 +187,7 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
   <div class="tab on" onclick="go('consulting')">💬 상담</div>
   <div class="tab" onclick="go('call')">📞 전화상담</div>
   <div class="tab" onclick="go('why')">🤔 왜요?</div>
+  <div class="tab" onclick="go('video')">🎬 영상</div>
 </div>
 
 <!-- ══════════════════════════════════════
@@ -469,6 +470,49 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
   <div id="whyResult" class="why-result"></div>
 </div>
 
+<!-- ══════════════════════════════════════
+     🎬 영상 탭
+══════════════════════════════════════ -->
+<div id="videoPage" class="page">
+  <div class="card">
+    <div class="card-title">🎬 영상 콘텐츠 자동 생성</div>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px;line-height:1.7">
+      영상 대본을 붙여넣으면 후킹 제목·설명문·태그·고정댓글을 한번에 만들어드려요!
+    </p>
+
+    <!-- 채널 선택 -->
+    <div class="field">
+      <label>채널 유형</label>
+      <div class="spread-sel" id="channelSel" style="margin-bottom:10px">
+        <button class="sp-btn on" onclick="setChannel(this,'fortune')">🔮 운세/사주</button>
+        <button class="sp-btn" onclick="setChannel(this,'history')">📜 역사/이야기</button>
+        <button class="sp-btn" onclick="setChannel(this,'general')">📱 일반</button>
+      </div>
+    </div>
+
+    <!-- 대본 입력 -->
+    <div class="field">
+      <label>영상 대본 (전체 또는 핵심 내용)</label>
+      <textarea id="videoScript" placeholder="여기에 영상 대본을 붙여넣으세요...&#10;&#10;전체 대본이 없으면 핵심 내용만 적어도 됩니다." style="min-height:160px"></textarea>
+    </div>
+
+    <!-- 플랫폼 선택 -->
+    <div class="field">
+      <label>플랫폼</label>
+      <div class="spread-sel" id="platformSel">
+        <button class="sp-btn on" onclick="setPlatform(this,'youtube')">▶ 유튜브</button>
+        <button class="sp-btn" onclick="setPlatform(this,'shorts')">📱 쇼츠/릴스</button>
+        <button class="sp-btn" onclick="setPlatform(this,'tiktok')">🎵 틱톡</button>
+      </div>
+    </div>
+
+    <button class="btn btn-gold" onclick="generateVideo()" id="videoBtn">🎬 콘텐츠 자동 생성</button>
+  </div>
+
+  <!-- 결과 -->
+  <div id="videoResult"></div>
+</div>
+
 <!-- DB 설정은 하단 dbModal에서 처리 -->
 
 <div class="snack" id="snack"></div>
@@ -585,7 +629,7 @@ function go(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   document.getElementById(id+'Page').classList.add('on');
-  const tabs = ['consulting','call','why'];
+  const tabs = ['consulting','call','why','video'];
   document.querySelectorAll('.tab')[tabs.indexOf(id)].classList.add('on');
   if(id==='why') updateWhyContextBanner();
 }
@@ -1926,6 +1970,131 @@ function toggleCallClientList(){
   } else {
     el.style.display='none';
   }
+}
+
+// ════════════════════════════════
+// 🎬 영상 콘텐츠 생성
+// ════════════════════════════════
+let _videoChannel = 'fortune';
+let _videoPlatform = 'youtube';
+
+function setChannel(btn, val){
+  document.querySelectorAll('#channelSel .sp-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  _videoChannel = val;
+}
+
+function setPlatform(btn, val){
+  document.querySelectorAll('#platformSel .sp-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  _videoPlatform = val;
+}
+
+async function generateVideo(){
+  const script = document.getElementById('videoScript').value.trim();
+  if(!script){ snack('대본을 입력해주세요.'); return; }
+
+  const btn = document.getElementById('videoBtn');
+  btn.disabled = true; btn.textContent = '생성 중...';
+
+  const channelCtx = {
+    fortune: '운세·사주·타로 채널. 신비롭고 감성적인 톤. 궁금증을 자극하는 표현.',
+    history: '역사·이야기 채널. 드라마틱하고 몰입감 있는 스토리텔링 톤.',
+    general: '일반 채널. 트렌디하고 공감 가는 일상적인 톤.'
+  };
+  const platformCtx = {
+    youtube: '유튜브 (제목 30자 이내 권장, 설명문 SEO 최적화, 태그 15개)',
+    shorts: '유튜브 쇼츠/인스타 릴스 (제목 20자 이내, 임팩트 강하게)',
+    tiktok: '틱톡 (젊고 트렌디한 말투, 짧고 강렬하게)'
+  };
+
+  const prompt = `당신은 유튜브 콘텐츠 마케팅 전문가입니다.
+채널 유형: ${channelCtx[_videoChannel]}
+플랫폼: ${platformCtx[_videoPlatform]}
+
+아래 영상 대본을 분석해서 반드시 이 형식으로만 출력하세요.
+
+[후킹제목]
+1. (제목1)
+2. (제목2)
+3. (제목3)
+4. (제목4)
+5. (제목5)
+
+[설명문]
+(10줄 설명문. 첫 줄이 가장 강렬한 후킹 문장. SEO 키워드 자연스럽게 포함. 마지막 줄은 구독/좋아요 유도)
+
+[태그]
+(태그1), (태그2), (태그3), (태그4), (태그5), (태그6), (태그7), (태그8), (태그9), (태그10), (태그11), (태그12), (태그13), (태그14), (태그15)
+
+[고정댓글]
+(5줄. 첫 줄 강렬한 후킹. 영상 핵심 요약. 다음 영상 예고 또는 궁금증 유발. 카카오채널 또는 링크 유도. 구독 유도)
+
+━━━ 핵심 규칙 ━━━
+• 제목은 클릭하지 않으면 못 배길 정도로 강렬하게
+• 숫자, 반전, 비밀, 충격, 경고 등 후킹 요소 적극 활용
+• 한자 금지. 이모지 적극 사용.
+• 설명문은 줄바꿈으로 구분된 10줄 정확히
+• 태그는 # 없이 쉼표로 구분
+
+━━━ 영상 대본 ━━━
+${script}`;
+
+  const result = document.getElementById('videoResult');
+  result.innerHTML = `<div class="card"><div class="loading"><div class="dot-spin"><span></span><span></span><span></span></div>후킹 콘텐츠 생성 중...</div></div>`;
+
+  try{
+    const txt = await ai(prompt, 4096);
+    window._lastVideoTxt = txt;
+
+    // 파싱
+    function parseSection(tag){
+      const start = txt.indexOf('['+tag+']');
+      if(start===-1) return '';
+      const contentStart = start + tag.length + 2;
+      const nextTag = txt.indexOf('[', contentStart);
+      return txt.slice(contentStart, nextTag===-1 ? txt.length : nextTag).trim();
+    }
+
+    const titles = parseSection('후킹제목');
+    const desc   = parseSection('설명문');
+    const tags   = parseSection('태그');
+    const comment= parseSection('고정댓글');
+
+    function block(label, color, content, id){
+      return `
+        <div style="margin-bottom:16px">
+          <div style="font-size:.78rem;font-weight:700;color:${color};margin-bottom:6px">${label}</div>
+          <div class="why-bub" id="${id}" style="white-space:pre-wrap;line-height:1.85">${content}</div>
+          <button onclick="copyBlock('${id}')" class="copy-all-btn" style="margin-top:6px">📋 복사</button>
+        </div>`;
+    }
+
+    result.innerHTML = `
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px">🎬 생성 완료!</div>
+        ${block('🎯 후킹 제목 5개','var(--gold2)', titles, 'vTitles')}
+        ${block('📝 설명문','var(--mint)', desc, 'vDesc')}
+        ${block('#️⃣ 태그 15개','var(--purple2)', tags, 'vTags')}
+        ${block('📌 고정댓글','var(--pink)', comment, 'vComment')}
+        <button onclick="copyAllVideo()" class="copy-all-btn" style="margin-top:4px;border-color:var(--gold);color:var(--gold2)">📋 전체 복사</button>
+      </div>`;
+
+  }catch(e){
+    result.innerHTML = `<div class="card" style="color:var(--red)">오류: ${e.message}</div>`;
+  }
+  btn.disabled=false; btn.textContent='🎬 콘텐츠 자동 생성';
+}
+
+function copyBlock(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  navigator.clipboard.writeText(el.innerText.trim()).then(()=>snack('복사됨 ✓'));
+}
+
+function copyAllVideo(){
+  if(!window._lastVideoTxt) return;
+  navigator.clipboard.writeText(window._lastVideoTxt.trim()).then(()=>snack('전체 복사됨 ✓'));
 }
 
 // ════════════════════════════════
