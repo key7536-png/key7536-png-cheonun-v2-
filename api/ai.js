@@ -1,35 +1,31 @@
-// /api/ai.js — 천운 상담도구 Vercel Serverless Function
-
 const MODEL = 'gemini-2.5-flash';
 
-function getKeys() {
-  const keys = [];
-  for (let i = 1; i <= 10; i++) {
-    const k = process.env[`GEMINI_KEY_${i}`];
-    if (k && k.trim()) keys.push(k.trim());
-  }
-  const paid = process.env.GEMINI_PAID_KEY;
-  return { keys, paid: paid || '' };
-}
+const KEYS = [
+  'AQ.Ab8RN46JFbQbrNzZVks0XmeuW7DWO9MmRjiI7Ck_encmhyXlvEOQ',
+  'AQ.Ab8RN46JrDY6PgU2MmTDJ_GEaG0F1FuYlk8SxZW1ZTi2cEPJuVA',
+  'AQ.Ab8RN46JOMz5VB8Iq4lvZKhUSqJHtuttEEI_KxEN4eSZc09q72A',
+  'AQ.Ab8RN46KWgnagaB6GcIMeBnHIA5GX5Si1yUzJUEySH8odzULYxA',
+  'AQ.Ab8RN46JQi4thfyUl-bbZiSDVM_wPZCdu0vwUT40yIf87e8WCug',
+  'AQ.Ab8RN46Ki8T2GARCa7hbRRqT5Uj2bafuNutD_OAfuivi421uDoA',
+  'AQ.Ab8RN46JbhN5LwtSfGB71V2_jL6TCHsdGVWVik_steHm91i7Gw',
+  'AQ.Ab8RN46JA_h85aXm09VUt1BWdx1imbqIf5RgEFvu9CX2nV9QXyQ',
+  'AQ.Ab8RN46LjgY1xpr30g5paDZovk3SXX9QMr4aVUEfdCemxfGSd0g',
+  'AQ.Ab8RN46KkjEU42Rp3Bj9wxWfgxRBoFln9osnT6fc1k3QksfIq5g',
+];
+const PAID = 'AQ.Ab8RN46Kw2866ko85inR767lsLnEGHmuVIN_ARLlyQouisTKMuw';
+
+let keyIdx = 0;
 
 async function callGemini(key, prompt, maxTokens) {
-  const isAuth = key.startsWith('AQ.');
-  const url = isAuth
-    ? `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`
-    : `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`;
-
-  const headers = { 'Content-Type': 'application/json' };
-  if (isAuth) headers['x-goog-api-key'] = key;
-
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent';
   const res = await fetch(url, {
     method: 'POST',
-    headers,
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: { maxOutputTokens: maxTokens || 8192, temperature: 0.85 }
     })
   });
-
   const data = await res.json();
   if (data.error) {
     const err = new Error(data.error.message);
@@ -43,7 +39,6 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -51,16 +46,12 @@ module.exports = async function handler(req, res) {
     const { prompt, maxTokens } = req.body;
     if (!prompt) return res.status(400).json({ error: '프롬프트가 없습니다.' });
 
-    const { keys, paid } = getKeys();
-
-    if (keys.length === 0 && !paid) {
-      return res.status(500).json({ error: 'API 키가 설정되지 않았습니다.' });
-    }
-
-    // 무료 키 순환
-    for (const key of keys) {
+    const start = keyIdx % KEYS.length;
+    for (let i = 0; i < KEYS.length; i++) {
+      const idx = (start + i) % KEYS.length;
       try {
-        const text = await callGemini(key, prompt, maxTokens);
+        const text = await callGemini(KEYS[idx], prompt, maxTokens);
+        keyIdx = idx + 1;
         return res.status(200).json({ text, source: 'free' });
       } catch (e) {
         if (e.code === 429 || e.code === 503) continue;
@@ -68,13 +59,8 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // 유료 키 폴백
-    if (paid) {
-      const text = await callGemini(paid, prompt, maxTokens);
-      return res.status(200).json({ text, source: 'paid' });
-    }
-
-    return res.status(429).json({ error: '모든 키 한도 초과. 자정 후 재시도하세요.' });
+    const text = await callGemini(PAID, prompt, maxTokens);
+    return res.status(200).json({ text, source: 'paid' });
 
   } catch (e) {
     return res.status(500).json({ error: e.message });
