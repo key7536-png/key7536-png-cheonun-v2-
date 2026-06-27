@@ -1,4 +1,3 @@
-
 // /api/ai.js — 천운 상담도구 Vercel Serverless Function
 
 const MODEL = 'gemini-2.5-flash';
