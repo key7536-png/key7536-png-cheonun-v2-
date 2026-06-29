@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -509,7 +508,13 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
     </div>
     <input type="file" id="vidFileInput" style="display:none;" accept="video/*" onchange="vidHandleFile(this)">
   </div>
-  <div class="vid-key-status">🔑 Gemini 키 자동 로테이션 (10개) · <span id="vidKeyIndicator">대기 중</span></div>
+  <div style="margin-top:10px;">
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:4px;">🔑 Gemini API 키 입력 (localStorage 자동 저장)</div>
+    <input type="password" id="vidApiKey" placeholder="AQ.Ab8RN6..." 
+      style="width:100%;background:#0d0d14;border:1px solid var(--border);border-radius:9px;padding:9px 12px;color:var(--text);font-size:.78rem;outline:none;"
+      oninput="localStorage.setItem('cheonun_vid_key',this.value.trim())">
+    <div style="font-size:.68rem;color:var(--muted);margin-top:4px;" id="vidKeyIndicator">Google AI Studio에서 발급한 키를 입력하세요</div>
+  </div>
   <button onclick="vidGenerate()" id="vidGenBtn" style="width:100%;margin-top:14px;padding:14px;background:linear-gradient(135deg,#b8860b,#ffd700);color:#000;font-weight:900;font-size:.9rem;border:none;border-radius:12px;cursor:pointer;">✦ 메타데이터 생성</button>
 </div>
 <div class="card vid-loading" id="vidLoading" style="display:none;">
@@ -2013,6 +2018,9 @@ function toggleCallClientList(){
 // 초기화
 // ════════════════════════════════
 loadDbConfig();    // Supabase 설정 복원
+// 영상탭 저장된 키 복원
+const _savedVidKey = localStorage.getItem('cheonun_vid_key');
+if(_savedVidKey){ const _el = document.getElementById('vidApiKey'); if(_el) _el.value = _savedVidKey; }
 loadClients();     // 고객 목록 로드
 setWcat(document.querySelector('.wcat.on'), 'fortune');
 
@@ -2025,7 +2033,25 @@ const VID_MODEL = "gemini-2.0-flash";
 let vidMode = 'movie';
 function setVidMode(m){ vidMode=m; document.getElementById('vidModeMovie').classList.toggle('on',m==='movie'); document.getElementById('vidModeGeneral').classList.toggle('on',m==='general'); }
 function vidHandleFile(input){ if(!input.files.length) return; const file=input.files[0]; document.getElementById('vidFileName').textContent=file.name; document.getElementById('vidPreviewEl').src=URL.createObjectURL(file); document.getElementById('vidUploadIcon').style.display='none'; document.getElementById('vidUploadPreview').style.display='block'; }
-async function vidCallGemini(frames,prompt){ for(let i=0;i<VID_KEYS.length;i++){ document.getElementById('vidKeyIndicator').textContent=`키 ${i+1} 시도 중...`; try{ const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${VID_MODEL}:generateContent?key=${VID_KEYS[i]}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt},...frames.map(f=>({inlineData:{mimeType:'image/jpeg',data:f}}))]}],generationConfig:{temperature:0.7,maxOutputTokens:2048}})}); const data=await res.json(); if(!res.ok){continue;} document.getElementById('vidKeyIndicator').textContent=`키 ${i+1} 성공 ✓`; return data.candidates?.[0]?.content?.parts?.[0]?.text||''; }catch(e){continue;} } vidShowReset(); throw new Error('모든 키 한도 초과. 오후 5시 리셋 후 재시도하세요.'); }
+async function vidCallGemini(frames,prompt){
+  const key = document.getElementById('vidApiKey').value.trim() || localStorage.getItem('cheonun_vid_key') || '';
+  if(!key){ throw new Error('API 키를 입력해주세요.'); }
+  document.getElementById('vidKeyIndicator').textContent = '분석 중...';
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${VID_MODEL}:generateContent?key=${key}`,
+    { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({contents:[{parts:[{text:prompt},...frames.map(f=>({inlineData:{mimeType:'image/jpeg',data:f}}))]}],generationConfig:{temperature:0.7,maxOutputTokens:2048}})
+    }
+  );
+  const data = await res.json();
+  if(!res.ok){ 
+    const msg = data.error?.message || '오류';
+    document.getElementById('vidKeyIndicator').textContent = '❌ ' + msg;
+    throw new Error(msg);
+  }
+  document.getElementById('vidKeyIndicator').textContent = '✅ 성공!';
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
 function vidShowReset(){ const now=new Date(),reset=new Date(); reset.setHours(17,0,0,0); if(now>=reset) reset.setDate(reset.getDate()+1); const diff=reset-now; document.getElementById('vidKeyIndicator').innerHTML=`<span style="color:#ff6b6b;">⏰ ${Math.floor(diff/3600000)}시간 ${Math.floor((diff%3600000)/60000)}분 후(오후5시) 리셋</span>`; }
 async function vidGenerate(){ const file=document.getElementById('vidFileInput').files[0]; if(!file){alert('영상을 먼저 업로드해주세요.');return;} document.getElementById('vidLoading').style.display='block'; document.getElementById('vidResult').style.display='none'; document.getElementById('vidGenBtn').disabled=true; try{ document.getElementById('vidLoadingMsg').textContent='프레임 추출 중...'; const video=document.createElement('video'); video.muted=true; video.src=URL.createObjectURL(file); await new Promise(r=>video.onloadedmetadata=r); const canvas=document.createElement('canvas'); canvas.width=320; canvas.height=180; const ctx=canvas.getContext('2d'); const frames=[]; for(let i=1;i<=3;i++){ video.currentTime=(video.duration/4)*i; await new Promise(r=>{video.onseeked=r;setTimeout(r,1500);}); ctx.drawImage(video,0,0,320,180); frames.push(canvas.toDataURL('image/jpeg',0.5).split(',')[1]); } document.getElementById('vidLoadingMsg').textContent='AI 분석 중...'; const prompt=vidMode==='movie'?'이 영화 클립을 분석해서 유튜브 쇼츠용 메타데이터를 만들어줘. 반드시 JSON만 응답. 마크다운 없이 순수 JSON.\n{"hookTitle":"후킹제목(이모지포함30자이내)","keyword1":"핵심키워드1","keyword2":"핵심키워드2","keyword3":"핵심키워드3","movieTitle":"영화제목(한국어+원제+개봉연도)","plot":"줄거리3문장+감동포인트1문장","description":"설명문3줄(각줄이모지시작)","tags":["태그",...20개],"pinnedComment":"고정댓글(3줄)"}\n영화특정불가시장르기반추정.tags는#없이단어만20개.':'이 영상을 분석해서 유튜브 쇼츠용 메타데이터를 만들어줘. 반드시 JSON만 응답. 마크다운 없이 순수 JSON.\n{"hookTitle":"후킹제목(이모지포함30자이내)","keyword1":"핵심키워드1","keyword2":"핵심키워드2","keyword3":"핵심키워드3","description":"설명문3줄(각줄이모지시작)","tags":["태그",...20개],"pinnedComment":"고정댓글(3줄)"}\ntags는#없이단어만20개.'; const raw=await vidCallGemini(frames,prompt); const res=JSON.parse(raw.replace(/```json|```/g,'').trim()); const kw1=res.keyword1||'',kw2=res.keyword2||'',kw3=res.keyword3||''; document.getElementById('vidOutTitle').textContent=[res.hookTitle,kw1,kw2,kw3].filter(Boolean).join(' ㅣ '); const bdg=document.getElementById('vidKwBadges'); bdg.innerHTML=''; [[kw1,'#3a2060','#c090ff'],[kw2,'#3a1020','#ff90a0'],[kw3,'#002030','#60c0e0']].forEach(([t,bg,cl])=>{ if(!t) return; const s=document.createElement('span'); s.className='vid-kw-badge'; s.style.cssText=`background:${bg};color:${cl};border:1px solid ${cl}40;`; s.textContent=t; bdg.appendChild(s); }); const mc=document.getElementById('vidMovieInfoCard'); if(vidMode==='movie'){mc.style.display='block';document.getElementById('vidOutMovieTitle').textContent=res.movieTitle||'';document.getElementById('vidOutPlot').textContent=res.plot||'';}else{mc.style.display='none';} document.getElementById('vidOutDesc').textContent=res.description||''; document.getElementById('vidOutComment').textContent=res.pinnedComment||''; const tagsArr=Array.isArray(res.tags)?res.tags:[]; const ce=document.getElementById('vidOutTagsChips'); ce.innerHTML=''; tagsArr.forEach(t=>{const c=document.createElement('span');c.className='vid-tag-chip';c.textContent=t.startsWith('#')?t:'#'+t;ce.appendChild(c);}); document.getElementById('vidOutTagsRaw').textContent=tagsArr.map(t=>t.startsWith('#')?t:'#'+t).join(' '); document.getElementById('vidLoading').style.display='none'; document.getElementById('vidResult').style.display='block'; }catch(e){document.getElementById('vidLoading').style.display='none';alert('오류: '+e.message);}finally{document.getElementById('vidGenBtn').disabled=false;} }
 function vidCopy(id){const el=document.getElementById(id);if(!el)return;navigator.clipboard.writeText(el.textContent.trim());snack('복사됐어요 ✓');}
