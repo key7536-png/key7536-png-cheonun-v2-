@@ -474,44 +474,80 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
      🎬 영상 탭
 ══════════════════════════════════════ -->
 <div id="videoPage" class="page">
-  <div class="card">
-    <div class="card-title">🎬 영상 콘텐츠 자동 생성</div>
-    <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px;line-height:1.7">
-      영상 대본을 붙여넣으면 후킹 제목·설명문·태그·고정댓글을 한번에 만들어드려요!
-    </p>
-
-    <!-- 채널 선택 -->
-    <div class="field">
-      <label>채널 유형</label>
-      <div class="spread-sel" id="channelSel" style="margin-bottom:10px">
-        <button class="sp-btn on" onclick="setChannel(this,'fortune')">🔮 운세/사주</button>
-        <button class="sp-btn" onclick="setChannel(this,'history')">📜 역사/이야기</button>
-        <button class="sp-btn" onclick="setChannel(this,'general')">📱 일반</button>
-      </div>
-    </div>
-
-    <!-- 대본 입력 -->
-    <div class="field">
-      <label>영상 대본 (전체 또는 핵심 내용)</label>
-      <textarea id="videoScript" placeholder="여기에 영상 대본을 붙여넣으세요...&#10;&#10;전체 대본이 없으면 핵심 내용만 적어도 됩니다." style="min-height:160px"></textarea>
-    </div>
-
-    <!-- 플랫폼 선택 -->
-    <div class="field">
-      <label>플랫폼</label>
-      <div class="spread-sel" id="platformSel">
-        <button class="sp-btn on" onclick="setPlatform(this,'youtube')">▶ 유튜브</button>
-        <button class="sp-btn" onclick="setPlatform(this,'shorts')">📱 쇼츠/릴스</button>
-        <button class="sp-btn" onclick="setPlatform(this,'tiktok')">🎵 틱톡</button>
-      </div>
-    </div>
-
-    <button class="btn btn-gold" onclick="generateVideo()" id="videoBtn">🎬 콘텐츠 자동 생성</button>
+<style>
+.vid-mode-btn{flex:1;padding:10px;border-radius:10px;border:1px solid #3a2a00;background:transparent;color:var(--muted);font-size:.82rem;font-weight:700;cursor:pointer;transition:.2s;}
+.vid-mode-btn.on{background:linear-gradient(135deg,#b8860b,#ffd700);color:#000;border-color:#ffd700;}
+.vid-upload{border:2px dashed #3a2a00;border-radius:14px;padding:24px;text-align:center;cursor:pointer;transition:.2s;background:rgba(255,185,0,.02);}
+.vid-upload:hover{border-color:var(--gold);background:rgba(255,185,0,.05);}
+.vid-result-card{background:rgba(20,15,0,.7);border:1px solid #2a2000;border-radius:12px;padding:14px;margin-bottom:10px;}
+.vid-result-label{font-size:.7rem;font-weight:900;margin-bottom:7px;}
+.vid-result-text{font-size:.85rem;line-height:1.7;color:#e8dfc0;white-space:pre-wrap;}
+.vid-copy-btn{float:right;font-size:.68rem;color:var(--muted);background:transparent;border:1px solid #333;border-radius:6px;padding:2px 8px;cursor:pointer;transition:.2s;}
+.vid-copy-btn:hover{color:var(--gold);border-color:var(--gold);}
+.vid-tag-chip{display:inline-block;background:rgba(180,130,0,.15);border:1px solid rgba(180,130,0,.3);color:#e8c060;padding:2px 9px;border-radius:20px;font-size:.72rem;margin:2px;}
+.vid-kw-badge{display:inline-block;padding:3px 11px;border-radius:20px;font-size:.72rem;font-weight:700;margin:3px 2px;}
+.vid-loading{text-align:center;padding:32px 0;}
+.vid-key-status{font-size:.7rem;color:var(--muted);margin-top:6px;}
+.vid-key-status span{color:#4caf84;font-weight:700;}
+</style>
+<div class="card">
+  <div class="card-title">🎬 쇼츠 메타데이터 생성기</div>
+  <div style="display:flex;gap:8px;margin-bottom:16px;">
+    <button class="vid-mode-btn on" id="vidModeMovie" onclick="setVidMode('movie')">🎬 영화쇼츠</button>
+    <button class="vid-mode-btn" id="vidModeGeneral" onclick="setVidMode('general')">📱 일반쇼츠</button>
   </div>
-
-  <!-- 결과 -->
-  <div id="videoResult"></div>
+  <div class="vid-upload" id="vidUploadZone" onclick="document.getElementById('vidFileInput').click()">
+    <div id="vidUploadIcon">
+      <div style="font-size:2rem;margin-bottom:8px">🎞️</div>
+      <div style="color:var(--gold2);font-weight:700;font-size:.88rem">영상 파일 업로드</div>
+      <div style="color:var(--muted);font-size:.72rem;margin-top:4px">클릭하여 파일 선택</div>
+    </div>
+    <div id="vidUploadPreview" style="display:none;">
+      <video id="vidPreviewEl" style="width:100%;max-height:180px;border-radius:8px;margin-bottom:8px;" controls muted></video>
+      <div id="vidFileName" style="color:var(--gold2);font-size:.78rem;font-weight:700;"></div>
+    </div>
+    <input type="file" id="vidFileInput" style="display:none;" accept="video/*" onchange="vidHandleFile(this)">
+  </div>
+  <div class="vid-key-status">🔑 Gemini 키 자동 로테이션 (10개) · <span id="vidKeyIndicator">대기 중</span></div>
+  <button onclick="vidGenerate()" id="vidGenBtn" style="width:100%;margin-top:14px;padding:14px;background:linear-gradient(135deg,#b8860b,#ffd700);color:#000;font-weight:900;font-size:.9rem;border:none;border-radius:12px;cursor:pointer;">✦ 메타데이터 생성</button>
 </div>
+<div class="card vid-loading" id="vidLoading" style="display:none;">
+  <div style="font-size:1.8rem;margin-bottom:10px">⏳</div>
+  <div style="color:var(--gold2);font-weight:700;">AI가 영상을 분석 중입니다</div>
+  <div style="color:var(--muted);font-size:.75rem;margin-top:6px;" id="vidLoadingMsg">프레임 추출 중...</div>
+</div>
+<div id="vidResult" style="display:none;">
+  <div class="card vid-result-card">
+    <div class="vid-result-label" style="color:#ffd700;">🔥 제목 <button class="vid-copy-btn" onclick="vidCopy('vidOutTitle')">복사</button></div>
+    <div id="vidOutTitle" class="vid-result-text" style="font-size:.92rem;font-weight:900;color:#fff;"></div>
+    <div style="margin-top:10px;" id="vidKwBadges"></div>
+  </div>
+  <div class="card vid-result-card" id="vidMovieInfoCard">
+    <div class="vid-result-label" style="color:#e8b060;">🎬 영화 제목 <button class="vid-copy-btn" onclick="vidCopy('vidOutMovieTitle')">복사</button></div>
+    <div id="vidOutMovieTitle" class="vid-result-text" style="font-weight:700;color:#fff;"></div>
+    <div style="margin-top:12px;">
+      <div class="vid-result-label" style="color:#a090d0;">📖 줄거리 · 감동 포인트 <button class="vid-copy-btn" onclick="vidCopy('vidOutPlot')">복사</button></div>
+      <div id="vidOutPlot" class="vid-result-text"></div>
+    </div>
+  </div>
+  <div class="card vid-result-card">
+    <div class="vid-result-label" style="color:#a0c0ff;">📝 영상 설명문 <button class="vid-copy-btn" onclick="vidCopy('vidOutDesc')">복사</button></div>
+    <div id="vidOutDesc" class="vid-result-text"></div>
+  </div>
+  <div class="card vid-result-card">
+    <div class="vid-result-label" style="color:#80d090;">#️⃣ 태그 <button class="vid-copy-btn" onclick="vidCopy('vidOutTagsRaw')">복사</button></div>
+    <div id="vidOutTagsChips"></div>
+    <div id="vidOutTagsRaw" style="display:none;"></div>
+  </div>
+  <div class="card vid-result-card">
+    <div class="vid-result-label" style="color:#f0a060;">💬 고정 댓글 <button class="vid-copy-btn" onclick="vidCopy('vidOutComment')">복사</button></div>
+    <div id="vidOutComment" class="vid-result-text"></div>
+  </div>
+  <div class="card" style="padding:12px;">
+    <button onclick="vidCopyAll()" style="width:100%;padding:11px;border:1px solid #3a2a00;background:transparent;color:var(--gold2);font-weight:700;font-size:.82rem;border-radius:10px;cursor:pointer;">📋 전체 복사</button>
+  </div>
+</div>
+</div><!-- /videoPage -->
 
 <!-- DB 설정은 하단 dbModal에서 처리 -->
 
@@ -1973,136 +2009,25 @@ function toggleCallClientList(){
 }
 
 // ════════════════════════════════
-// 🎬 영상 콘텐츠 생성
-// ════════════════════════════════
-let _videoChannel = 'fortune';
-let _videoPlatform = 'youtube';
-
-function setChannel(btn, val){
-  document.querySelectorAll('#channelSel .sp-btn').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
-  _videoChannel = val;
-}
-
-function setPlatform(btn, val){
-  document.querySelectorAll('#platformSel .sp-btn').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
-  _videoPlatform = val;
-}
-
-async function generateVideo(){
-  const script = document.getElementById('videoScript').value.trim();
-  if(!script){ snack('대본을 입력해주세요.'); return; }
-
-  const btn = document.getElementById('videoBtn');
-  btn.disabled = true; btn.textContent = '생성 중...';
-
-  const channelCtx = {
-    fortune: '운세·사주·타로 채널. 신비롭고 감성적인 톤. 궁금증을 자극하는 표현.',
-    history: '역사·이야기 채널. 드라마틱하고 몰입감 있는 스토리텔링 톤.',
-    general: '일반 채널. 트렌디하고 공감 가는 일상적인 톤.'
-  };
-  const platformCtx = {
-    youtube: '유튜브 (제목 30자 이내 권장, 설명문 SEO 최적화, 태그 15개)',
-    shorts: '유튜브 쇼츠/인스타 릴스 (제목 20자 이내, 임팩트 강하게)',
-    tiktok: '틱톡 (젊고 트렌디한 말투, 짧고 강렬하게)'
-  };
-
-  const prompt = `당신은 유튜브 콘텐츠 마케팅 전문가입니다.
-채널 유형: ${channelCtx[_videoChannel]}
-플랫폼: ${platformCtx[_videoPlatform]}
-
-아래 영상 대본을 분석해서 반드시 이 형식으로만 출력하세요.
-
-[후킹제목]
-1. (제목1)
-2. (제목2)
-3. (제목3)
-4. (제목4)
-5. (제목5)
-
-[설명문]
-(10줄 설명문. 첫 줄이 가장 강렬한 후킹 문장. SEO 키워드 자연스럽게 포함. 마지막 줄은 구독/좋아요 유도)
-
-[태그]
-(태그1), (태그2), (태그3), (태그4), (태그5), (태그6), (태그7), (태그8), (태그9), (태그10), (태그11), (태그12), (태그13), (태그14), (태그15)
-
-[고정댓글]
-(5줄. 첫 줄 강렬한 후킹. 영상 핵심 요약. 다음 영상 예고 또는 궁금증 유발. 카카오채널 또는 링크 유도. 구독 유도)
-
-━━━ 핵심 규칙 ━━━
-• 제목은 클릭하지 않으면 못 배길 정도로 강렬하게
-• 숫자, 반전, 비밀, 충격, 경고 등 후킹 요소 적극 활용
-• 한자 금지. 이모지 적극 사용.
-• 설명문은 줄바꿈으로 구분된 10줄 정확히
-• 태그는 # 없이 쉼표로 구분
-
-━━━ 영상 대본 ━━━
-${script}`;
-
-  const result = document.getElementById('videoResult');
-  result.innerHTML = `<div class="card"><div class="loading"><div class="dot-spin"><span></span><span></span><span></span></div>후킹 콘텐츠 생성 중...</div></div>`;
-
-  try{
-    const txt = await ai(prompt, 4096);
-    window._lastVideoTxt = txt;
-
-    // 파싱
-    function parseSection(tag){
-      const start = txt.indexOf('['+tag+']');
-      if(start===-1) return '';
-      const contentStart = start + tag.length + 2;
-      const nextTag = txt.indexOf('[', contentStart);
-      return txt.slice(contentStart, nextTag===-1 ? txt.length : nextTag).trim();
-    }
-
-    const titles = parseSection('후킹제목');
-    const desc   = parseSection('설명문');
-    const tags   = parseSection('태그');
-    const comment= parseSection('고정댓글');
-
-    function block(label, color, content, id){
-      return `
-        <div style="margin-bottom:16px">
-          <div style="font-size:.78rem;font-weight:700;color:${color};margin-bottom:6px">${label}</div>
-          <div class="why-bub" id="${id}" style="white-space:pre-wrap;line-height:1.85">${content}</div>
-          <button onclick="copyBlock('${id}')" class="copy-all-btn" style="margin-top:6px">📋 복사</button>
-        </div>`;
-    }
-
-    result.innerHTML = `
-      <div class="card">
-        <div class="card-title" style="margin-bottom:14px">🎬 생성 완료!</div>
-        ${block('🎯 후킹 제목 5개','var(--gold2)', titles, 'vTitles')}
-        ${block('📝 설명문','var(--mint)', desc, 'vDesc')}
-        ${block('#️⃣ 태그 15개','var(--purple2)', tags, 'vTags')}
-        ${block('📌 고정댓글','var(--pink)', comment, 'vComment')}
-        <button onclick="copyAllVideo()" class="copy-all-btn" style="margin-top:4px;border-color:var(--gold);color:var(--gold2)">📋 전체 복사</button>
-      </div>`;
-
-  }catch(e){
-    result.innerHTML = `<div class="card" style="color:var(--red)">오류: ${e.message}</div>`;
-  }
-  btn.disabled=false; btn.textContent='🎬 콘텐츠 자동 생성';
-}
-
-function copyBlock(id){
-  const el = document.getElementById(id);
-  if(!el) return;
-  navigator.clipboard.writeText(el.innerText.trim()).then(()=>snack('복사됨 ✓'));
-}
-
-function copyAllVideo(){
-  if(!window._lastVideoTxt) return;
-  navigator.clipboard.writeText(window._lastVideoTxt.trim()).then(()=>snack('전체 복사됨 ✓'));
-}
-
-// ════════════════════════════════
 // 초기화
 // ════════════════════════════════
 loadDbConfig();    // Supabase 설정 복원
 loadClients();     // 고객 목록 로드
 setWcat(document.querySelector('.wcat.on'), 'fortune');
+
+// ════════════════════════════════
+// 🎬 영상탭 — Gemini 자동 로테이션
+// ════════════════════════════════
+const VID_KEYS = ["AQ.Ab8RN6JFbQbrNzZVks0Xmeu7DWO9MmRjiI7Ck_encmhyXlvEOQ","AQ.Ab8RN6JrDY6PgU2MmTDJ_GEaG0F1FuYIk8SxZW1ZTi2cEPJuVA","AQ.Ab8RN6JOMz5VB8Iq4lvZKhUSqJHtuttEEI_KxEN4eSZc09q72A","AQ.Ab8RN6KWgnaghB6GcIMeBnHIA5GX5Si1yUzJUEySH8odzULYxA","AQ.Ab8RN6JQi4thfyUl-bbZiSDVM_wPZCdu0vwUT40yIf87e8WCug","AQ.Ab8RN6Ki8T2GARCa7hbRRqT5Uj2bafuNutD_OAfuivi421uDoA","AQ.Ab8RN6JBhlN5LwtSfGB71V2_jL6TCHsdGVWVik_steHm91i7Gw","AQ.Ab8RN6JA_h85aXm09VUt1BWdx1imbqIf5RgEFvu9CX2nV9QXYQ","AQ.Ab8RN6LjgY1xpr30g5paDZovk3SXX9QMr4aVUEftCemxfGSd0g","AQ.Ab8RN6KkjEU42Rp3Bj9wxWfgxRBoFln9osnT6fc1k3QksfIq5g"];
+const VID_MODEL = "gemini-1.5-flash";
+let vidMode = 'movie';
+function setVidMode(m){ vidMode=m; document.getElementById('vidModeMovie').classList.toggle('on',m==='movie'); document.getElementById('vidModeGeneral').classList.toggle('on',m==='general'); }
+function vidHandleFile(input){ if(!input.files.length) return; const file=input.files[0]; document.getElementById('vidFileName').textContent=file.name; document.getElementById('vidPreviewEl').src=URL.createObjectURL(file); document.getElementById('vidUploadIcon').style.display='none'; document.getElementById('vidUploadPreview').style.display='block'; }
+async function vidCallGemini(frames,prompt){ for(let i=0;i<VID_KEYS.length;i++){ document.getElementById('vidKeyIndicator').textContent=`키 ${i+1} 시도 중...`; try{ const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${VID_MODEL}:generateContent?key=${VID_KEYS[i]}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt},...frames.map(f=>({inlineData:{mimeType:'image/jpeg',data:f}}))]}],generationConfig:{temperature:0.7,maxOutputTokens:2048}})}); const data=await res.json(); if(!res.ok){continue;} document.getElementById('vidKeyIndicator').textContent=`키 ${i+1} 성공 ✓`; return data.candidates?.[0]?.content?.parts?.[0]?.text||''; }catch(e){continue;} } vidShowReset(); throw new Error('모든 키 한도 초과. 오후 5시 리셋 후 재시도하세요.'); }
+function vidShowReset(){ const now=new Date(),reset=new Date(); reset.setHours(17,0,0,0); if(now>=reset) reset.setDate(reset.getDate()+1); const diff=reset-now; document.getElementById('vidKeyIndicator').innerHTML=`<span style="color:#ff6b6b;">⏰ ${Math.floor(diff/3600000)}시간 ${Math.floor((diff%3600000)/60000)}분 후(오후5시) 리셋</span>`; }
+async function vidGenerate(){ const file=document.getElementById('vidFileInput').files[0]; if(!file){alert('영상을 먼저 업로드해주세요.');return;} document.getElementById('vidLoading').style.display='block'; document.getElementById('vidResult').style.display='none'; document.getElementById('vidGenBtn').disabled=true; try{ document.getElementById('vidLoadingMsg').textContent='프레임 추출 중...'; const video=document.createElement('video'); video.muted=true; video.src=URL.createObjectURL(file); await new Promise(r=>video.onloadedmetadata=r); const canvas=document.createElement('canvas'); canvas.width=320; canvas.height=180; const ctx=canvas.getContext('2d'); const frames=[]; for(let i=1;i<=3;i++){ video.currentTime=(video.duration/4)*i; await new Promise(r=>{video.onseeked=r;setTimeout(r,1500);}); ctx.drawImage(video,0,0,320,180); frames.push(canvas.toDataURL('image/jpeg',0.5).split(',')[1]); } document.getElementById('vidLoadingMsg').textContent='AI 분석 중...'; const prompt=vidMode==='movie'?'이 영화 클립을 분석해서 유튜브 쇼츠용 메타데이터를 만들어줘. 반드시 JSON만 응답. 마크다운 없이 순수 JSON.\n{"hookTitle":"후킹제목(이모지포함30자이내)","keyword1":"핵심키워드1","keyword2":"핵심키워드2","keyword3":"핵심키워드3","movieTitle":"영화제목(한국어+원제+개봉연도)","plot":"줄거리3문장+감동포인트1문장","description":"설명문3줄(각줄이모지시작)","tags":["태그",...20개],"pinnedComment":"고정댓글(3줄)"}\n영화특정불가시장르기반추정.tags는#없이단어만20개.':'이 영상을 분석해서 유튜브 쇼츠용 메타데이터를 만들어줘. 반드시 JSON만 응답. 마크다운 없이 순수 JSON.\n{"hookTitle":"후킹제목(이모지포함30자이내)","keyword1":"핵심키워드1","keyword2":"핵심키워드2","keyword3":"핵심키워드3","description":"설명문3줄(각줄이모지시작)","tags":["태그",...20개],"pinnedComment":"고정댓글(3줄)"}\ntags는#없이단어만20개.'; const raw=await vidCallGemini(frames,prompt); const res=JSON.parse(raw.replace(/```json|```/g,'').trim()); const kw1=res.keyword1||'',kw2=res.keyword2||'',kw3=res.keyword3||''; document.getElementById('vidOutTitle').textContent=[res.hookTitle,kw1,kw2,kw3].filter(Boolean).join(' ㅣ '); const bdg=document.getElementById('vidKwBadges'); bdg.innerHTML=''; [[kw1,'#3a2060','#c090ff'],[kw2,'#3a1020','#ff90a0'],[kw3,'#002030','#60c0e0']].forEach(([t,bg,cl])=>{ if(!t) return; const s=document.createElement('span'); s.className='vid-kw-badge'; s.style.cssText=`background:${bg};color:${cl};border:1px solid ${cl}40;`; s.textContent=t; bdg.appendChild(s); }); const mc=document.getElementById('vidMovieInfoCard'); if(vidMode==='movie'){mc.style.display='block';document.getElementById('vidOutMovieTitle').textContent=res.movieTitle||'';document.getElementById('vidOutPlot').textContent=res.plot||'';}else{mc.style.display='none';} document.getElementById('vidOutDesc').textContent=res.description||''; document.getElementById('vidOutComment').textContent=res.pinnedComment||''; const tagsArr=Array.isArray(res.tags)?res.tags:[]; const ce=document.getElementById('vidOutTagsChips'); ce.innerHTML=''; tagsArr.forEach(t=>{const c=document.createElement('span');c.className='vid-tag-chip';c.textContent=t.startsWith('#')?t:'#'+t;ce.appendChild(c);}); document.getElementById('vidOutTagsRaw').textContent=tagsArr.map(t=>t.startsWith('#')?t:'#'+t).join(' '); document.getElementById('vidLoading').style.display='none'; document.getElementById('vidResult').style.display='block'; }catch(e){document.getElementById('vidLoading').style.display='none';alert('오류: '+e.message);}finally{document.getElementById('vidGenBtn').disabled=false;} }
+function vidCopy(id){const el=document.getElementById(id);if(!el)return;navigator.clipboard.writeText(el.textContent.trim());snack('복사됐어요 ✓');}
+function vidCopyAll(){const parts=[['📌 제목','vidOutTitle'],['🎬 영화제목','vidOutMovieTitle'],['📖 줄거리','vidOutPlot'],['📝 설명문','vidOutDesc'],['#️⃣ 태그','vidOutTagsRaw'],['💬 고정댓글','vidOutComment']];const text=parts.filter(([,id])=>{const el=document.getElementById(id);return el&&el.textContent.trim();}).map(([label,id])=>`${label}\n${document.getElementById(id).textContent.trim()}`).join('\n\n');navigator.clipboard.writeText(text);snack('전체 복사됐어요 ✓');}
 </script>
 
 <!-- ── Supabase DB 설정 모달 ── -->
