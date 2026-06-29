@@ -1314,22 +1314,65 @@ async function sendChat(){
   chatHistory.push({role:'user', content: q});
 
   const info = lastConsultInfo;
-  const ctx = chatHistory.slice(-4).map(h=>`${h.role==='user'?'내담자':'천운'}: ${h.content}`).join('\n\n');
+  const ctx = chatHistory.slice(-12).map(h=>`${h.role==='user'?'내담자':'천운'}: ${h.content}`).join('\n\n');
+
+  // 채팅 각도 순환 (매 질문마다 다른 각도)
+  const CHAT_ANGLES = [
+    '일간의 오행 특성과 타고난 기질로 풀어서',
+    '현재 대운의 천간지지 에너지로 구체적으로',
+    '올해 세운이 이 상황에 미치는 영향으로',
+    '월주와 일주의 관계에서 나타나는 패턴으로',
+    '용신과 기신의 작용으로 실생활 팁 중심으로',
+    '형충파해합 관계에서 나타나는 운의 흐름으로',
+    '공망과 신살이 이 시기에 미치는 영향으로',
+    '월별 구체적 시기와 흐름을 중심으로',
+  ];
+  if(!window._chatAngleIdx) window._chatAngleIdx = {};
+  const _aKey = (info.name||'') + (info.topic||'');
+  if(window._chatAngleIdx[_aKey] === undefined) window._chatAngleIdx[_aKey] = 0;
+  const _chatAngle = CHAT_ANGLES[window._chatAngleIdx[_aKey] % CHAT_ANGLES.length];
+  window._chatAngleIdx[_aKey]++;
+
+  // 사주 정보 재계산
+  const _chatSaju = (info.birth && typeof calcSaju === 'function') ? calcSaju(info.birth, info.hour, info.gender) : null;
+  const _sajuCtx = _chatSaju ? 
+    `사주: 년${_chatSaju.yp}/월${_chatSaju.mp}/일${_chatSaju.dp}/시${_chatSaju.hp} | 일간:${_chatSaju.ilgan} | 대운:${_chatSaju.curDaeun}(${_chatSaju.curDaeunAge}세~) | 세운:${_chatSaju.seun2026}` : '';
 
   const prompt = `당신은 30년 경력 명리학·타로 상담사 천운입니다.
-현재 ${info.name||'내담자'}님과 ${info.topic} 상담 중입니다.
-이전 대화를 이어서, 새 질문에 카카오톡 대화체로 답변하세요.
-한자 금지. 2~4문장으로 짧고 명확하게. [말풍선] 1개만 작성.
+지금 ${info.name||'내담자'}님과 ${info.topic} 카카오톡 상담 중입니다.
+${_sajuCtx ? '내담자 사주: ' + _sajuCtx : ''}
 
-이전 대화:
+━━━ 이번 답변 필수 각도 ━━━
+반드시 이 각도로만 답하세요: ${_chatAngle}
+이전 대화와 절대 겹치지 않는 새로운 내용으로.
+
+━━━ 절대 금지 ━━━
+• "~나타냅니다" "~의미합니다" "~시사합니다" AI 보고서 말투
+• 이전에 이미 한 말 반복
+• 모호한 시기 ("곧", "언젠가", "머지않아")
+• 짧고 형식적인 답변
+
+━━━ 반드시 포함 ━━━
+• 구체적 시기: "7월 중순", "8월 첫째주", "○월 ○일 전후" 등
+• 사주 명식의 구체적 글자 언급 (일간 ${_chatSaju?.ilgan||''} 등)
+• 내담자 상황에 딱 맞는 실질적 조언
+• 마지막에 내담자가 더 말하게 유도하는 자연스러운 역질문 1개
+  예: "혹시 그분이 마지막에 뭐라고 하셨어요?", "요즘 꿈은 어떠세요?"
+
+━━━ 말투 ━━━
+동네 언니/오빠처럼. "있잖아요~", "그게요~", "솔직히~" 자연스럽게.
+존댓말이지만 친근하게. 한자 절대 금지.
+
+━━━ 이전 대화 (참고용, 겹치지 말 것) ━━━
 ${ctx}
 
-새 질문: ${q}
+━━━ 지금 질문 ━━━
+${info.name||'내담자'}님: "${q}"
 
-[말풍선]`;
+[말풍선] (4~6문장, 구체적 시기 포함, 역질문으로 마무리)`;
 
   try{
-    const txt = await ai(prompt, 4096);
+    const txt = await ai(prompt, 8192);
     const answer = txt.replace(/\[말풍선\]/g,'').trim();
     box.innerHTML += `<div class="msg ai"><div class="bubble">${answer.replace(/\n/g,'<br>')}<br><button onclick="navigator.clipboard.writeText(this.parentElement.innerText.replace('복사','').trim()).then(()=>snack('복사됨 ✓'))" style="font-size:.65rem;color:var(--muted);background:none;border:none;cursor:pointer;margin-top:4px">복사</button></div></div>`;
     box.scrollTop = box.scrollHeight;
@@ -1431,7 +1474,7 @@ async function callQ(question){
   const NL = String.fromCharCode(10);
   const historyCtx = callHistory.length > 0
     ? NL+NL+'━━━ 이전 대화 ━━━'+NL
-      + callHistory.slice(-4).map(h=>'Q: '+h.q+NL+'A: '+h.a).join(NL+NL)
+      + callHistory.slice(-8).map(h=>'Q: '+h.q+NL+'A: '+h.a).join(NL+NL)
     : '';
   // 이번 답변 각도 + 다양성
   const _cAngle = getAngle(topic + '_call');
@@ -1495,7 +1538,7 @@ ${_cAngle.hint}
 
     // 대화 기록 저장 (최근 8개만 유지)
     callHistory.push({q: question, a: bubs.join(' ')});
-    if(callHistory.length > 8) callHistory.shift();
+    if(callHistory.length > 20) callHistory.shift();
 
     document.getElementById('callCustomQ').value = '';
   } catch(e){
@@ -2034,7 +2077,8 @@ let vidMode = 'movie';
 function setVidMode(m){ vidMode=m; document.getElementById('vidModeMovie').classList.toggle('on',m==='movie'); document.getElementById('vidModeGeneral').classList.toggle('on',m==='general'); }
 function vidHandleFile(input){ if(!input.files.length) return; const file=input.files[0]; document.getElementById('vidFileName').textContent=file.name; document.getElementById('vidPreviewEl').src=URL.createObjectURL(file); document.getElementById('vidUploadIcon').style.display='none'; document.getElementById('vidUploadPreview').style.display='block'; }
 async function vidCallGemini(frames,prompt){
-  const key = document.getElementById('vidApiKey').value.trim() || localStorage.getItem('cheonun_vid_key') || '';
+  const _vidKeyEl = document.getElementById('vidApiKey');
+  const key = (_vidKeyEl ? _vidKeyEl.value.trim() : '') || localStorage.getItem('cheonun_vid_key') || '';
   if(!key){ throw new Error('API 키를 입력해주세요.'); }
   document.getElementById('vidKeyIndicator').textContent = '분석 중...';
   const res = await fetch(
