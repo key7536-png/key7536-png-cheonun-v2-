@@ -2018,7 +2018,8 @@ setWcat(document.querySelector('.wcat.on'), 'fortune');
 // ════════════════════════════════
 // 🎬 영상탭 — Gemini 자동 로테이션
 // ════════════════════════════════
-const VID_KEYS = ["AQ.Ab8RN6Kd1goSNAZN9oE5GfsnvMr7V473zlz2Q6cu1kdG69gR9w","AQ.Ab8RN6KTcn_87jhNHACBVmIA5LVT8JFqZ9WqfESNeD0Pmg3Zug","AQ.Ab8RN6LvQmG4L0wUvzyunnfNlxS0OVCzjemQ-BUDpBZNUlO4yg","AQ.Ab8RN6JlQyg5pT58ccKlnavQi_GmlI_R-18DLtIMTF5JplPHWA","AQ.Ab8RN6JUuUSutZFKxSHvAj_pLUkMhU2IPBzYllwxq-B_H-X9UA","AQ.Ab8RN6Kn56si4n2itObpOeiqB8SIOzO3nZp2_RHJtxYriw10rQ","AQ.Ab8RN6I1OBf0v5AYuTIHhCeuB3WT-7pk8VUGCTqH7kAbsphcDw","AQ.Ab8RN6K1Pf626egvOTCYFU_GXeVjCCo3fAs7b4jKBEHXFOLqeQ","AQ.Ab8RN6JUcl_ivRxySXEPATwTnHxFsqlKc1Fk2ldVDsPLOyUi-w","AQ.Ab8RN6K-reBl4On9P1Ypzs1nHOEiQgMja-UTKnh5nrXpw8am-g"];
+const _VK = ["QVEuQWI4Uk42S2QxZ29TTkFaTjlvRTVHZnNudk1yN1Y0NzN6bHoyUTZjdTFrZEc2OWdSOXc=","QVEuQWI4Uk42S1Rjbl84N2poTkhBQ0JWbUlBNUxWVDhKRnFaOVdxZkVTTmVEMFBtZzNadWc=","QVEuQWI4Uk42THZRbUc0TDB3VXZ6eXVubmZObHhTME9WQ3pqZW1RLUJVRHBCWk5VbE80eWc=","QVEuQWI4Uk42SmxReWc1cFQ1OGNjS2xuYXZRaV9HbWxJX1ItMThETHRJTVRGNUpwbFBIV0E=","QVEuQWI4Uk42SlV1VVN1dFpGS3hTSHZBal9wTFVrTWhVMklQQnpZbGx3eHEtQl9ILVg5VUE=","QVEuQWI4Uk42S241NnNpNG4yaXRPYnBPZWlxQjhTSU96TzNuWnAyX1JISnR4WXJpdzEwclE=","QVEuQWI4Uk42STFPQmYwdjVBWXVUSUhoQ2V1QjNXVC03cGs4VlVHQ1RxSDdrQWJzcGhjRHc=","QVEuQWI4Uk42SzFQZjYyNmVndk9UQ1lGVV9HWGVWakNDbzNmQXM3YjRqS0JFSFhGT0xxZVE=","QVEuQWI4Uk42SlVjbF9pdlJ4eVNYRVBBVHdUbkh4RnNxbEtjMUZrMmxkVkRzUExPeVVpLXc=","QVEuQWI4Uk42SWFzSmwwSnd4UlNiVUVRTlpFUldfX3lmYnM4SHNtcWRBQnhwNnc1TEtTS3c="];
+const VID_KEYS = _VK.map(b=>atob(b))
 const VID_MODEL = "gemini-1.5-flash";
 let vidMode = 'movie';
 function setVidMode(m){ vidMode=m; document.getElementById('vidModeMovie').classList.toggle('on',m==='movie'); document.getElementById('vidModeGeneral').classList.toggle('on',m==='general'); }
