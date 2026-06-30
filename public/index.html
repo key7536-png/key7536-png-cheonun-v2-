@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -1094,9 +1095,14 @@ function buildSajuPrompt(name, gender, birth, hour, topic, q, partnerInfo){
   const _angle = getAngle(topic);
   const _metaphor = getMetaphor();
 
+  const _syNow = new Date().getFullYear();
+  const _smNow = new Date().getMonth() + 1;
   return `당신은 30년 경력의 명리학 전문 상담사 천운입니다.
 지금 ${name}님과 카카오톡으로 실시간 상담 중이에요.
 동네 언니나 오빠처럼 편하고 따뜻하게, 사람 냄새 나는 말투로 써주세요.
+
+⚠️ 현재 날짜: ${_syNow}년 ${_smNow}월 — 시기 언급 시 반드시 이 기준으로.
+"올해"=${_syNow}년, "내년"=${_syNow+1}년 — 2025년을 내년이라고 하면 절대 안 됨.
 
 ━━━ 이번 상담 핵심 각도 (반드시 이 각도 중심으로) ━━━
 분석 포인트: ${_angle.name}
@@ -1346,9 +1352,16 @@ async function sendChat(){
   const _sajuCtx = _chatSaju ? 
     `사주: 년${_chatSaju.yp}/월${_chatSaju.mp}/일${_chatSaju.dp}/시${_chatSaju.hp} | 일간:${_chatSaju.ilgan} | 대운:${_chatSaju.curDaeun}(${_chatSaju.curDaeunAge}세~) | 세운:${_chatSaju.seun2026}` : '';
 
+  const _now = new Date();
+  const _yearNow = _now.getFullYear();
+  const _monthNow = _now.getMonth() + 1;
+
   const prompt = `당신은 30년 경력 명리학·타로 상담사 천운입니다.
 지금 ${info.name||'내담자'}님과 ${info.topic} 카카오톡 상담 중입니다.
 ${_sajuCtx ? '내담자 사주: ' + _sajuCtx : ''}
+
+⚠️ 현재 날짜: ${_yearNow}년 ${_monthNow}월 (반드시 이 연도 기준으로 시기 언급할 것)
+"올해"=${_yearNow}년, "내년"=${_yearNow+1}년, "작년"=${_yearNow-1}년 — 절대 틀리면 안 됨.
 
 ━━━ 이번 답변 필수 각도 ━━━
 반드시 이 각도로만 답하세요: ${_chatAngle}
@@ -1513,8 +1526,12 @@ async function callQ(question){
 • 매번 다른 각도에서 답변 — 이전 대화와 겹치지 않게
 • 희망적이되 현실적으로. 무조건 된다 금지.` : '';
 
+  const _cNow = new Date();
+  const _cYear = _cNow.getFullYear();
+  const _cMonth = _cNow.getMonth() + 1;
   const prompt = `당신은 30년 경력 명리학 상담사 천운입니다.
 지금 ${name}님과 전화 통화 중입니다.
+⚠️ 현재 날짜: ${_cYear}년 ${_cMonth}월 — "올해"=${_cYear}년, "내년"=${_cYear+1}년 기준으로만 시기 언급.
 
 내담자: ${name}(${gender})
 ${sajuCtx}
@@ -1782,7 +1799,9 @@ async function askWhy(question){
     clientCtx = `\n\n━━━ 내담자 정보 ━━━\n이름: ${ci.name}(${ci.gender||''}) ${birthStr}\n주제: ${ci.topic}${cardStr}\n→ 이 내담자 상황에 맞게 구체적으로. 이름 호칭 사용.\n━━━━━━━━━━━━━━━━━━`;
   }
 
+  const _wYear = new Date().getFullYear();
   const prompt = `당신은 30년 경력 명리학·타로 전문 상담사 천운입니다.
+⚠️ 현재 연도: ${_wYear}년 — 시기 언급 시 반드시 이 기준.
 내담자가 "${question}" 라고 물었습니다.
 분야: ${catNames[whyCat]||'상담'}${clientCtx}
 
