@@ -297,21 +297,58 @@ function countScriptChars(lines) {
   return joined.replace(/\s+/g, '').length;
 }
 
+// 응답이 중간에 잘린 경우, 완전히 닫힌 마지막 객체까지만 살려서 부분적으로라도 결과를 보여준다.
+function repairTruncatedJson(t) {
+  // 흔한 경우: storyboard 배열 안에서 잘림. 마지막으로 완전히 닫힌 "}" 뒤를 자르고
+  // 열려 있는 배열/객체를 순서대로 닫아준다.
+  let depthStack = [];
+  let lastSafeIdx = -1;
+  let lastSafeStack = null; // 그 시점의 depthStack 스냅샷 (참조 말고 값 복사)
+  let inString = false, escapeNext = false;
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i];
+    if (escapeNext) { escapeNext = false; continue; }
+    if (ch === '\\') { escapeNext = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{' || ch === '[') depthStack.push(ch);
+    else if (ch === '}' || ch === ']') {
+      depthStack.pop();
+      lastSafeIdx = i; // 값 하나가 완전히 닫힌 지점 — 여기서 잘라도 구조상 안전하다
+      lastSafeStack = depthStack.slice();
+    }
+  }
+  if (lastSafeIdx === -1 || !lastSafeStack) return null;
+  let repaired = t.slice(0, lastSafeIdx + 1);
+  // 그 시점에 열려 있던 괄호들만 순서대로 닫는다
+  for (let i = lastSafeStack.length - 1; i >= 0; i--) {
+    repaired += lastSafeStack[i] === '{' ? '}' : ']';
+  }
+  try { return JSON.parse(repaired); } catch (e) { return null; }
+}
+
 function extractJson(text) {
   let t = text.trim();
   const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fence) t = fence[1].trim();
   const start = t.indexOf('{');
   const end = t.lastIndexOf('}');
-  if (start === -1 || end === -1) throw new Error('응답에서 JSON을 찾지 못했습니다.');
-  return JSON.parse(t.slice(start, end + 1));
+  if (start === -1) throw new Error('응답에서 JSON을 찾지 못했습니다.');
+  const body = end === -1 ? t.slice(start) : t.slice(start, end + 1);
+  try {
+    return JSON.parse(body);
+  } catch (e) {
+    const repaired = repairTruncatedJson(body);
+    if (repaired) return repaired;
+    throw new Error('응답이 중간에 잘려서 해석할 수 없습니다 (분량이 너무 길었을 수 있어요). 다시 시도해주세요.');
+  }
 }
 
 async function callAi(prompt) {
   const res = await fetch('/api/saju-script-ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, maxTokens: 8192 })
+    body: JSON.stringify({ prompt, maxTokens: 32768 })
   });
   const payload = await res.json();
   if (payload.error) throw new Error(payload.error);
