@@ -1,7 +1,7 @@
 // 사주 유튜브 대본 생성기 전용 Gemini 프록시.
 // 키는 절대 이 파일에 직접 적지 않는다 — Vercel 프로젝트 환경변수에
 // SAJU_SCRIPT_KEY_1 ~ SAJU_SCRIPT_KEY_5 이름으로 등록해서 process.env로 읽는다.
-// 무료 키 한도(429)나 일시 장애(503)를 만나면 다음 키로 자동 전환한다.
+// 무료 키 한도(429)나 일시 장애(503), 키 거부(403)를 만나면 다음 키로 자동 전환한다.
 
 const MODEL = 'gemini-2.5-flash';
 
@@ -63,13 +63,18 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ text });
       } catch (e) {
         lastErr = e;
-        if (e.code === 429 || e.code === 503) continue; // 한도 초과·일시 장애 → 다음 키로
+        // 한도 초과(429)·일시 장애(503)·키 거부(403, "denied access" 등) → 다음 키로 넘어가본다.
+        // 그 외 오류(잘못된 요청 등)는 키를 바꿔도 소용없으므로 바로 실패 처리한다.
+        if (e.code === 429 || e.code === 503 || e.code === 403) continue;
         throw e;
       }
     }
 
-    // 모든 키가 한도 초과인 경우
-    return res.status(429).json({ error: '등록된 무료 키가 모두 한도를 초과했습니다. 잠시 후 다시 시도해주세요.' });
+    // 모든 키가 다 안 되는 경우 — 마지막 오류를 그대로 보여준다.
+    return res.status(lastErr?.code === 403 ? 403 : 429).json({
+      error: '등록된 키 ' + KEYS.length + '개를 모두 시도했지만 전부 실패했습니다. 마지막 오류: ' + (lastErr?.message || '알 수 없는 오류') +
+        ' — Vercel에 등록한 SAJU_SCRIPT_KEY 값들이 유효한지, Google AI Studio에서 새로 발급받은 키인지 확인해주세요.'
+    });
 
   } catch (e) {
     return res.status(500).json({ error: e.message });
