@@ -307,20 +307,42 @@ function splitTextForScenes(text, targetLen) {
 
 // 대본을 확정 짓고 나서, 실제 말하는 시간(글자수 기준)에 맞춰 10초 단위
 // 씬 목록을 코드로 직접 계산한다 — 이렇게 해야 AI가 씬을 몇 개 만들지
-// 스스로 판단하다 분량을 빠뜨리는 일이 없다.
+// 스스로 판단하다 분량을 빠뜨리거나(부족) 부풀리는(짧은 대사도 통째로
+// 10초씩 차지) 일이 없다.
+//
+// 긴 대사는 여러 씬으로 쪼개고, 짧은 대사(심지어 다른 화자의 대사까지)는
+// 이웃과 합쳐서 한 씬(약 65~78자)에 채운다 — 그래야 "아, 그렇군요!" 같은
+// 2초짜리 대사가 통째로 10초를 낭비하지 않는다.
 function buildSceneList(scriptLines) {
-  const CHARS_PER_10S = 60;
-  const scenes = [];
-  let t = 0;
-  scriptLines.forEach((line, lineIndex) => {
-    const chunks = splitTextForScenes(line.text || '', CHARS_PER_10S);
-    chunks.forEach(text => {
-      const start = t, end = t + 10;
-      const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-      scenes.push({ lineIndex, speaker: line.speaker, text, segment: `${fmt(start)}-${fmt(end)}` });
-      t += 10;
+  const CHARS_PER_10S = 65;
+  const BUCKET_MAX = 78;
+  const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+  const pieces = [];
+  scriptLines.forEach(line => {
+    splitTextForScenes(line.text || '', CHARS_PER_10S).forEach(text => {
+      pieces.push({ speaker: line.speaker, text });
     });
   });
+
+  const scenes = [];
+  let bucket = [], bucketLen = 0, t = 0;
+  function flush() {
+    if (bucket.length === 0) return;
+    // 씬 안에 여러 화자가 섞이면, 글자수가 더 많은 쪽을 카메라의 주된 대상으로 삼는다
+    const dominant = bucket.slice().sort((a, b) => b.text.length - a.text.length)[0].speaker;
+    scenes.push({ speaker: dominant, parts: bucket, segment: `${fmt(t)}-${fmt(t + 10)}` });
+    t += 10;
+    bucket = [];
+    bucketLen = 0;
+  }
+  pieces.forEach(p => {
+    if (bucketLen > 0 && bucketLen + p.text.length > BUCKET_MAX) flush();
+    bucket.push(p);
+    bucketLen += p.text.length;
+  });
+  flush();
+
   return scenes;
 }
 
@@ -328,9 +350,10 @@ function buildSceneList(scriptLines) {
 // 씬마다 카메라 연출과 분위기 묘사만 짧게 받아온다 (대사·인물 묘사·타임코드는
 // 코드에서 직접 조립하므로 절대 누락되거나 바뀌지 않는다).
 function buildStoryboardPrompt(topic, scenes) {
-  const numbered = scenes.map((s, i) =>
-    `${i}. [${s.speaker === 'client' ? '의뢰인' : '상담사'}] "${s.text}"`
-  ).join('\n');
+  const numbered = scenes.map((s, i) => {
+    const partsText = s.parts.map(p => `[${p.speaker === 'client' ? '의뢰인' : '상담사'}] "${p.text}"`).join(' → ');
+    return `${i}. ${partsText}`;
+  }).join('\n');
 
   return `아래는 "${topic}" 주제 사주 상담 영상의 10초 단위 씬 목록입니다 (총 ${scenes.length}개, 이미 확정됨). 각 씬마다 어울리는 카메라 연출과 분위기만 짧게 만들어주세요. 대사나 인물 묘사는 이미 정해져 있으니 여기서 새로 쓰지 마세요.
 
@@ -533,7 +556,7 @@ form.addEventListener('submit', async (e) => {
     // 1단계: 대본만 먼저 확정 (스토리보드 없이 요청해야 분량 기준을 확실히 지킨다)
     let data = await callAi(buildScriptPrompt(topic));
 
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       const count = countScriptChars(data.script_lines || []);
       if (count >= 1800 && count <= 2000) break;
       statusText.textContent = '분량을 1,800~2,000자에 맞춰 다듬는 중이에요...';
@@ -551,16 +574,22 @@ form.addEventListener('submit', async (e) => {
     const storyboardResp = await callAi(buildStoryboardPrompt(topic, scenes), 32768);
     const aiScenes = storyboardResp.scenes || [];
 
+    const subjectFor = sp => sp === 'client' ? client.en : `a Korean fortune counselor wearing a ${hanbokColorEn} hanbok (traditional Korean dress)`;
+    const enLabel = sp => sp === 'client' ? 'The client' : 'The counselor';
+
     data.storyboard = scenes.map((s, i) => {
       const ai = aiScenes[i] || {};
       const speakerLabel = s.speaker === 'client' ? '의뢰인' : '상담사';
-      const subject = s.speaker === 'client'
-        ? client.en
-        : `a Korean fortune counselor wearing a ${hanbokColorEn} hanbok (traditional Korean dress)`;
       const cameraEn = ai.camera_en || 'static medium shot';
       const moodEn = ai.mood_en || 'warm ambient lighting, cozy consultation room';
-      const speakerEn = s.speaker === 'client' ? 'The client' : 'The counselor';
-      const video_prompt_en = `Photorealistic, cinematic lighting, shallow depth of field. ${cameraEn}, focusing on ${subject}. ${moodEn}. ${speakerEn} says: "${s.text}". no on-screen text, no subtitles.`;
+
+      const speakersInScene = [...new Set(s.parts.map(p => p.speaker))];
+      const focusEn = speakersInScene.length === 1
+        ? `focusing on ${subjectFor(speakersInScene[0])}`
+        : `with ${subjectFor('host')} and ${subjectFor('client')} both in frame, camera shifting focus between them as they speak`;
+      const dialogueEn = s.parts.map(p => `${enLabel(p.speaker)} says: "${p.text}"`).join(' Then ');
+
+      const video_prompt_en = `Photorealistic, cinematic lighting, shallow depth of field. ${cameraEn}, ${focusEn}. ${moodEn}. ${dialogueEn}. no on-screen text, no subtitles.`;
       return { segment: s.segment, speaker: s.speaker, description_kr: ai.description_kr || (speakerLabel + ' 클로즈업'), video_prompt_en };
     });
 
