@@ -274,12 +274,19 @@ function buildScriptPrompt(topic) {
 }`;
 }
 
-// 한국어는 대략 초당 5~6자 정도로 말한다고 보고, 10초 씬 하나에는
-// 대략 이 정도 분량의 대사만 담기게 긴 대사를 쪼갠다. 문장부호(. ! ? , 요/다/까 등)
-// 뒤에서 최대한 자연스럽게 끊는다.
+// "1,800~2,000자" 분량 기준(=countScriptChars)과 똑같이, 공백을 뺀
+// 글자수로 잰다. 한국어는 대략 초당 5~6자(공백 제외) 정도로 말하므로,
+// 이 기준이 실제 발화 시간과 맞아떨어진다. 공백까지 그대로 세면
+// 같은 targetLen이라도 실제 대사 분량이 30%가량 부풀려져 씬이
+// 필요 이상으로 많아진다.
+function spokenLen(text) {
+  return text.replace(/\s+/g, '').length;
+}
+
+// 10초 씬 하나에 대략 targetLen(공백 제외 글자수)만큼의 대사만 담기게
+// 긴 대사를 쪼갠다. 문장부호(. ! ? ,) 뒤에서 최대한 자연스럽게 끊는다.
 function splitTextForScenes(text, targetLen) {
-  if (text.length <= targetLen) return [text];
-  // 1차: 문장/절 단위로 자를 수 있는 지점들(문장부호 뒤)을 찾는다
+  if (spokenLen(text) <= targetLen) return [text];
   const breakPoints = [];
   for (let i = 0; i < text.length; i++) {
     if ('.!?,'.includes(text[i]) && text[i + 1] === ' ') breakPoints.push(i + 1);
@@ -287,14 +294,18 @@ function splitTextForScenes(text, targetLen) {
   const chunks = [];
   let start = 0;
   while (start < text.length) {
-    let end = Math.min(start + targetLen, text.length);
+    // 공백 제외 글자수로 targetLen만큼 채워질 때까지 앞으로 걸어간다
+    let spoken = 0, end = start;
+    while (end < text.length && spoken < targetLen) {
+      if (!/\s/.test(text[end])) spoken++;
+      end++;
+    }
     if (end < text.length) {
-      // targetLen 근처의 break point를 찾아 그 자리에서 끊는다
-      const candidates = breakPoints.filter(bp => bp > start && bp <= start + targetLen * 1.4);
+      const maxEnd = Math.min(text.length, end + Math.ceil((end - start) * 0.4));
+      const candidates = breakPoints.filter(bp => bp > start && bp <= maxEnd);
       if (candidates.length > 0) {
         end = candidates[candidates.length - 1];
       } else {
-        // 문장부호가 없으면 가장 가까운 공백에서 끊는다
         const spaceIdx = text.lastIndexOf(' ', end);
         if (spaceIdx > start) end = spaceIdx + 1;
       }
@@ -330,16 +341,17 @@ function buildSceneList(scriptLines) {
   function flush() {
     if (bucket.length === 0) return;
     // 씬 안에 여러 화자가 섞이면, 글자수가 더 많은 쪽을 카메라의 주된 대상으로 삼는다
-    const dominant = bucket.slice().sort((a, b) => b.text.length - a.text.length)[0].speaker;
+    const dominant = bucket.slice().sort((a, b) => spokenLen(b.text) - spokenLen(a.text))[0].speaker;
     scenes.push({ speaker: dominant, parts: bucket, segment: `${fmt(t)}-${fmt(t + 10)}` });
     t += 10;
     bucket = [];
     bucketLen = 0;
   }
   pieces.forEach(p => {
-    if (bucketLen > 0 && bucketLen + p.text.length > BUCKET_MAX) flush();
+    const pLen = spokenLen(p.text);
+    if (bucketLen > 0 && bucketLen + pLen > BUCKET_MAX) flush();
     bucket.push(p);
-    bucketLen += p.text.length;
+    bucketLen += pLen;
   });
   flush();
 
