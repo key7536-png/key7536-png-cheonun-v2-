@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>사주 유튜브 대본 생성기</title>
+<style>
+  :root {
+    --bg: #eeece2;
+    --surface: #ffffff;
+    --surface-2: #f7f5ee;
+    --ink: #1c1a17;
+    --ink-soft: #5b574c;
+    --ink-faint: #8a8577;
+    --accent: #a8632c;
+    --accent-ink: #fffaf0;
+    --accent2: #6b3a2c;
+    --line: #dcd6c4;
+    --good: #4a7a5a;
+    --bad: #a8432c;
+    --radius: 14px;
+    --serif: "Noto Serif KR", "Nanum Myeongjo", "Songti SC", serif;
+    --sans: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161c; --surface: #1b1e26; --surface-2: #20242e; --ink: #ece8dc;
+      --ink-soft: #a9a89c; --ink-faint: #6f7280; --accent: #d4a24c; --accent-ink: #1c1408;
+      --accent2: #c9805a; --line: #333749; --good: #7fbf95; --bad: #e0806a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans);
+    line-height: 1.7; padding: 32px 18px 100px;
+  }
+  .page { max-width: 760px; margin: 0 auto; }
+
+  header { margin-bottom: 28px; }
+  .pillars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; width: 92px; margin-bottom: 16px; }
+  .pillars span { display: block; height: 4px; border-radius: 2px; background: var(--accent); opacity: 0.85; }
+  .pillars span:nth-child(4n) { opacity: 0.4; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint); }
+  h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(24px,4vw,32px); margin: 6px 0 8px; text-wrap: balance; }
+  .sub { color: var(--ink-soft); font-size: 14px; max-width: 56ch; }
+
+  .composer {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px; display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap;
+  }
+  .composer input {
+    flex: 1 1 260px; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+    font-family: var(--sans); font-size: 16px; background: var(--surface-2); color: var(--ink);
+    min-width: 0;
+  }
+  .composer input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .composer button {
+    border: none; background: var(--accent); color: var(--accent-ink); font-family: var(--sans);
+    font-weight: 700; font-size: 15px; padding: 12px 22px; border-radius: 10px; cursor: pointer;
+    flex: 1 1 auto;
+  }
+  .composer button:disabled { opacity: .55; cursor: not-allowed; }
+  .hint { font-size: 12.5px; color: var(--ink-faint); margin-top: 8px; }
+
+  @media (max-width: 480px) {
+    body { padding: 20px 14px 80px; }
+    .composer { flex-direction: column; }
+    .composer input, .composer button { flex-basis: auto; width: 100%; }
+    .section-head { flex-wrap: wrap; gap: 8px; }
+    table { min-width: 0; }
+    td, th { font-size: 12.5px; padding: 9px 10px; }
+  }
+
+  .status { display: none; align-items: center; gap: 10px; margin-top: 22px; color: var(--ink-soft); font-size: 14px; }
+  .status.show { display: flex; }
+  .spinner {
+    width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line);
+    border-top-color: var(--accent); animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+  .error {
+    display: none; margin-top: 20px; padding: 14px 16px; border-radius: 10px;
+    background: color-mix(in srgb, var(--bad) 12%, var(--surface)); border: 1px solid var(--bad); color: var(--bad); font-size: 14px;
+  }
+  .error.show { display: block; }
+
+  #result { display: none; margin-top: 40px; }
+  #result.show { display: block; }
+
+  section.block { margin-bottom: 40px; }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding-bottom: 10px; margin-bottom: 16px; }
+  .section-head h2 { font-family: var(--serif); font-size: 19px; font-weight: 600; margin: 0; }
+  .section-head .num { font-family: var(--mono); color: var(--accent); font-size: 13px; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; }
+
+  .copy-btn {
+    font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--accent); background: transparent; color: var(--accent);
+    border-radius: 999px; padding: 6px 14px; transition: background .15s, color .15s;
+  }
+  .copy-btn:hover { background: var(--accent); color: var(--accent-ink); }
+  .copy-btn.copied { background: var(--good); border-color: var(--good); color: var(--accent-ink); }
+
+  .title-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 9px; }
+  .title-list li { display: flex; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 11px 14px; }
+  .title-list li.picked { border-color: var(--accent); background: var(--surface-2); }
+  .title-list .tag { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+  .hook-line { font-family: var(--serif); font-size: 17px; margin-top: 12px; padding: 14px 16px; background: var(--surface-2); border-left: 3px solid var(--accent); border-radius: 6px; }
+
+  .script-meta { display: flex; gap: 16px; font-family: var(--mono); font-size: 12px; color: var(--ink-faint); margin-bottom: 12px; }
+  .script-meta b { color: var(--ink); }
+  .script-meta .warn { color: var(--bad); }
+  .script-box { display: flex; flex-direction: column; gap: 12px; }
+  .line { margin: 0; padding-left: 13px; border-left: 2px solid transparent; }
+  .line .speaker { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 3px; }
+  .line.host { border-left-color: var(--accent); }
+  .line.host .speaker { color: var(--accent); }
+  .line.client { border-left-color: var(--accent2); color: var(--ink-soft); font-size: 14.5px; }
+  .line.client .speaker { color: var(--accent2); }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+  table { width: 100%; border-collapse: collapse; min-width: 600px; background: var(--surface); }
+  th, td { text-align: left; padding: 11px 13px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 13.5px; }
+  th { font-family: var(--mono); font-size: 11px; text-transform: uppercase; color: var(--ink-faint); background: var(--surface-2); }
+  tr:last-child td { border-bottom: none; }
+  td.prompt { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
+
+  .upload-grid { display: flex; flex-direction: column; gap: 18px; }
+  .field-label { font-family: var(--mono); font-size: 12px; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 7px; display: flex; justify-content: space-between; align-items: center; }
+  .field-body { white-space: pre-wrap; font-size: 14px; }
+  .tag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .tag-chips span { font-family: var(--mono); font-size: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; color: var(--ink-soft); }
+
+  .disclaimer { font-size: 12px; color: var(--ink-faint); margin-top: 6px; }
+  footer { text-align: center; color: var(--ink-faint); font-size: 12px; margin-top: 50px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="pillars"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="eyebrow">사주 유튜브 대본 생성기</div>
+    <h1>주제 한 줄로 5분 상담형 대본 만들기</h1>
+    <p class="sub">사주 주제를 입력하면 후킹 제목, 상담사-의뢰인 대화체 대본, 스토리보드, 업로드 정보를 한 번에 만들어드려요.</p>
+  </header>
+
+  <form class="composer" id="form">
+    <input id="topic" type="text" placeholder="예: 역마살 있는 사람 특징" autocomplete="off" required />
+    <button id="submitBtn" type="submit">대본 만들기</button>
+  </form>
+  <p class="hint">⚠️ 이 도구는 실시간 웹 검색으로 사실을 검증하지 않습니다. 등장하는 통계·수치·출처는 사용 전 직접 한 번 더 확인해주세요.</p>
+
+  <div class="status" id="status"><div class="spinner"></div><span id="statusText">대본을 만드는 중이에요...</span></div>
+  <div class="error" id="error"></div>
+
+  <div id="result">
+
+    <section class="block" id="hookSection">
+      <div class="section-head"><h2>제목 &amp; 훅</h2><span class="num">01</span></div>
+      <div class="card">
+        <ul class="title-list" id="titleList"></ul>
+        <div class="hook-line" id="hookLine"></div>
+      </div>
+    </section>
+
+    <section class="block" id="scriptSection">
+      <div class="section-head">
+        <h2>대본 (복붙용)</h2>
+        <button class="copy-btn" id="copyScript" type="button">대본 전체 복사</button>
+      </div>
+      <div class="script-meta" id="scriptMeta"></div>
+      <div class="card script-box" id="scriptBox"></div>
+    </section>
+
+    <section class="block" id="storyboardSection">
+      <div class="section-head"><h2>스토리보드</h2><span class="num">02</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>구간</th><th>화면 설명</th><th>이미지 프롬프트 (EN)</th></tr></thead>
+          <tbody id="storyboardBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="block" id="uploadSection">
+      <div class="section-head"><h2>업로드 정보</h2><span class="num">03</span></div>
+      <div class="card upload-grid">
+        <div>
+          <div class="field-label"><span>설명(Description)</span><button class="copy-btn" data-copy="description" type="button">복사</button></div>
+          <div class="field-body" id="descriptionText"></div>
+        </div>
+        <div>
+          <div class="field-label"><span>참고 사항</span><button class="copy-btn" data-copy="sources" type="button">복사</button></div>
+          <div class="field-body" id="sourcesText"></div>
+          <p class="disclaimer">※ 실시간 검색 결과가 아닙니다. 업로드 전 직접 검증해주세요.</p>
+        </div>
+        <div>
+          <div class="field-label"><span>태그</span><button class="copy-btn" data-copy="tags" type="button">복사</button></div>
+          <div class="tag-chips" id="tagChips"></div>
+        </div>
+        <div>
+          <div class="field-label"><span>고정 댓글</span><button class="copy-btn" data-copy="pinned" type="button">복사</button></div>
+          <div class="field-body" id="pinnedText"></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>사주 유튜브 대본 생성기 · 천운 상담도구</footer>
+</div>
+
+<script>
+const form = document.getElementById('form');
+const topicInput = document.getElementById('topic');
+const submitBtn = document.getElementById('submitBtn');
+const statusEl = document.getElementById('status');
+const statusText = document.getElementById('statusText');
+const errorEl = document.getElementById('error');
+const resultEl = document.getElementById('result');
+
+let currentRaw = { script: '', description: '', sources: '', tags: '', pinned: '' };
+
+function buildPrompt(topic) {
+  return `당신은 유튜브 사주(운세) 채널의 5분짜리 "상담 재연" 영상 대본을 쓰는 작가입니다.
+주제: "${topic}"
+
+아래 규칙을 반드시 지켜서, 오직 하나의 JSON 객체만 출력하세요. 코드블록(백틱)이나 설명 문장 없이 JSON만 출력합니다.
+
+[형식 규칙]
+- 대본은 상담사가 의뢰인에게 사주를 풀어주는 대화체입니다. 상담사가 전체 분량의 70~85%, 의뢰인은 15~30%를 말합니다.
+- 의뢰인 대사는 짧게: 되묻기, 공감 반응, 다음 화제로 이어주는 질문. 절대 길게 설명하지 않습니다.
+- 상담사 어투는 경험 많고 차분한 상담 선생님 톤입니다. 존댓말, 단정적이되 다그치지 않는 말투. 이모지·밈체·과한 느낌표 금지. 너무 가볍지도, 너무 딱딱하지도 않은 중간 무게감을 유지하세요.
+- 확정적 단언("반드시 이렇게 됩니다") 대신 "사주에서는 이렇게 봅니다", "이런 경향이 있다고 해석해요" 같은 해석 체계 화법을 씁니다.
+- 첫 대사(훅)는 의뢰인이 아니라 시청자를 직접 겨냥하는 질문이나 문장이어야 합니다. "오늘은 ~에 대해 알아보겠습니다" 식 소개는 금지.
+- 큰 궁금증(오픈 루프) 하나를 초반에 던지고 후반에 회수하며, 350~500자마다 화제 전환이나 새 사례를 넣어 늘어지지 않게 합니다.
+- 대본 전체 글자수(화자 표시 제외, 공백 포함)는 1,800~2,000자 사이여야 합니다.
+- 사실 관계(명리학 용어 정의, 역사적 사실 등)는 당신이 확신하는 널리 알려진 내용만 사용하세요. 불확실한 통계나 수치, 특정 인물의 사생활을 지어내지 마세요. 출처 URL을 절대 지어내지 마세요 — sources 필드에는 실제 URL 대신 "전통 명리학 이론(십이신살) 기반" 같은 일반적 근거 설명만 적으세요.
+- 스토리보드 이미지 프롬프트는 영어로, 실사(포토리얼리스틱) 스타일로 작성합니다 (예: photorealistic, cinematic lighting, shallow depth of field). 실존 인물 얼굴을 특정하지 말고 "a Korean woman in her 30s" 처럼 일반화해서 묘사하세요. 씬은 10~14개 정도로 나눕니다.
+
+[출력 JSON 스키마]
+{
+  "titles": ["제목후보1(가장 강한 것)", "제목후보2", "제목후보3", "제목후보4"],
+  "hook_line": "대본 첫 문장과 동일한 훅 문장",
+  "script_lines": [{"speaker": "host", "text": "..."}, {"speaker": "client", "text": "..."}, ...],
+  "storyboard": [{"segment": "예: 0:00-0:20", "description_kr": "화면 설명", "image_prompt_en": "English photorealistic prompt"}],
+  "description": "유튜브 설명란 텍스트 (훅 문장으로 시작, 요약, CTA 포함)",
+  "sources": "참고한 일반적 근거 설명 (실제 URL 지어내지 말 것)",
+  "tags": ["태그1", "태그2", ...],
+  "pinned_comment": "고정 댓글 텍스트"
+}`;
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function countScriptChars(lines) {
+  const joined = lines.map(l => l.text || '').join('');
+  return joined.replace(/\s+/g, '').length;
+}
+
+function extractJson(text) {
+  let t = text.trim();
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) t = fence[1].trim();
+  const start = t.indexOf('{');
+  const end = t.lastIndexOf('}');
+  if (start === -1 || end === -1) throw new Error('응답에서 JSON을 찾지 못했습니다.');
+  return JSON.parse(t.slice(start, end + 1));
+}
+
+function render(data, topic) {
+  const titleList = document.getElementById('titleList');
+  titleList.innerHTML = '';
+  (data.titles || []).forEach((t, i) => {
+    const li = document.createElement('li');
+    if (i === 0) li.className = 'picked';
+    li.innerHTML = (i === 0 ? '<span class="tag">추천</span>' : '') + '<span>' + escapeHtml(t) + '</span>';
+    titleList.appendChild(li);
+  });
+  document.getElementById('hookLine').textContent = data.hook_line || '';
+
+  const lines = data.script_lines || [];
+  const charCount = countScriptChars(lines);
+  const inRange = charCount >= 1800 && charCount <= 2000;
+  document.getElementById('scriptMeta').innerHTML =
+    '<span>글자수 <b class="' + (inRange ? '' : 'warn') + '">' + charCount + '</b>자 (목표 1,800~2,000자)</span>' +
+    '<span>주제: ' + escapeHtml(topic) + '</span>';
+
+  const scriptBox = document.getElementById('scriptBox');
+  scriptBox.innerHTML = '';
+  const rawLines = [];
+  lines.forEach(l => {
+    const speakerLabel = l.speaker === 'client' ? '의뢰인' : '상담사';
+    const p = document.createElement('p');
+    p.className = 'line ' + (l.speaker === 'client' ? 'client' : 'host');
+    p.innerHTML = '<span class="speaker">' + speakerLabel + '</span>' + escapeHtml(l.text || '');
+    scriptBox.appendChild(p);
+    rawLines.push(speakerLabel + ': ' + (l.text || ''));
+  });
+  currentRaw.script = rawLines.join('\n');
+
+  const sbBody = document.getElementById('storyboardBody');
+  sbBody.innerHTML = '';
+  (data.storyboard || []).forEach((s, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + (i + 1) + '</td><td>' + escapeHtml(s.segment) + '</td><td>' + escapeHtml(s.description_kr) + '</td><td class="prompt">' + escapeHtml(s.image_prompt_en) + '</td>';
+    sbBody.appendChild(tr);
+  });
+
+  document.getElementById('descriptionText').textContent = data.description || '';
+  currentRaw.description = data.description || '';
+
+  document.getElementById('sourcesText').textContent = data.sources || '';
+  currentRaw.sources = data.sources || '';
+
+  const tagChips = document.getElementById('tagChips');
+  tagChips.innerHTML = '';
+  (data.tags || []).forEach(t => {
+    const span = document.createElement('span');
+    span.textContent = t;
+    tagChips.appendChild(span);
+  });
+  currentRaw.tags = (data.tags || []).join(', ');
+
+  document.getElementById('pinnedText').textContent = data.pinned_comment || '';
+  currentRaw.pinned = data.pinned_comment || '';
+
+  resultEl.classList.add('show');
+}
+
+async function copyText(text, btn) {
+  const done = () => {
+    const original = btn.textContent;
+    btn.textContent = '복사됨 ✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1400);
+  };
+  try {
+    await navigator.clipboard.writeText(text);
+    done();
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e2) {}
+    document.body.removeChild(ta);
+  }
+}
+
+document.getElementById('copyScript').addEventListener('click', e => copyText(currentRaw.script, e.target));
+document.querySelectorAll('[data-copy]').forEach(btn => {
+  btn.addEventListener('click', () => copyText(currentRaw[btn.dataset.copy] || '', btn));
+});
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const topic = topicInput.value.trim();
+  if (!topic) return;
+
+  submitBtn.disabled = true;
+  errorEl.classList.remove('show');
+  resultEl.classList.remove('show');
+  statusEl.classList.add('show');
+  statusText.textContent = '대본을 만드는 중이에요... (30초~1분 정도 걸려요)';
+
+  try {
+    const res = await fetch('/api/saju-script-ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: buildPrompt(topic), maxTokens: 8192 })
+    });
+    const payload = await res.json();
+    if (payload.error) throw new Error(payload.error);
+    const data = extractJson(payload.text);
+    render(data, topic);
+  } catch (err) {
+    errorEl.textContent = '문제가 생겼어요: ' + err.message + ' — 다시 시도해주세요.';
+    errorEl.classList.add('show');
+  } finally {
+    statusEl.classList.remove('show');
+    submitBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

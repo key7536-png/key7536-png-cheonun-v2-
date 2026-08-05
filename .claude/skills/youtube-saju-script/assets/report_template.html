@@ -1,0 +1,280 @@
+<!--
+  이 파일은 "완성본"이 아니라 채워 넣는 뼈대입니다.
+  사용법 (SKILL.md 6단계에서 지시):
+  1. 이 파일을 작업 경로로 복사한다.
+  2. 본문(이 주석 아래)에 남아있는 이중 중괄호 표기(placeholder) 자리를 실제 생성된 콘텐츠로
+     바꿔쓴다. 절대 파일 전체에 대해 문자열 일괄치환(sed, find&replace 등)을 쓰지 않는다 —
+     이 주석 자체가 설명을 위해 그 표기들을 언급하고 있어서 같이 깨진다. 대신 각 자리를 직접
+     읽고 다시 쓴다.
+  3. 대본 섹션 자리에는 화자별 <p class="line host">/<p class="line client"> 를 대사 순서대로
+     나열한다.
+  4. 스토리보드 자리에는 <tr> 을 씬 개수만큼 반복한다.
+  5. "-RAW"로 끝나는 <template> 블록에는 복사 버튼이 그대로 복사할 "순수 텍스트"를 줄바꿈
+     포함해서 넣는다 (HTML 태그 없이). 화면에 보이는 서식과 복사되는 텍스트를 분리하기 위함.
+  6. 다 채운 뒤 이 주석 블록 전체를 삭제하고, Artifact 도구로 publish 한다
+     (favicon: 🔮 고정, title은 영상 주제로).
+-->
+<title>{{VIDEO_TOPIC}} · 사주 유튜브 대본</title>
+
+<style>
+  :root {
+    --bg: #eeece2;
+    --surface: #ffffff;
+    --surface-2: #f7f5ee;
+    --ink: #1c1a17;
+    --ink-soft: #5b574c;
+    --ink-faint: #8a8577;
+    --accent: #a8632c;
+    --accent-ink: #fffaf0;
+    --accent2: #6b3a2c;
+    --line: #dcd6c4;
+    --good: #4a7a5a;
+    --radius: 14px;
+    --serif: "Noto Serif KR", "Nanum Myeongjo", "Songti SC", serif;
+    --sans: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161c;
+      --surface: #1b1e26;
+      --surface-2: #20242e;
+      --ink: #ece8dc;
+      --ink-soft: #a9a89c;
+      --ink-faint: #6f7280;
+      --accent: #d4a24c;
+      --accent-ink: #1c1408;
+      --accent2: #c9805a;
+      --line: #333749;
+      --good: #7fbf95;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161c; --surface: #1b1e26; --surface-2: #20242e; --ink: #ece8dc;
+    --ink-soft: #a9a89c; --ink-faint: #6f7280; --accent: #d4a24c; --accent-ink: #1c1408;
+    --accent2: #c9805a; --line: #333749; --good: #7fbf95;
+  }
+  :root[data-theme="light"] {
+    --bg: #eeece2; --surface: #ffffff; --surface-2: #f7f5ee; --ink: #1c1a17;
+    --ink-soft: #5b574c; --ink-faint: #8a8577; --accent: #a8632c; --accent-ink: #fffaf0;
+    --accent2: #6b3a2c; --line: #dcd6c4; --good: #4a7a5a;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.7;
+    padding: 40px 20px 100px;
+  }
+  .page { max-width: 760px; margin: 0 auto; }
+
+  /* header with four-pillars (사주) motif */
+  header { margin-bottom: 36px; }
+  .pillars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; width: 92px; margin-bottom: 18px; }
+  .pillars span { display: block; height: 4px; border-radius: 2px; background: var(--accent); opacity: 0.85; }
+  .pillars span:nth-child(4n) { opacity: 0.4; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 600; font-size: clamp(26px, 4vw, 34px);
+    margin: 8px 0 6px; text-wrap: balance; color: var(--ink);
+  }
+  .meta { color: var(--ink-soft); font-size: 14px; }
+
+  section { margin-bottom: 44px; }
+  .section-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    border-bottom: 1px solid var(--line); padding-bottom: 10px; margin-bottom: 18px;
+  }
+  .section-head h2 {
+    font-family: var(--serif); font-size: 20px; font-weight: 600; margin: 0; color: var(--ink);
+  }
+  .section-head .num { font-family: var(--mono); color: var(--accent); font-size: 13px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 22px 24px;
+  }
+
+  .copy-btn {
+    font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--accent); background: transparent; color: var(--accent);
+    border-radius: 999px; padding: 6px 14px; transition: background 0.15s, color 0.15s;
+  }
+  .copy-btn:hover { background: var(--accent); color: var(--accent-ink); }
+  .copy-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .copy-btn.copied { background: var(--good); border-color: var(--good); color: var(--accent-ink); }
+
+  /* title options */
+  .title-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+  .title-list li {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 16px;
+  }
+  .title-list li.picked { border-color: var(--accent); background: var(--surface-2); }
+  .title-list .tag { font-family: var(--mono); font-size: 11px; color: var(--accent); margin-right: 8px; }
+  .hook-line {
+    font-family: var(--serif); font-size: 18px; margin-top: 14px; padding: 16px 18px;
+    background: var(--surface-2); border-left: 3px solid var(--accent); border-radius: 6px;
+  }
+
+  /* script */
+  .script-meta { display: flex; gap: 16px; font-family: var(--mono); font-size: 12px; color: var(--ink-faint); margin-bottom: 14px; }
+  .script-meta b { color: var(--ink); }
+  .script-box { display: flex; flex-direction: column; gap: 14px; }
+  .line { margin: 0; padding-left: 14px; border-left: 2px solid transparent; }
+  .line .speaker {
+    display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 3px;
+  }
+  .line.host { border-left-color: var(--accent); }
+  .line.host .speaker { color: var(--accent); }
+  .line.client { border-left-color: var(--accent2); }
+  .line.client .speaker { color: var(--accent2); }
+  .line.client { color: var(--ink-soft); font-size: 15px; }
+
+  /* storyboard table */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; background: var(--surface); }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 14px; }
+  th {
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-faint); background: var(--surface-2);
+  }
+  tr:last-child td { border-bottom: none; }
+  td.prompt { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); }
+  td .row-copy { margin-top: 6px; }
+
+  /* upload info */
+  .upload-grid { display: flex; flex-direction: column; gap: 20px; }
+  .field-label { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .field-body { white-space: pre-wrap; font-size: 14.5px; }
+  .tag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tag-chips span { font-family: var(--mono); font-size: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; color: var(--ink-soft); }
+
+  footer { text-align: center; color: var(--ink-faint); font-size: 12px; margin-top: 60px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+
+  <header>
+    <div class="pillars"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="eyebrow">유튜브 사주 대본 · 5분 티키타카</div>
+    <h1>{{VIDEO_TOPIC}}</h1>
+    <div class="meta">작성일 {{DATE}} · 예상 러닝타임 약 5분 · 글자수 {{SCRIPT_CHAR_COUNT}}자</div>
+  </header>
+
+  <!-- ① 앵글·후킹 -->
+  <section id="hook">
+    <div class="section-head"><h2>제목 &amp; 훅</h2><span class="num">01</span></div>
+    <div class="card">
+      <ul class="title-list">
+        <!-- 후보 3~5개, 채택안에 class="picked" -->
+        {{TITLE_OPTIONS_LI}}
+      </ul>
+      <div class="hook-line">{{HOOK_LINE}}</div>
+    </div>
+  </section>
+
+  <!-- ④⑤ 대본 (팩트체크·추가 리서치 반영 완료본) -->
+  <section id="script">
+    <div class="section-head">
+      <h2>대본 (복붙용)</h2>
+      <button class="copy-btn" data-copy="script-raw">대본 전체 복사</button>
+    </div>
+    <div class="script-meta"><span>글자수 <b>{{SCRIPT_CHAR_COUNT}}</b>자</span><span>화자 상담사/의뢰인</span></div>
+    <div class="card script-box">
+      <!-- 대사 순서대로 <p class="line host">/<p class="line client"> 를 나열한다. 예:
+           <p class="line host"><span class="speaker">상담사</span>대사 내용...</p>
+           <p class="line client"><span class="speaker">의뢰인</span>대사 내용...</p> -->
+      {{SCRIPT_LINES}}
+    </div>
+    <template id="script-raw">{{SCRIPT_RAW_TEXT}}</template>
+  </section>
+
+  <!-- ⑥ 스토리보드 -->
+  <section id="storyboard">
+    <div class="section-head"><h2>스토리보드</h2><span class="num">02</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>대사 구간</th><th>화면 설명</th><th>이미지 프롬프트 (EN)</th></tr></thead>
+        <tbody>
+          {{STORYBOARD_ROWS}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ⑦ 업로드 정보 -->
+  <section id="upload">
+    <div class="section-head"><h2>업로드 정보</h2><span class="num">03</span></div>
+    <div class="card upload-grid">
+
+      <div>
+        <div class="field-label"><span>설명(Description)</span><button class="copy-btn" data-copy="desc-raw">복사</button></div>
+        <div class="field-body">{{DESCRIPTION_TEXT}}</div>
+        <template id="desc-raw">{{DESCRIPTION_RAW_TEXT}}</template>
+      </div>
+
+      <div>
+        <div class="field-label"><span>자료 출처</span><button class="copy-btn" data-copy="sources-raw">복사</button></div>
+        <div class="field-body">{{SOURCES_TEXT}}</div>
+        <template id="sources-raw">{{SOURCES_RAW_TEXT}}</template>
+      </div>
+
+      <div>
+        <div class="field-label"><span>태그</span><button class="copy-btn" data-copy="tags-raw">복사</button></div>
+        <div class="tag-chips">{{TAG_CHIPS}}</div>
+        <template id="tags-raw">{{TAGS_RAW_TEXT}}</template>
+      </div>
+
+      <div>
+        <div class="field-label"><span>고정 댓글</span><button class="copy-btn" data-copy="pinned-raw">복사</button></div>
+        <div class="field-body">{{PINNED_COMMENT_TEXT}}</div>
+        <template id="pinned-raw">{{PINNED_COMMENT_RAW_TEXT}}</template>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>주제 한 줄에서 시작해 후킹 → 팩트체크 → 대본 → 스토리보드 → 업로드 정보까지 자동 생성됨</footer>
+</div>
+
+<script>
+  document.querySelectorAll('.copy-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var tpl = document.getElementById(btn.dataset.copy);
+      if (!tpl) return;
+      var text = tpl.textContent;
+      var done = function () {
+        var original = btn.textContent;
+        btn.textContent = '복사됨 ✓';
+        btn.classList.add('copied');
+        setTimeout(function () { btn.textContent = original; btn.classList.remove('copied'); }, 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+      } else {
+        fallbackCopy(text, done);
+      }
+    });
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+</script>
