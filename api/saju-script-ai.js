@@ -1,13 +1,14 @@
 // 사주 유튜브 대본 생성기 전용 Gemini 프록시.
 // 키는 절대 이 파일에 직접 적지 않는다 — Vercel 프로젝트 환경변수에
-// SAJU_SCRIPT_KEY_1 ~ SAJU_SCRIPT_KEY_5 이름으로 등록해서 process.env로 읽는다.
+// SAJU_SCRIPT_KEY_1 ~ SAJU_SCRIPT_KEY_10 이름으로 등록해서 process.env로 읽는다.
 // 무료 키 한도(429)나 일시 장애(503), 키 거부(403)를 만나면 다음 키로 자동 전환한다.
 
 const MODEL = 'gemini-flash-latest';
+const MAX_KEYS = 10;
 
 function loadKeys() {
   const keys = [];
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= MAX_KEYS; i++) {
     const k = process.env['SAJU_SCRIPT_KEY_' + i];
     if (k) keys.push(k);
   }
@@ -49,7 +50,7 @@ module.exports = async function handler(req, res) {
     const KEYS = loadKeys();
     if (KEYS.length === 0) {
       return res.status(500).json({
-        error: 'Gemini 키가 설정되지 않았습니다. Vercel 프로젝트 설정 → Environment Variables 에서 SAJU_SCRIPT_KEY_1 ~ SAJU_SCRIPT_KEY_5 를 등록하고 Redeploy 해주세요.'
+        error: 'Gemini 키가 설정되지 않았습니다. Vercel 프로젝트 설정 → Environment Variables 에서 SAJU_SCRIPT_KEY_1 ~ SAJU_SCRIPT_KEY_10 을 등록하고 Redeploy 해주세요.'
       });
     }
 
@@ -63,9 +64,10 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ text });
       } catch (e) {
         lastErr = e;
-        // 한도 초과(429)·일시 장애(503)·키 거부(403, "denied access" 등) → 다음 키로 넘어가본다.
-        // 그 외 오류(잘못된 요청 등)는 키를 바꿔도 소용없으므로 바로 실패 처리한다.
-        if (e.code === 429 || e.code === 503 || e.code === 403) continue;
+        // 한도 초과(429)·일시 장애/과부하(503, "high demand" 등)·키 거부(403, "denied access" 등)
+        // → 다음 키로 넘어가본다. 그 외 오류(잘못된 요청 등)는 키를 바꿔도 소용없으므로 바로 실패 처리한다.
+        const overloaded = /high demand|overloaded|unavailable/i.test(e.message || '');
+        if (e.code === 429 || e.code === 503 || e.code === 403 || overloaded) continue;
         throw e;
       }
     }
