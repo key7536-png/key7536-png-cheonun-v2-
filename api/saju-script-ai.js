@@ -3,7 +3,7 @@
 // SAJU_SCRIPT_KEY_1 ~ SAJU_SCRIPT_KEY_5 이름으로 등록해서 process.env로 읽는다.
 // 무료 키 한도(429)나 일시 장애(503), 키 거부(403)를 만나면 다음 키로 자동 전환한다.
 
-const MODEL = 'gemini-2.5-flash';
+const MODEL = 'gemini-flash-latest';
 
 function loadKeys() {
   const keys = [];
