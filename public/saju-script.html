@@ -66,7 +66,7 @@
   @media (max-width: 480px) {
     body { padding: 20px 14px 80px; }
     .composer { flex-direction: column; }
-    .composer input, .composer button { flex-basis: auto; width: 100%; }
+    .composer input, .composer select, .composer button { flex-basis: auto; width: 100%; }
     .section-head { flex-wrap: wrap; gap: 8px; }
     table { min-width: 0; }
     td, th { font-size: 12.5px; padding: 9px 10px; }
@@ -151,9 +151,14 @@
 
   <form class="composer" id="form">
     <input id="topic" type="text" placeholder="예: 역마살 있는 사람 특징" autocomplete="off" required />
+    <select id="clientGender" style="border:1px solid var(--line); border-radius:10px; padding:12px 10px; font-family:var(--sans); font-size:15px; background:var(--surface-2); color:var(--ink);">
+      <option value="random">의뢰인: 매번 다르게</option>
+      <option value="female">의뢰인: 여성</option>
+      <option value="male">의뢰인: 남성</option>
+    </select>
     <button id="submitBtn" type="submit">대본 만들기</button>
   </form>
-  <p class="hint">⚠️ 이 도구는 실시간 웹 검색으로 사실을 검증하지 않습니다. 등장하는 통계·수치·출처는 사용 전 직접 한 번 더 확인해주세요.</p>
+  <p class="hint">⚠️ 이 도구는 실시간 웹 검색으로 사실을 검증하지 않습니다. 등장하는 통계·수치·출처는 사용 전 직접 한 번 더 확인해주세요. 상담사(천운)는 매 영상마다 다른 색 한복으로, 의뢰인은 위 선택에 따라 등장합니다 — 영상마다 인물이 반복되어 중복·저품질 콘텐츠로 분류되는 걸 막기 위함이에요.</p>
 
   <div class="status" id="status"><div class="spinner"></div><span id="statusText">대본을 만드는 중이에요...</span></div>
   <div class="error" id="error"></div>
@@ -230,9 +235,25 @@ const resultEl = document.getElementById('result');
 
 let currentRaw = { script: '', storyboard: '', description: '', sources: '', tags: '', pinned: '' };
 
-function buildPrompt(topic) {
+const HANBOK_COLORS = ['짙은 남색', '고운 자주색', '비취색(옥색)', '진한 다홍색', '먹색에 금박 포인트', '연보라색'];
+
+function pickClientDescriptor(genderChoice) {
+  const gender = genderChoice === 'random' ? (Math.random() < 0.5 ? 'female' : 'male') : genderChoice;
+  return gender === 'male'
+    ? { gender: 'male', ko: '30대 후반 한국인 남성', en: 'a Korean man in his late 30s, wearing a simple modern coat' }
+    : { gender: 'female', ko: '30대 한국인 여성', en: 'a Korean woman in her 30s, wearing a simple modern coat' };
+}
+
+function buildPrompt(topic, clientGenderChoice) {
+  const hanbokColor = HANBOK_COLORS[Math.floor(Math.random() * HANBOK_COLORS.length)];
+  const client = pickClientDescriptor(clientGenderChoice || 'random');
+
   return `당신은 유튜브 사주(운세) 채널 "천운"의 5분짜리 "상담 재연" 영상 대본을 쓰는 작가입니다.
-상담사 캐릭터의 이름(페르소나)은 "천운"입니다. 의뢰인이 상담사를 부를 때는 "천운 선생님"처럼 자연스럽게 이름을 넣어 불러도 좋고, 매번 넣을 필요는 없습니다. 영상 프롬프트에서 상담사를 묘사할 때도 이 페르소나 이름을 등장인물 설명에 일관되게 반영하세요 (예: 이름표, 명패, 소개 자막이 아니라 그냥 인물 설정 자체로).
+상담사 캐릭터의 이름(페르소나)은 "천운"입니다. 의뢰인이 상담사를 부를 때는 "천운 선생님"처럼 자연스럽게 이름을 넣어 불러도 좋고, 매번 넣을 필요는 없습니다.
+
+[등장인물 고정 설정 — 스토리보드 전체 씬에서 절대 바뀌면 안 됨]
+- 상담사(천운): 항상 한복을 입은 모습. 이번 영상에서는 "${hanbokColor} 한복"으로 통일합니다. 영상 프롬프트에서 상담사가 등장할 때마다 "wearing a ${hanbokColor === '짙은 남색' ? 'deep navy' : hanbokColor} hanbok (traditional Korean dress)"처럼 매번 같은 한복 색을 언급하세요. 실존 인물 얼굴을 특정하지 말고 일반적인 중년 여성/남성 실루엣으로 묘사하되(성별은 자유롭게 정하세요), 한복 색상만은 절대 씬마다 다르게 쓰지 마세요.
+- 의뢰인: 이번 영상에서는 "${client.ko}"으로 고정합니다. 영상 프롬프트에서 의뢰인이 등장할 때마다 "${client.en}"라는 묘사를 일관되게 사용하세요. 다른 영상과 겹치지 않도록, 이번엔 반드시 이 설정 그대로 유지하고 절대 다른 인물로 바뀌면 안 됩니다.
 주제: "${topic}"
 
 아래 규칙을 반드시 지켜서, 오직 하나의 JSON 객체만 출력하세요. 코드블록(백틱)이나 설명 문장 없이 JSON만 출력합니다.
@@ -252,7 +273,7 @@ function buildPrompt(topic) {
   3) 그 씬에서 말하는 사람(상담사 또는 의뢰인)에게 카메라가 자연스럽게 줌인/포커스하는 지시 (예: "camera slowly zooms in on the counselor as she speaks")
   4) 그 인물이 실제로 하는 대사를 따옴표로 포함 (예: says: "대사 내용") — 영상 생성 도구가 입 모양과 목소리를 맞출 수 있도록
   5) 조명·분위기 묘사, 배경(고요한 상담실 등)
-  실존 인물 얼굴을 특정하지 말고 "a Korean woman in her 30s wearing a beige coat" 처럼 일반화해서 묘사하세요. "no on-screen text, no subtitles" 를 마지막에 덧붙이세요.
+  인물 묘사는 반드시 위 [등장인물 고정 설정]에서 정한 상담사(천운)와 의뢰인 묘사를 그대로, 매 씬마다 똑같이 사용하세요 — 절대 다른 옷차림·다른 색·다른 성별로 바꾸지 마세요. "no on-screen text, no subtitles" 를 마지막에 덧붙이세요.
 
 [출력 JSON 스키마]
 {
@@ -410,7 +431,8 @@ form.addEventListener('submit', async (e) => {
   statusText.textContent = '대본을 만드는 중이에요... (30초~1분 정도 걸려요)';
 
   try {
-    let data = await callAi(buildPrompt(topic));
+    const clientGenderChoice = document.getElementById('clientGender').value;
+    let data = await callAi(buildPrompt(topic, clientGenderChoice));
 
     // 목표 글자수(1,800~2,000자)를 벗어나면 최대 2번까지 자동으로 다시 다듬는다.
     for (let attempt = 0; attempt < 2; attempt++) {
