@@ -63,13 +63,18 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ text });
       } catch (e) {
         lastErr = e;
-        if (e.code === 429 || e.code === 503) continue; // 한도 초과·일시 장애 → 다음 키로
+        // 한도 초과(429)·일시 장애(503)·키 거부(403, "denied access" 등) → 다음 키로 넘어가본다.
+        // 그 외 오류(잘못된 요청 등)는 키를 바꿔도 소용없으므로 바로 실패 처리한다.
+        if (e.code === 429 || e.code === 503 || e.code === 403) continue;
         throw e;
       }
     }
 
-    // 모든 키가 한도 초과인 경우
-    return res.status(429).json({ error: '등록된 무료 키가 모두 한도를 초과했습니다. 잠시 후 다시 시도해주세요.' });
+    // 모든 키가 다 안 되는 경우 — 마지막 오류를 그대로 보여준다.
+    return res.status(lastErr?.code === 403 ? 403 : 429).json({
+      error: '등록된 키 ' + KEYS.length + '개를 모두 시도했지만 전부 실패했습니다. 마지막 오류: ' + (lastErr?.message || '알 수 없는 오류') +
+        ' — Vercel에 등록한 SAJU_SCRIPT_KEY 값들이 유효한지, Google AI Studio에서 새로 발급받은 키인지 확인해주세요.'
+    });
 
   } catch (e) {
     return res.status(500).json({ error: e.message });
