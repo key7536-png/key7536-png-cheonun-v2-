@@ -145,12 +145,17 @@
   <header>
     <div class="pillars"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
     <div class="eyebrow">사주 유튜브 대본 생성기</div>
-    <h1>주제 한 줄로 5분 상담형 대본 만들기</h1>
-    <p class="sub">사주 주제를 입력하면 후킹 제목, 상담사-의뢰인 대화체 대본, 스토리보드, 업로드 정보를 한 번에 만들어드려요.</p>
+    <h1>주제 한 줄로 상담형 대본 만들기</h1>
+    <p class="sub">사주 주제를 입력하면 후킹 제목, 상담사-의뢰인 대화체 대본, 스토리보드, 업로드 정보를 한 번에 만들어드려요. 영상 길이는 아래에서 골라주세요.</p>
   </header>
 
   <form class="composer" id="form">
     <input id="topic" type="text" placeholder="예: 역마살 있는 사람 특징" autocomplete="off" required />
+    <select id="duration" style="border:1px solid var(--line); border-radius:10px; padding:12px 10px; font-family:var(--sans); font-size:15px; background:var(--surface-2); color:var(--ink);">
+      <option value="300" selected>길이: 5분</option>
+      <option value="160">길이: 2분 40초</option>
+      <option value="40">길이: 40초 (쇼츠)</option>
+    </select>
     <select id="clientGender" style="border:1px solid var(--line); border-radius:10px; padding:12px 10px; font-family:var(--sans); font-size:15px; background:var(--surface-2); color:var(--ink);">
       <option value="random">의뢰인: 매번 다르게</option>
       <option value="female">의뢰인: 여성</option>
@@ -184,7 +189,7 @@
 
     <section class="block" id="storyboardSection">
       <div class="section-head">
-        <h2>스토리보드 (영상 프롬프트, 10초 단위)</h2>
+        <h2>스토리보드 (영상 프롬프트, 대사 한 턴 = 씬 하나)</h2>
         <button class="copy-btn" id="copyStoryboard" type="button">전체 복사</button>
       </div>
       <p class="disclaimer" style="margin-top:0;">Veo 등 AI 영상 생성 도구에 씬 하나씩 그대로 붙여넣으세요. 카메라 무빙과 말하는 사람 줌인이 포함돼 있어요.</p>
@@ -237,6 +242,23 @@ let currentRaw = { script: '', storyboard: '', description: '', sources: '', tag
 
 const HANBOK_COLORS = ['짙은 남색', '고운 자주색', '비취색(옥색)', '진한 다홍색', '먹색에 금박 포인트', '연보라색'];
 
+// 영상 길이별 목표 분량. 글자수는 대사 화자 표시 제외, 공백 포함 기준(=countScriptChars와 동일)
+// 이며, 초당 약 6~6.7자 말하는 속도로 역산했다(기존 5분=1,800~2,000자 기준과 동일한 비율).
+const DURATIONS = {
+  '300': {
+    seconds: 300, label: '5분', minChars: 1800, maxChars: 2000, turnsHint: '12~16',
+    pacingHint: '350~500자마다 화제 전환이나 새 사례를 넣어 늘어지지 않게 합니다.'
+  },
+  '160': {
+    seconds: 160, label: '2분 40초', minChars: 950, maxChars: 1050, turnsHint: '7~9',
+    pacingHint: '핵심 포인트 한두 개에 집중하고, 곁가지 설명 없이 사례는 짧게 하나만 곁들입니다.'
+  },
+  '40': {
+    seconds: 40, label: '40초', minChars: 220, maxChars: 280, turnsHint: '3~4',
+    pacingHint: '군더더기 없이 훅 → 핵심 정보 하나 → 마무리 임팩트로 바로 갑니다. 배경 설명이나 곁가지 사례는 넣지 않습니다.'
+  }
+};
+
 function pickClientDescriptor(genderChoice) {
   const gender = genderChoice === 'random' ? (Math.random() < 0.5 ? 'female' : 'male') : genderChoice;
   return gender === 'male'
@@ -245,8 +267,8 @@ function pickClientDescriptor(genderChoice) {
 }
 
 // 1단계: 대본만 요청 (스토리보드는 뺀다 — 분량 기준을 확실히 지키게 하기 위해)
-function buildScriptPrompt(topic) {
-  return `당신은 유튜브 사주(운세) 채널 "천운"의 5분짜리 "상담 재연" 영상 대본을 쓰는 작가입니다.
+function buildScriptPrompt(topic, cfg) {
+  return `당신은 유튜브 사주(운세) 채널 "천운"의 ${cfg.label}짜리 "상담 재연" 영상 대본을 쓰는 작가입니다.
 상담사 캐릭터의 이름(페르소나)은 "천운"입니다. 의뢰인이 상담사를 부를 때는 "천운 선생님"처럼 자연스럽게 이름을 넣어 불러도 좋고, 매번 넣을 필요는 없습니다.
 주제: "${topic}"
 
@@ -258,8 +280,8 @@ function buildScriptPrompt(topic) {
 - 상담사 어투는 경험 많고 차분한 상담 선생님 톤입니다. 존댓말, 단정적이되 다그치지 않는 말투. 이모지·밈체·과한 느낌표 금지. 너무 가볍지도, 너무 딱딱하지도 않은 중간 무게감을 유지하세요.
 - 확정적 단언("반드시 이렇게 됩니다") 대신 "사주에서는 이렇게 봅니다", "이런 경향이 있다고 해석해요" 같은 해석 체계 화법을 씁니다.
 - 첫 대사(훅)는 의뢰인이 아니라 시청자를 직접 겨냥하는 질문이나 문장이어야 합니다. "오늘은 ~에 대해 알아보겠습니다" 식 소개는 금지.
-- 큰 궁금증(오픈 루프) 하나를 초반에 던지고 후반에 회수하며, 350~500자마다 화제 전환이나 새 사례를 넣어 늘어지지 않게 합니다.
-- 대본 전체 글자수(화자 표시 제외, 공백 포함)는 반드시 1,800~2,000자 사이여야 합니다. 이건 아주 중요한 기준입니다 — 상담사-의뢰인 주고받는 턴을 12~16번 정도로 충분히 구성하고, 상담사 대사 하나하나를 짧게 끊지 말고 충분히 설명을 채워서 이 분량을 꼭 맞춰주세요. 너무 짧게 쓰지 마세요.
+- ${cfg.pacingHint}
+- 대본 전체 글자수(화자 표시 제외, 공백 포함)는 반드시 ${cfg.minChars.toLocaleString()}~${cfg.maxChars.toLocaleString()}자 사이여야 합니다. 이건 아주 중요한 기준입니다 — 상담사-의뢰인 주고받는 턴을 ${cfg.turnsHint}번 정도로 구성해서 이 분량을 꼭 맞춰주세요. 너무 짧거나 너무 길게 쓰지 마세요.
 - 사실 관계(명리학 용어 정의, 역사적 사실 등)는 당신이 확신하는 널리 알려진 내용만 사용하세요. 불확실한 통계나 수치, 특정 인물의 사생활을 지어내지 마세요. 출처 URL을 절대 지어내지 마세요 — sources 필드에는 실제 URL 대신 "전통 명리학 이론(십이신살) 기반" 같은 일반적 근거 설명만 적으세요.
 
 [출력 JSON 스키마]
@@ -429,10 +451,11 @@ async function callAi(prompt, maxTokens) {
   return extractJson(payload.text);
 }
 
-function buildAdjustPrompt(topic, data, count) {
-  const direction = count < 1800
-    ? `지금 ${count}자로 너무 짧습니다. 턴을 2~4개 더 추가하거나 기존 상담사 대사를 더 자세하게 늘려서 1,800~2,000자로 만들어주세요.`
-    : `지금 ${count}자로 너무 깁니다. 중복되거나 늘어지는 부분을 줄여서 1,800~2,000자로 만들어주세요.`;
+function buildAdjustPrompt(topic, data, count, cfg) {
+  const range = `${cfg.minChars.toLocaleString()}~${cfg.maxChars.toLocaleString()}자`;
+  const direction = count < cfg.minChars
+    ? `지금 ${count}자로 너무 짧습니다. 턴을 몇 개 더 추가하거나 기존 상담사 대사를 더 자세하게 늘려서 ${range}로 만들어주세요.`
+    : `지금 ${count}자로 너무 깁니다. 중복되거나 늘어지는 부분을 줄여서 ${range}로 만들어주세요.`;
   return `아래는 "${topic}" 주제로 만든 사주 유튜브 상담형 대본입니다. ${direction}
 형식과 스타일(상담사-의뢰인 대화체, 화자 비중, 어투)은 그대로 유지하고, 분량만 조정하세요.
 출력은 이전과 똑같은 JSON 스키마 하나만, 코드블록이나 설명 없이 출력하세요.
@@ -441,7 +464,7 @@ function buildAdjustPrompt(topic, data, count) {
 ${JSON.stringify(data)}`;
 }
 
-function render(data, topic) {
+function render(data, topic, cfg) {
   const titleList = document.getElementById('titleList');
   titleList.innerHTML = '';
   (data.titles || []).forEach((t, i) => {
@@ -454,9 +477,9 @@ function render(data, topic) {
 
   const lines = data.script_lines || [];
   const charCount = countScriptChars(lines);
-  const inRange = charCount >= 1800 && charCount <= 2000;
+  const inRange = charCount >= cfg.minChars && charCount <= cfg.maxChars;
   document.getElementById('scriptMeta').innerHTML =
-    '<span>글자수 <b class="' + (inRange ? '' : 'warn') + '">' + charCount + '</b>자 (목표 1,800~2,000자)</span>' +
+    '<span>글자수 <b class="' + (inRange ? '' : 'warn') + '">' + charCount + '</b>자 (목표 ' + cfg.minChars.toLocaleString() + '~' + cfg.maxChars.toLocaleString() + '자, ' + cfg.label + ')</span>' +
     '<span>주제: ' + escapeHtml(topic) + '</span>';
 
   const scriptBox = document.getElementById('scriptBox');
@@ -543,15 +566,16 @@ form.addEventListener('submit', async (e) => {
 
   try {
     const clientGenderChoice = document.getElementById('clientGender').value;
+    const cfg = DURATIONS[document.getElementById('duration').value] || DURATIONS['300'];
 
     // 1단계: 대본만 먼저 확정 (스토리보드 없이 요청해야 분량 기준을 확실히 지킨다)
-    let data = await callAi(buildScriptPrompt(topic));
+    let data = await callAi(buildScriptPrompt(topic, cfg));
 
     for (let attempt = 0; attempt < 3; attempt++) {
       const count = countScriptChars(data.script_lines || []);
-      if (count >= 1800 && count <= 2000) break;
-      statusText.textContent = '분량을 1,800~2,000자에 맞춰 다듬는 중이에요...';
-      data = await callAi(buildAdjustPrompt(topic, data, count));
+      if (count >= cfg.minChars && count <= cfg.maxChars) break;
+      statusText.textContent = `분량을 ${cfg.minChars.toLocaleString()}~${cfg.maxChars.toLocaleString()}자에 맞춰 다듬는 중이에요...`;
+      data = await callAi(buildAdjustPrompt(topic, data, count, cfg));
     }
 
     // 2단계: 씬(대사·타임코드)은 코드로 직접 확정하고, AI에게는 카메라 연출만 받는다
@@ -580,7 +604,7 @@ form.addEventListener('submit', async (e) => {
       return { segment: s.segment, speaker: s.speaker, description_kr: ai.description_kr || (speakerLabel + ' 클로즈업'), video_prompt_en };
     });
 
-    render(data, topic);
+    render(data, topic, cfg);
   } catch (err) {
     errorEl.textContent = '문제가 생겼어요: ' + err.message + ' — 다시 시도해주세요.';
     errorEl.classList.add('show');
