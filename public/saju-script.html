@@ -608,11 +608,19 @@ form.addEventListener('submit', async (e) => {
     const storyboardResp = await callAi(buildStoryboardPrompt(topic, scenes), 32768);
     const aiScenes = storyboardResp.scenes || [];
 
-    const subjectFor = sp => sp === 'client' ? client.en : `a Korean fortune counselor wearing a ${hanbokColorEn} hanbok (traditional Korean dress)`;
+    // 천운(상담사)은 실사용 레퍼런스 이미지가 항상 같은 사람이므로, 텍스트 설명도
+    // 매번(계정이 바뀌어도) 성별·나이대가 흔들리지 않도록 고정 문구로 못박는다.
+    // 이게 비어있으면 영상 생성 도구가 씬마다 성별을 다르게 추측하거나, 심하면
+    // 상담사와 의뢰인 역할이 뒤바뀌는 원인이 된다.
+    const HOST_DESC = `a Korean woman in her 50s, a traditional fortune counselor (always the same person, same face, same identity across every scene), wearing a ${hanbokColorEn} hanbok (traditional Korean dress)`;
+    const subjectFor = sp => sp === 'client' ? client.en : HOST_DESC;
     const enLabel = sp => sp === 'client' ? 'The client' : 'The counselor';
     // 영상 생성 도구가 별도 화면비 설정을 줘도 안 지키는 경우가 있어서, 세로형(쇼츠)
     // 길이는 프롬프트 문장 안에 화면비를 직접 못박아 넣는다.
     const aspectPhrase = cfg.aspect === '9:16' ? ` Vertical ${cfg.aspect} portrait aspect ratio, framed for mobile shorts.` : '';
+    // 자막/자국어 텍스트를 화면에 넣으면 발음 기반으로 깨진 글자가 나오는 경우가 많아서,
+    // 앞뒤로 두 번 강조해서 확실히 텍스트가 안 나오게 한다.
+    const noTextPrefix = 'No text, no captions, no subtitles, no on-screen writing of any kind — purely visual footage.';
 
     data.storyboard = scenes.map((s, i) => {
       const ai = aiScenes[i] || {};
@@ -622,7 +630,7 @@ form.addEventListener('submit', async (e) => {
 
       // 씬 하나 = 대사 한 턴 = 화자 한 명. 절대 두 사람을 한 프레임에 섞지 않는다
       // (레퍼런스 이미지 적용 시 인물이 뒤바뀌는 문제를 막기 위함).
-      const video_prompt_en = `Photorealistic, cinematic lighting, shallow depth of field.${aspectPhrase} ${cameraEn}, focusing on ${subjectFor(s.speaker)}. ${moodEn}. ${enLabel(s.speaker)} says: "${s.text}". no on-screen text, no subtitles.`;
+      const video_prompt_en = `${noTextPrefix} Photorealistic, cinematic lighting, shallow depth of field.${aspectPhrase} ${cameraEn}, focusing on ${subjectFor(s.speaker)}. ${moodEn}. ${enLabel(s.speaker)} says: "${s.text}". Absolutely no on-screen text, captions, or subtitles anywhere in the frame.`;
       return { segment: s.segment, speaker: s.speaker, description_kr: ai.description_kr || (speakerLabel + ' 클로즈업'), video_prompt_en };
     });
 
