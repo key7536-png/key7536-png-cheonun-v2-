@@ -312,30 +312,38 @@ function spokenLen(text) {
 }
 
 // 대사 한 턴이 너무 길어(한 클립에 담기 어려울 정도) 쪼개야 할 때만
-// 문장부호(. ! ? ,) 뒤에서 자연스럽게 끊는다. 같은 화자 안에서만
-// 동작하므로 화자가 섞일 일은 없다.
+// 문장부호(. ! ?, 다음이 안 되면 ,) 뒤에서 자연스럽게 끊는다. 같은 화자
+// 안에서만 동작하므로 화자가 섞일 일은 없다. 영상 생성 도구가 씬당 딱
+// 10초짜리 클립만 만들어주기 때문에 — 조각 하나가 maxChars(=10초 분량)를
+// 절대 넘으면 안 된다(넘으면 그만큼 대사가 잘려서 나온다). 그래서 끊는
+// 지점은 항상 maxChars 이내에서만 찾고, 넘어가는 여유(30%)를 주지 않는다.
 function splitTextForScenes(text, maxChars) {
   if (spokenLen(text) <= maxChars) return [text];
-  const breakPoints = [];
-  for (let i = 0; i < text.length; i++) {
-    if ('.!?,'.includes(text[i]) && text[i + 1] === ' ') breakPoints.push(i + 1);
-  }
   const chunks = [];
   let start = 0;
   while (start < text.length) {
+    // maxChars(공백 제외 글자수)에 도달하는 지점까지 전진한다 — 이 지점을 넘는 컷은 없다.
     let spoken = 0, end = start;
     while (end < text.length && spoken < maxChars) {
       if (!/\s/.test(text[end])) spoken++;
       end++;
     }
     if (end < text.length) {
-      const maxEnd = Math.min(text.length, end + Math.ceil((end - start) * 0.3));
-      const candidates = breakPoints.filter(bp => bp > start && bp <= maxEnd);
-      if (candidates.length > 0) end = candidates[candidates.length - 1];
-      else {
-        const spaceIdx = text.lastIndexOf(' ', end);
-        if (spaceIdx > start) end = spaceIdx + 1;
+      // end 지점 이내(=maxChars 이내)에서만 자연스러운 끊는 지점을 뒤에서부터 찾는다.
+      let cut = -1;
+      for (let i = end; i > start; i--) {
+        if ('.!?'.includes(text[i - 1]) && (i === text.length || text[i] === ' ')) { cut = i; break; }
       }
+      if (cut === -1) {
+        for (let i = end; i > start; i--) {
+          if (text[i - 1] === ',' && text[i] === ' ') { cut = i; break; }
+        }
+      }
+      if (cut === -1) {
+        const spaceIdx = text.lastIndexOf(' ', end);
+        if (spaceIdx > start) cut = spaceIdx + 1;
+      }
+      end = (cut > start) ? cut : end; // 자연스러운 지점이 없으면 어쩔 수 없이 글자수 기준으로 자른다
     }
     chunks.push(text.slice(start, end).trim());
     start = end;
@@ -344,25 +352,27 @@ function splitTextForScenes(text, maxChars) {
 }
 
 // 씬은 원칙적으로 대사 한 턴 = 씬 하나로 대응시킨다. 나누지도 합치지도
-// 않는 게 기본값이다 — 실제로 이렇게 만든 프롬프트로 영상을 만들어봤을
-// 때 가장 잘 나왔다: (1) 화자가 씬 안에서 절대 섞이지 않아 상담사·의뢰인
-// 정체성이 뒤바뀌지 않고, (2) 길이가 대사 분량에 맞게 자연스럽게
-// 들쭉날쭉해서(약 4~18초) 짧은 대사가 억지로 시간을 채우는 일이 없다.
-// 단, 한 턴이 한 클립에 담기 힘들 만큼 길 때만(약 18초 상당 초과)
-// 같은 화자 안에서 여러 씬으로 나눈다 — 절대 다른 화자와 합치지 않는다.
+// 않는 게 기본값이다 — 화자가 씬 안에서 절대 섞이지 않아 상담사·의뢰인
+// 정체성이 뒤바뀌지 않는다. 다만 영상 생성 도구가 한 번에 딱 10초짜리
+// 클립만 만들어주기 때문에(그 이상은 대사가 잘려버림), 씬 하나는 최대
+// 10초 분량을 넘을 수 없다. 한 턴이 10초를 넘으면 같은 화자 안에서만
+// 여러 씬으로 쪼개고(절대 다른 화자와 합치지 않음), 원래 몇 번째 턴의
+// 몇 번째 조각인지 알 수 있게 "3-1", "3-2"처럼 번호를 매긴다 — 편집할 때
+// 같은 목소리 톤으로 이어붙여야 한다는 걸 바로 알 수 있게 하기 위함.
 function buildSceneList(scriptLines) {
   const CHARS_PER_SEC = 6;
-  const MAX_SCENE_CHARS = 96; // 약 16초 상당 — 이보다 길면 쪼갠다
+  const MAX_SCENE_CHARS = 60; // 딱 10초 분량 — 이보다 길면 반드시 쪼갠다
   const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const scenes = [];
   let t = 0;
-  scriptLines.forEach(line => {
+  scriptLines.forEach((line, turnIdx) => {
     const chunks = splitTextForScenes(line.text || '', MAX_SCENE_CHARS);
-    chunks.forEach(text => {
+    chunks.forEach((text, chunkIdx) => {
       const len = spokenLen(text);
       let dur = Math.round(len / CHARS_PER_SEC / 2) * 2; // 2초 단위로 반올림
-      dur = Math.max(4, Math.min(18, dur || 4));
-      scenes.push({ speaker: line.speaker, text, segment: `${fmt(t)}-${fmt(t + dur)}` });
+      dur = Math.max(4, Math.min(10, dur || 4));
+      const label = chunks.length > 1 ? `${turnIdx + 1}-${chunkIdx + 1}` : `${turnIdx + 1}`;
+      scenes.push({ speaker: line.speaker, text, segment: `${fmt(t)}-${fmt(t + dur)}`, label });
       t += dur;
     });
   });
@@ -485,7 +495,7 @@ function render(data, topic, cfg) {
     const li = document.createElement('li');
     if (i === 0) li.className = 'picked';
     li.innerHTML = (i === 0 ? '<span class="tag">추천</span>' : '') +
-      '<span>' + escapeHtml(t) + (i === 0 && totalScenes ? ' <span class="tag">씬 ' + totalScenes + '개 · ' + escapeHtml(totalDur) + '</span>' : '') + '</span>';
+      '<span><b>' + (i + 1) + '.</b> ' + escapeHtml(t) + (i === 0 && totalScenes ? ' <span class="tag">씬 ' + totalScenes + '개 · ' + escapeHtml(totalDur) + '</span>' : '') + '</span>';
     titleList.appendChild(li);
   });
   document.getElementById('hookLine').textContent = data.hook_line || '';
@@ -520,9 +530,9 @@ function render(data, topic, cfg) {
   (data.storyboard || []).forEach((s, i) => {
     const speakerLabel = s.speaker === 'client' ? '의뢰인' : '상담사';
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + (i + 1) + '</td><td>' + escapeHtml(s.segment) + '</td><td>' + speakerLabel + '</td><td>' + escapeHtml(s.description_kr) + '</td><td class="prompt">' + escapeHtml(s.video_prompt_en) + '</td>';
+    tr.innerHTML = '<td>' + escapeHtml(s.label || String(i + 1)) + '</td><td>' + escapeHtml(s.segment) + '</td><td>' + speakerLabel + '</td><td>' + escapeHtml(s.description_kr) + '</td><td class="prompt">' + escapeHtml(s.video_prompt_en) + '</td>';
     sbBody.appendChild(tr);
-    storyboardRaw.push(`씬 ${i + 1} (${s.segment}, ${speakerLabel}): ${s.video_prompt_en}`);
+    storyboardRaw.push(`씬 ${s.label || (i + 1)} (${s.segment}, ${speakerLabel}): ${s.video_prompt_en}`);
   });
   currentRaw.storyboard = `[${pickedTitle}] · 총 ${totalScenes}씬 · ${totalDur}\n\n` + storyboardRaw.join('\n\n');
 
@@ -615,9 +625,12 @@ form.addEventListener('submit', async (e) => {
     const HOST_DESC = `a Korean woman in her 50s, a traditional fortune counselor (always the same person, same face, same identity across every scene), wearing a ${hanbokColorEn} hanbok (traditional Korean dress)`;
     const subjectFor = sp => sp === 'client' ? client.en : HOST_DESC;
     const enLabel = sp => sp === 'client' ? 'The client' : 'The counselor';
-    // 영상 생성 도구가 별도 화면비 설정을 줘도 안 지키는 경우가 있어서, 세로형(쇼츠)
-    // 길이는 프롬프트 문장 안에 화면비를 직접 못박아 넣는다.
-    const aspectPhrase = cfg.aspect === '9:16' ? ` Vertical ${cfg.aspect} portrait aspect ratio, framed for mobile shorts.` : '';
+    // 영상 생성 도구가 별도 화면비 설정을 줘도 잘 안 지키는 경우가 많아서(테스트해보니
+    // 14개 중 1개만 세로로 나옴), 문장 맨 앞·맨 뒤 두 군데에 못박아 넣는다.
+    const aspectFront = cfg.aspect === '9:16'
+      ? `IMPORTANT: Vertical ${cfg.aspect} portrait orientation video (1080x1920), NOT horizontal, NOT landscape. `
+      : '';
+    const aspectBack = cfg.aspect === '9:16' ? ` Format: vertical ${cfg.aspect} portrait, mobile shorts framing — do not generate landscape.` : '';
     // 자막/자국어 텍스트를 화면에 넣으면 발음 기반으로 깨진 글자가 나오는 경우가 많아서,
     // 앞뒤로 두 번 강조해서 확실히 텍스트가 안 나오게 한다.
     const noTextPrefix = 'No text, no captions, no subtitles, no on-screen writing of any kind — purely visual footage.';
@@ -630,8 +643,8 @@ form.addEventListener('submit', async (e) => {
 
       // 씬 하나 = 대사 한 턴 = 화자 한 명. 절대 두 사람을 한 프레임에 섞지 않는다
       // (레퍼런스 이미지 적용 시 인물이 뒤바뀌는 문제를 막기 위함).
-      const video_prompt_en = `${noTextPrefix} Photorealistic, cinematic lighting, shallow depth of field.${aspectPhrase} ${cameraEn}, focusing on ${subjectFor(s.speaker)}. ${moodEn}. ${enLabel(s.speaker)} says: "${s.text}". Absolutely no on-screen text, captions, or subtitles anywhere in the frame.`;
-      return { segment: s.segment, speaker: s.speaker, description_kr: ai.description_kr || (speakerLabel + ' 클로즈업'), video_prompt_en };
+      const video_prompt_en = `${aspectFront}${noTextPrefix} Photorealistic, cinematic lighting, shallow depth of field. ${cameraEn}, focusing on ${subjectFor(s.speaker)}. ${moodEn}. ${enLabel(s.speaker)} says: "${s.text}". Absolutely no on-screen text, captions, or subtitles anywhere in the frame.${aspectBack}`;
+      return { segment: s.segment, speaker: s.speaker, label: s.label, description_kr: ai.description_kr || (speakerLabel + ' 클로즈업'), video_prompt_en };
     });
 
     render(data, topic, cfg);
