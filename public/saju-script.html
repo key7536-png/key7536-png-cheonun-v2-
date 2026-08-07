@@ -247,15 +247,18 @@ const HANBOK_COLORS = ['짙은 남색', '고운 자주색', '비취색(옥색)',
 const DURATIONS = {
   '300': {
     seconds: 300, label: '5분', minChars: 1800, maxChars: 2000, turnsHint: '12~16',
-    pacingHint: '350~500자마다 화제 전환이나 새 사례를 넣어 늘어지지 않게 합니다.'
+    pacingHint: '350~500자마다 화제 전환이나 새 사례를 넣어 늘어지지 않게 합니다.',
+    avgTurnHint: '상담사 대사는 한 번에 보통 120~220자 정도, 의뢰인 대사는 20~60자 정도로 충분히 채워주세요.'
   },
   '160': {
     seconds: 160, label: '2분 40초', minChars: 950, maxChars: 1050, turnsHint: '7~9',
-    pacingHint: '핵심 포인트 한두 개에 집중하고, 곁가지 설명 없이 사례는 짧게 하나만 곁들입니다.'
+    pacingHint: '핵심 포인트 한두 개에 집중하고, 곁가지 설명 없이 사례는 짧게 하나만 곁들입니다.',
+    avgTurnHint: '상담사 대사는 한 번에 보통 130~220자 정도, 의뢰인 대사는 20~50자 정도로 채워주세요. 턴을 짧게 여러 개로 쪼개지 말고, 상담사 대사 하나하나에 충분한 설명을 담아주세요.'
   },
   '40': {
     seconds: 40, label: '40초', minChars: 220, maxChars: 280, turnsHint: '3~4',
-    pacingHint: '군더더기 없이 훅 → 핵심 정보 하나 → 마무리 임팩트로 바로 갑니다. 배경 설명이나 곁가지 사례는 넣지 않습니다.'
+    pacingHint: '군더더기 없이 훅 → 핵심 정보 하나 → 마무리 임팩트로 바로 갑니다. 배경 설명이나 곁가지 사례는 넣지 않습니다.',
+    avgTurnHint: '상담사 대사는 한 번에 보통 60~100자 정도, 의뢰인 대사는 15~30자 정도로 짧고 굵게 채워주세요.'
   }
 };
 
@@ -281,7 +284,7 @@ function buildScriptPrompt(topic, cfg) {
 - 확정적 단언("반드시 이렇게 됩니다") 대신 "사주에서는 이렇게 봅니다", "이런 경향이 있다고 해석해요" 같은 해석 체계 화법을 씁니다.
 - 첫 대사(훅)는 의뢰인이 아니라 시청자를 직접 겨냥하는 질문이나 문장이어야 합니다. "오늘은 ~에 대해 알아보겠습니다" 식 소개는 금지.
 - ${cfg.pacingHint}
-- 대본 전체 글자수(화자 표시 제외, 공백 포함)는 반드시 ${cfg.minChars.toLocaleString()}~${cfg.maxChars.toLocaleString()}자 사이여야 합니다. 이건 아주 중요한 기준입니다 — 상담사-의뢰인 주고받는 턴을 ${cfg.turnsHint}번 정도로 구성해서 이 분량을 꼭 맞춰주세요. 너무 짧거나 너무 길게 쓰지 마세요.
+- 대본 전체 글자수(화자 표시 제외, 공백 포함)는 반드시 ${cfg.minChars.toLocaleString()}~${cfg.maxChars.toLocaleString()}자 사이여야 합니다. 이건 아주 중요한 기준입니다 — 상담사-의뢰인 주고받는 턴을 ${cfg.turnsHint}번 정도로 구성해서 이 분량을 꼭 맞춰주세요. 너무 짧거나 너무 길게 쓰지 마세요. ${cfg.avgTurnHint}
 - 사실 관계(명리학 용어 정의, 역사적 사실 등)는 당신이 확신하는 널리 알려진 내용만 사용하세요. 불확실한 통계나 수치, 특정 인물의 사생활을 지어내지 마세요. 출처 URL을 절대 지어내지 마세요 — sources 필드에는 실제 URL 대신 "전통 명리학 이론(십이신살) 기반" 같은 일반적 근거 설명만 적으세요.
 
 [출력 JSON 스키마]
@@ -454,8 +457,8 @@ async function callAi(prompt, maxTokens) {
 function buildAdjustPrompt(topic, data, count, cfg) {
   const range = `${cfg.minChars.toLocaleString()}~${cfg.maxChars.toLocaleString()}자`;
   const direction = count < cfg.minChars
-    ? `지금 ${count}자로 너무 짧습니다. 턴을 몇 개 더 추가하거나 기존 상담사 대사를 더 자세하게 늘려서 ${range}로 만들어주세요.`
-    : `지금 ${count}자로 너무 깁니다. 중복되거나 늘어지는 부분을 줄여서 ${range}로 만들어주세요.`;
+    ? `지금 ${count}자로 너무 짧습니다. 목표(${range})까지 최소 ${(cfg.minChars - count).toLocaleString()}자 이상 늘려야 합니다 — 조금씩 다듬지 말고 확실하게 늘리세요. 기존 상담사 대사 하나하나를 더 자세하게 풀어서 설명을 추가하거나(예시, 이유, 부연 설명), 필요하면 새로운 턴을 1~2개 더 추가해서 반드시 ${range} 안으로 만들어주세요.`
+    : `지금 ${count}자로 너무 깁니다. 목표(${range})까지 ${(count - cfg.maxChars).toLocaleString()}자 이상 줄여야 합니다. 중복되거나 늘어지는 부분을 줄여서 ${range}로 만들어주세요.`;
   return `아래는 "${topic}" 주제로 만든 사주 유튜브 상담형 대본입니다. ${direction}
 형식과 스타일(상담사-의뢰인 대화체, 화자 비중, 어투)은 그대로 유지하고, 분량만 조정하세요.
 출력은 이전과 똑같은 JSON 스키마 하나만, 코드블록이나 설명 없이 출력하세요.
@@ -571,10 +574,10 @@ form.addEventListener('submit', async (e) => {
     // 1단계: 대본만 먼저 확정 (스토리보드 없이 요청해야 분량 기준을 확실히 지킨다)
     let data = await callAi(buildScriptPrompt(topic, cfg));
 
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 4; attempt++) {
       const count = countScriptChars(data.script_lines || []);
       if (count >= cfg.minChars && count <= cfg.maxChars) break;
-      statusText.textContent = `분량을 ${cfg.minChars.toLocaleString()}~${cfg.maxChars.toLocaleString()}자에 맞춰 다듬는 중이에요...`;
+      statusText.textContent = `분량을 ${cfg.minChars.toLocaleString()}~${cfg.maxChars.toLocaleString()}자에 맞춰 다듬는 중이에요... (${count}자 → 목표 ${cfg.minChars.toLocaleString()}~${cfg.maxChars.toLocaleString()}자)`;
       data = await callAi(buildAdjustPrompt(topic, data, count, cfg));
     }
 
