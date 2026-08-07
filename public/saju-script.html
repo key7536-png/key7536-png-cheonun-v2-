@@ -193,6 +193,7 @@
         <button class="copy-btn" id="copyStoryboard" type="button">전체 복사</button>
       </div>
       <p class="disclaimer" style="margin-top:0;">Veo 등 AI 영상 생성 도구에 씬 하나씩 그대로 붙여넣으세요. 카메라 무빙과 말하는 사람 줌인이 포함돼 있어요.</p>
+      <p class="script-meta" id="storyboardMeta" style="margin-bottom:12px;"></p>
       <div class="table-wrap">
         <table>
           <thead><tr><th>#</th><th>구간</th><th>화자</th><th>화면 설명</th><th>영상 프롬프트 (EN)</th></tr></thead>
@@ -244,21 +245,26 @@ const HANBOK_COLORS = ['짙은 남색', '고운 자주색', '비취색(옥색)',
 
 // 영상 길이별 목표 분량. 글자수는 대사 화자 표시 제외, 공백 포함 기준(=countScriptChars와 동일)
 // 이며, 초당 약 6~6.7자 말하는 속도로 역산했다(기존 5분=1,800~2,000자 기준과 동일한 비율).
+// aspect: 영상 생성 도구(제미나이 등)에서 화면비 설정을 줘도 안 지켜지는 경우가 있어서,
+// 세로형(쇼츠용) 길이는 프롬프트 문장 안에 화면비를 직접 못박아 넣는다.
 const DURATIONS = {
   '300': {
     seconds: 300, label: '5분', minChars: 1800, maxChars: 2000, turnsHint: '12~16',
     pacingHint: '350~500자마다 화제 전환이나 새 사례를 넣어 늘어지지 않게 합니다.',
-    avgTurnHint: '상담사 대사는 한 번에 보통 120~220자 정도, 의뢰인 대사는 20~60자 정도로 충분히 채워주세요.'
+    avgTurnHint: '상담사 대사는 한 번에 보통 120~220자 정도, 의뢰인 대사는 20~60자 정도로 충분히 채워주세요.',
+    aspect: null
   },
   '160': {
     seconds: 160, label: '2분 40초', minChars: 950, maxChars: 1050, turnsHint: '7~9',
     pacingHint: '핵심 포인트 한두 개에 집중하고, 곁가지 설명 없이 사례는 짧게 하나만 곁들입니다.',
-    avgTurnHint: '상담사 대사는 한 번에 보통 130~220자 정도, 의뢰인 대사는 20~50자 정도로 채워주세요. 턴을 짧게 여러 개로 쪼개지 말고, 상담사 대사 하나하나에 충분한 설명을 담아주세요.'
+    avgTurnHint: '상담사 대사는 한 번에 보통 130~220자 정도, 의뢰인 대사는 20~50자 정도로 채워주세요. 턴을 짧게 여러 개로 쪼개지 말고, 상담사 대사 하나하나에 충분한 설명을 담아주세요.',
+    aspect: '9:16'
   },
   '40': {
     seconds: 40, label: '40초', minChars: 220, maxChars: 280, turnsHint: '3~4',
     pacingHint: '군더더기 없이 훅 → 핵심 정보 하나 → 마무리 임팩트로 바로 갑니다. 배경 설명이나 곁가지 사례는 넣지 않습니다.',
-    avgTurnHint: '상담사 대사는 한 번에 보통 60~100자 정도, 의뢰인 대사는 15~30자 정도로 짧고 굵게 채워주세요.'
+    avgTurnHint: '상담사 대사는 한 번에 보통 60~100자 정도, 의뢰인 대사는 15~30자 정도로 짧고 굵게 채워주세요.',
+    aspect: '9:16'
   }
 };
 
@@ -468,12 +474,18 @@ ${JSON.stringify(data)}`;
 }
 
 function render(data, topic, cfg) {
+  const pickedTitle = (data.titles && data.titles[0]) || topic;
+  const totalScenes = (data.storyboard || []).length;
+  const lastSeg = totalScenes ? data.storyboard[totalScenes - 1].segment : '';
+  const totalDur = lastSeg ? lastSeg.split('-')[1] : '';
+
   const titleList = document.getElementById('titleList');
   titleList.innerHTML = '';
   (data.titles || []).forEach((t, i) => {
     const li = document.createElement('li');
     if (i === 0) li.className = 'picked';
-    li.innerHTML = (i === 0 ? '<span class="tag">추천</span>' : '') + '<span>' + escapeHtml(t) + '</span>';
+    li.innerHTML = (i === 0 ? '<span class="tag">추천</span>' : '') +
+      '<span>' + escapeHtml(t) + (i === 0 && totalScenes ? ' <span class="tag">씬 ' + totalScenes + '개 · ' + escapeHtml(totalDur) + '</span>' : '') + '</span>';
     titleList.appendChild(li);
   });
   document.getElementById('hookLine').textContent = data.hook_line || '';
@@ -496,7 +508,11 @@ function render(data, topic, cfg) {
     scriptBox.appendChild(p);
     rawLines.push(speakerLabel + ': ' + (l.text || ''));
   });
-  currentRaw.script = rawLines.join('\n');
+  currentRaw.script = `[${pickedTitle}]\n\n` + rawLines.join('\n');
+
+  document.getElementById('storyboardMeta').innerHTML =
+    '<span>제목 <b>' + escapeHtml(pickedTitle) + '</b></span>' +
+    '<span>씬 <b>' + totalScenes + '</b>개 · 길이 <b>' + escapeHtml(totalDur) + '</b></span>';
 
   const sbBody = document.getElementById('storyboardBody');
   sbBody.innerHTML = '';
@@ -508,7 +524,7 @@ function render(data, topic, cfg) {
     sbBody.appendChild(tr);
     storyboardRaw.push(`씬 ${i + 1} (${s.segment}, ${speakerLabel}): ${s.video_prompt_en}`);
   });
-  currentRaw.storyboard = storyboardRaw.join('\n\n');
+  currentRaw.storyboard = `[${pickedTitle}] · 총 ${totalScenes}씬 · ${totalDur}\n\n` + storyboardRaw.join('\n\n');
 
   document.getElementById('descriptionText').textContent = data.description || '';
   currentRaw.description = data.description || '';
@@ -594,6 +610,9 @@ form.addEventListener('submit', async (e) => {
 
     const subjectFor = sp => sp === 'client' ? client.en : `a Korean fortune counselor wearing a ${hanbokColorEn} hanbok (traditional Korean dress)`;
     const enLabel = sp => sp === 'client' ? 'The client' : 'The counselor';
+    // 영상 생성 도구가 별도 화면비 설정을 줘도 안 지키는 경우가 있어서, 세로형(쇼츠)
+    // 길이는 프롬프트 문장 안에 화면비를 직접 못박아 넣는다.
+    const aspectPhrase = cfg.aspect === '9:16' ? ` Vertical ${cfg.aspect} portrait aspect ratio, framed for mobile shorts.` : '';
 
     data.storyboard = scenes.map((s, i) => {
       const ai = aiScenes[i] || {};
@@ -603,7 +622,7 @@ form.addEventListener('submit', async (e) => {
 
       // 씬 하나 = 대사 한 턴 = 화자 한 명. 절대 두 사람을 한 프레임에 섞지 않는다
       // (레퍼런스 이미지 적용 시 인물이 뒤바뀌는 문제를 막기 위함).
-      const video_prompt_en = `Photorealistic, cinematic lighting, shallow depth of field. ${cameraEn}, focusing on ${subjectFor(s.speaker)}. ${moodEn}. ${enLabel(s.speaker)} says: "${s.text}". no on-screen text, no subtitles.`;
+      const video_prompt_en = `Photorealistic, cinematic lighting, shallow depth of field.${aspectPhrase} ${cameraEn}, focusing on ${subjectFor(s.speaker)}. ${moodEn}. ${enLabel(s.speaker)} says: "${s.text}". no on-screen text, no subtitles.`;
       return { segment: s.segment, speaker: s.speaker, description_kr: ai.description_kr || (speakerLabel + ' 클로즈업'), video_prompt_en };
     });
 
