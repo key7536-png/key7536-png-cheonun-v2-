@@ -308,16 +308,29 @@ function buildScriptPrompt(topic, cfg) {
 - 의외성 하나는 꼭 넣으세요: "사람들이 보통 이렇게 알고 있는데, 사실은 이렇습니다" 식으로 흔히 오해하는 지점을 짚어주거나, 잘 알려지지 않은 각도(예상 밖의 연결, 반전)를 하나 이상 담아야 합니다. 다른 채널과 똑같은 내용이면 안 됩니다.
 - 마무리는 뻔한 요약이 아니라, 오픈 루프를 회수하면서 구체적이고 바로 써먹을 수 있는 조언/한 줄 통찰로 끝내세요 ("마음을 편히 가지세요" 같은 뻔한 말 금지).
 
+[제목 규칙]
+- 4개 모두 한국 유튜브에서 실제로 클릭을 부르는 후킹 제목 문법을 쓰세요. 사전적인 소개형 제목("OOO란 무엇인가", "OOO에 대해 알아보자")은 전부 탈락입니다.
+- 아래 문법 중 이 주제에 맞는 걸 섞어 쓰세요: 숫자/특정 대상 못박기("OO한 사람 90%가 겪는 일"), 손실 회피("이걸 모르면 OO 계속 당합니다"), 정체 폭로형("사주에 이게 있으면 무조건 OO됩니다"), 대비/반전형("겉으론 OO한데 사실은 OO인 사주"), 직접 지목형("혹시 당신도 OO하신가요?"). 대본의 훅 문장(hook_line)을 그대로 우려먹지 말고, 각 제목마다 다른 각도로 새로 쓰세요.
+- 4개 중 최소 2개는 15자 안팎으로 짧고 강하게, 나머지는 조금 더 설명적으로 써서 톤을 다양하게 주세요.
+
+[설명란(description) 규칙]
+- 최소 3문단, 총 300자 이상으로 충분히 채우세요 — 한두 문장짜리 요약은 안 됩니다.
+- 구성: (1) hook_line과 같은 톤의 훅 문장으로 시작 (2) 이 영상에서 다루는 구체적 내용을 2~3문장으로 설명 — 검색 유입을 노리는 키워드(예: "수 기운", "사주 오행", "명리학", 주제 관련 살/용어)를 자연스럽게 포함 (3) 시청자가 자기 얘기처럼 느낄 수 있는 공감 포인트 한 문장 (4) 구독/좋아요/댓글 유도 CTA.
+- 타임라인(타임스탬프)은 여기 절대 쓰지 마세요 — 정확한 시간은 코드가 별도로 계산해서 자동으로 붙입니다. 대신 chapters 필드를 채워주세요.
+
 [출력 JSON 스키마]
 {
   "titles": ["제목후보1(가장 강한 것)", "제목후보2", "제목후보3", "제목후보4"],
   "hook_line": "대본 첫 문장과 동일한 훅 문장",
   "script_lines": [{"speaker": "host", "text": "..."}, {"speaker": "client", "text": "..."}, ...],
-  "description": "유튜브 설명란 텍스트 (훅 문장으로 시작, 요약, CTA 포함)",
+  "description": "유튜브 설명란 텍스트 (타임라인 제외, 위 규칙대로 충분한 분량)",
+  "chapters": [{"turn_index": 0, "label": "..."}, ...],
   "sources": "참고한 일반적 근거 설명 (실제 URL 지어내지 말 것)",
   "tags": ["태그1", "태그2", ...],
   "pinned_comment": "고정 댓글 텍스트"
-}`;
+}
+
+chapters 필드 작성법: script_lines 배열의 0-based 인덱스(turn_index)를 기준으로, 유튜브 영상 타임라인에 쓸 소제목(label, 10자 안팎으로 짧게)을 4~6개 골라주세요. 반드시 turn_index 0(첫 턴)을 포함하고, 그 뒤로는 화제가 바뀌는 지점(증상 설명 → 원인 → 해결법처럼 흐름이 꺾이는 곳)의 turn_index만 오름차순으로 고르세요. 상담사 턴에서만 고르세요.`;
 }
 
 // "1,800~2,000자" 분량 기준(=countScriptChars)과 똑같이, 공백을 뺀
@@ -387,11 +400,46 @@ function buildSceneList(scriptLines) {
       let dur = Math.round(len / CHARS_PER_SEC / 2) * 2; // 2초 단위로 반올림
       dur = Math.max(4, Math.min(10, dur || 4));
       const label = chunks.length > 1 ? `${turnIdx + 1}-${chunkIdx + 1}` : `${turnIdx + 1}`;
-      scenes.push({ speaker: line.speaker, text, segment: `${fmt(t)}-${fmt(t + dur)}`, label });
+      scenes.push({ speaker: line.speaker, text, segment: `${fmt(t)}-${fmt(t + dur)}`, label, turnIdx, startSec: t });
       t += dur;
     });
   });
   return scenes;
+}
+
+// AI가 고른 chapters(turn_index 기준)를, 코드가 이미 정확히 계산해둔 scenes의 실제
+// 초 단위 타임코드에 매핑해서 유튜브 설명란용 타임라인 텍스트로 만든다. 시간 자체는
+// 절대 AI에게 맡기지 않고(부정확할 수 있으니) 여기서만 계산한다.
+// 유튜브가 챕터로 인식하려면 3개 이상, 첫 줄이 반드시 0:00이어야 하고, 각 챕터
+// 사이 간격이 최소 10초는 되어야 한다 — 그 조건을 여기서 강제로 맞춘다.
+function buildTimelineText(chapters, scenes) {
+  const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const startByTurn = new Map();
+  scenes.forEach(s => {
+    if (!startByTurn.has(s.turnIdx) || s.startSec < startByTurn.get(s.turnIdx)) {
+      startByTurn.set(s.turnIdx, s.startSec);
+    }
+  });
+
+  const entries = (chapters || [])
+    .filter(c => c && Number.isInteger(c.turn_index) && startByTurn.has(c.turn_index) && (c.label || '').trim())
+    .map(c => ({ sec: startByTurn.get(c.turn_index), label: c.label.trim() }))
+    .sort((a, b) => a.sec - b.sec);
+
+  // 첫 챕터가 0:00이 아니면 유튜브가 타임라인으로 인식하지 못하므로 강제로 하나 추가한다.
+  if (entries.length === 0 || entries[0].sec !== 0) {
+    entries.unshift({ sec: 0, label: '오프닝' });
+  }
+
+  // 최소 10초 간격 미달인 항목은 걸러낸다(바로 앞 항목과 너무 가까우면 스킵).
+  const filtered = [];
+  entries.forEach(e => {
+    const prev = filtered[filtered.length - 1];
+    if (!prev || e.sec - prev.sec >= 10) filtered.push(e);
+  });
+
+  if (filtered.length < 3) return ''; // 유튜브 최소 조건(3개) 미달이면 안 붙인다.
+  return filtered.map(e => `${fmt(e.sec)} ${e.label}`).join('\n');
 }
 
 // 2단계: 미리 계산해둔 씬 목록(대사·타임코드 확정)을 주고, AI에게는
@@ -494,6 +542,7 @@ function buildAdjustPrompt(topic, data, count, cfg) {
   return `아래는 "${topic}" 주제로 만든 사주 유튜브 상담형 대본입니다. ${direction}
 형식과 스타일(상담사-의뢰인 대화체, 화자 비중, 어투)은 그대로 유지하고, 분량만 조정하세요.
 출력은 이전과 똑같은 JSON 스키마 하나만, 코드블록이나 설명 없이 출력하세요.
+턴을 추가하거나 뺐다면 chapters 필드의 turn_index도 바뀐 순서에 맞게 반드시 다시 계산해서 맞춰주세요 (turn_index는 script_lines의 0-based 인덱스입니다).
 
 현재 대본 JSON:
 ${JSON.stringify(data)}`;
@@ -627,6 +676,14 @@ form.addEventListener('submit', async (e) => {
     statusText.textContent = '영상 프롬프트(스토리보드)를 만드는 중이에요...';
     const lines = data.script_lines || [];
     const scenes = buildSceneList(lines);
+
+    // 타임라인(챕터)은 AI가 고른 turn_index를, 코드가 이미 확정한 정확한 초 단위
+    // 타임코드에 매핑해서 만든다 — 시간 자체를 AI에게 맡기면 부정확해질 수 있어서다.
+    const timelineText = buildTimelineText(data.chapters, scenes);
+    if (timelineText) {
+      data.description = (data.description || '').trim() + '\n\n[타임라인]\n' + timelineText;
+    }
+
     const hanbokColor = HANBOK_COLORS[Math.floor(Math.random() * HANBOK_COLORS.length)];
     const hanbokColorEn = hanbokColor === '짙은 남색' ? 'deep navy' : hanbokColor;
     const client = pickClientDescriptor(clientGenderChoice || 'random');
