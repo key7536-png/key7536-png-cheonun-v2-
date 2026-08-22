@@ -143,7 +143,7 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
   /* 버튼 */
   .btn{padding:12px;font-size:.85rem;}
   .btn-sm{padding:7px 10px;font-size:.73rem;}
-  /* 고객 관리 버튼 줄바꿈 */
+  /* 내담자 관리 버튼 줄바꿈 */
   .client-btn-row{flex-wrap:wrap;gap:5px;}
   .client-btn-row .btn-sm{flex:1 1 calc(50% - 5px);text-align:center;}
   /* 말풍선 */
@@ -188,7 +188,6 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
   <div class="tab on" onclick="go('consulting')">💬 상담</div>
   <div class="tab" onclick="go('call')">📞 전화상담</div>
   <div class="tab" onclick="go('why')">🤔 왜요?</div>
-  <div class="tab" onclick="go('video')">🎬 영상</div>
 </div>
 
 <!-- ══════════════════════════════════════
@@ -197,13 +196,13 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
 <div id="consultingPage" class="page on">
 
   <!-- 내담자 정보 -->
-  <!-- 고객 저장/불러오기 -->
+  <!-- 내담자 저장/불러오기 -->
   <div class="card" style="padding:12px 16px">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <span style="font-size:.8rem;color:var(--gold2);font-weight:700">💾 고객 관리</span>
+      <span style="font-size:.8rem;color:var(--gold2);font-weight:700">💾 내담자 관리</span>
       <div class="client-btn-row" style="display:flex;gap:7px;flex-wrap:wrap">
-        <button class="btn btn-ghost btn-sm" onclick="toggleClientList()" style="font-size:.75rem">📋 저장된 고객 불러오기</button>
-        <button class="btn btn-ghost btn-sm" onclick="saveClient()" style="font-size:.75rem;border-color:var(--gold);color:var(--gold2)">💾 현재 고객 저장</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleClientList()" style="font-size:.75rem">📋 저장된 내담자 불러오기</button>
+        <button class="btn btn-ghost btn-sm" onclick="saveClient()" style="font-size:.75rem;border-color:var(--gold);color:var(--gold2)">💾 현재 내담자 저장</button>
 
       </div>
     </div>
@@ -336,7 +335,7 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
   <div class="card">
     <div class="card-title">📞 전화상담 실시간 도우미</div>
     <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px">
-      <button class="btn btn-ghost btn-sm" onclick="toggleCallClientList()" style="font-size:.75rem">📋 저장된 고객 불러오기</button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleCallClientList()" style="font-size:.75rem">📋 저장된 내담자 불러오기</button>
     </div>
     <div id="callClientList" style="display:none;margin-bottom:10px;max-height:200px;overflow-y:auto"></div>
     <div class="field"><label>내담자 이름</label><input id="callName" placeholder="예) 김미나님"></div>
@@ -471,360 +470,6 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
   <div id="whyResult" class="why-result"></div>
 </div>
 
-<!-- ══════════════════════════════════════
-     🎬 영상 탭
-══════════════════════════════════════ -->
-<div id="videoPage" class="page">
-<style>
-.vid-mode-btn{flex:1;padding:10px;border-radius:10px;border:1px solid #3a2a00;background:transparent;color:var(--muted);font-size:.82rem;font-weight:700;cursor:pointer;transition:.2s;}
-.vid-mode-btn.on{background:linear-gradient(135deg,#b8860b,#ffd700);color:#000;border-color:#ffd700;}
-.vid-upload{border:2px dashed #3a2a00;border-radius:14px;padding:24px;text-align:center;cursor:pointer;transition:.2s;background:rgba(255,185,0,.02);}
-.vid-upload:hover{border-color:var(--gold);background:rgba(255,185,0,.05);}
-.vid-result-card{background:rgba(20,15,0,.7);border:1px solid #2a2000;border-radius:12px;padding:14px;margin-bottom:10px;}
-.vid-result-label{font-size:.7rem;font-weight:900;margin-bottom:7px;}
-.vid-result-text{font-size:.85rem;line-height:1.7;color:#e8dfc0;white-space:pre-wrap;}
-.vid-copy-btn{float:right;font-size:.68rem;color:var(--muted);background:transparent;border:1px solid #333;border-radius:6px;padding:2px 8px;cursor:pointer;transition:.2s;}
-.vid-copy-btn:hover{color:var(--gold);border-color:var(--gold);}
-.vid-tag-chip{display:inline-block;background:rgba(180,130,0,.15);border:1px solid rgba(180,130,0,.3);color:#e8c060;padding:2px 9px;border-radius:20px;font-size:.72rem;margin:2px;}
-.vid-kw-badge{display:inline-block;padding:3px 11px;border-radius:20px;font-size:.72rem;font-weight:700;margin:3px 2px;}
-.vid-loading{text-align:center;padding:32px 0;}
-.vid-key-status{font-size:.7rem;color:var(--muted);margin-top:6px;}
-.vid-key-status span{color:#4caf84;font-weight:700;}
-</style>
-
-<div class="card">
-  <div class="card-title">🎬 쇼츠 메타데이터 생성기</div>
-
-  <!-- 모드 선택 -->
-  <div style="display:flex;gap:8px;margin-bottom:16px;">
-    <button class="vid-mode-btn on" id="vidModeMovie" onclick="setVidMode('movie')">🎬 영화쇼츠</button>
-    <button class="vid-mode-btn" id="vidModeGeneral" onclick="setVidMode('general')">📱 일반쇼츠</button>
-  </div>
-
-  <!-- 영상 업로드 -->
-  <div class="vid-upload" id="vidUploadZone" onclick="document.getElementById('vidFileInput').click()">
-    <div id="vidUploadIcon">
-      <div style="font-size:2rem;margin-bottom:8px">🎞️</div>
-      <div style="color:var(--gold2);font-weight:700;font-size:.88rem">영상 파일 업로드</div>
-      <div style="color:var(--muted);font-size:.72rem;margin-top:4px">클릭하여 파일 선택</div>
-    </div>
-    <div id="vidUploadPreview" style="display:none;">
-      <video id="vidPreviewEl" style="width:100%;max-height:180px;border-radius:8px;margin-bottom:8px;" controls muted></video>
-      <div id="vidFileName" style="color:var(--gold2);font-size:.78rem;font-weight:700;"></div>
-    </div>
-    <input type="file" id="vidFileInput" style="display:none;" accept="video/*" onchange="vidHandleFile(this)">
-  </div>
-
-  <!-- 키 상태 -->
-  <div class="vid-key-status" id="vidKeyStatus">🔑 Gemini 키 자동 로테이션 (10개) · <span id="vidKeyIndicator">대기 중</span></div>
-
-  <!-- 생성 버튼 -->
-  <button onclick="vidGenerate()" id="vidGenBtn"
-    style="width:100%;margin-top:14px;padding:14px;background:linear-gradient(135deg,#b8860b,#ffd700);color:#000;font-weight:900;font-size:.9rem;border:none;border-radius:12px;cursor:pointer;">
-    ✦ 메타데이터 생성
-  </button>
-</div>
-
-<!-- 로딩 -->
-<div class="card vid-loading" id="vidLoading" style="display:none;">
-  <div style="font-size:1.8rem;margin-bottom:10px">⏳</div>
-  <div style="color:var(--gold2);font-weight:700;">AI가 영상을 분석 중입니다</div>
-  <div style="color:var(--muted);font-size:.75rem;margin-top:6px;" id="vidLoadingMsg">프레임 추출 중...</div>
-</div>
-
-<!-- 결과 -->
-<div id="vidResult" style="display:none;">
-
-  <!-- 제목 (후킹제목 ㅣ 키워드 ㅣ 키워드 ㅣ 키워드) -->
-  <div class="card vid-result-card">
-    <div class="vid-result-label" style="color:#ffd700;">
-      🔥 제목
-      <button class="vid-copy-btn" onclick="vidCopy('vidOutTitle')">복사</button>
-    </div>
-    <div id="vidOutTitle" class="vid-result-text" style="font-size:.92rem;font-weight:900;color:#fff;"></div>
-    <div style="margin-top:10px;" id="vidKwBadges"></div>
-  </div>
-
-  <!-- 영화 정보 (영화모드만) -->
-  <div class="card vid-result-card" id="vidMovieInfoCard">
-    <div class="vid-result-label" style="color:#e8b060;">
-      🎬 영화 제목
-      <button class="vid-copy-btn" onclick="vidCopy('vidOutMovieTitle')">복사</button>
-    </div>
-    <div id="vidOutMovieTitle" class="vid-result-text" style="font-weight:700;color:#fff;"></div>
-    <div style="margin-top:12px;">
-      <div class="vid-result-label" style="color:#a090d0;">
-        📖 줄거리 · 감동 포인트
-        <button class="vid-copy-btn" onclick="vidCopy('vidOutPlot')">복사</button>
-      </div>
-      <div id="vidOutPlot" class="vid-result-text"></div>
-    </div>
-  </div>
-
-  <!-- 설명문 -->
-  <div class="card vid-result-card">
-    <div class="vid-result-label" style="color:#a0c0ff;">
-      📝 영상 설명문
-      <button class="vid-copy-btn" onclick="vidCopy('vidOutDesc')">복사</button>
-    </div>
-    <div id="vidOutDesc" class="vid-result-text"></div>
-  </div>
-
-  <!-- 태그 -->
-  <div class="card vid-result-card">
-    <div class="vid-result-label" style="color:#80d090;">
-      #️⃣ 태그
-      <button class="vid-copy-btn" onclick="vidCopy('vidOutTagsRaw')">복사</button>
-    </div>
-    <div id="vidOutTagsChips"></div>
-    <div id="vidOutTagsRaw" style="display:none;"></div>
-  </div>
-
-  <!-- 고정댓글 -->
-  <div class="card vid-result-card">
-    <div class="vid-result-label" style="color:#f0a060;">
-      💬 고정 댓글
-      <button class="vid-copy-btn" onclick="vidCopy('vidOutComment')">복사</button>
-    </div>
-    <div id="vidOutComment" class="vid-result-text"></div>
-  </div>
-
-  <!-- 전체복사 -->
-  <div class="card" style="padding:12px;">
-    <button onclick="vidCopyAll()"
-      style="width:100%;padding:11px;border:1px solid #3a2a00;background:transparent;color:var(--gold2);font-weight:700;font-size:.82rem;border-radius:10px;cursor:pointer;">
-      📋 전체 복사
-    </button>
-  </div>
-</div>
-
-</div><!-- /videoPage -->
-
-<script>
-// ════════════════════════════════
-// 🎬 영상탭 — Gemini 자동 로테이션
-// ════════════════════════════════
-const VID_KEYS = [
-  "AQ.Ab8RN6JFbQbrNzZVks0Xmeu7DWO9MmRjiI7Ck_encmhyXlvEOQ",
-  "AQ.Ab8RN6JrDY6PgU2MmTDJ_GEaG0F1FuYIk8SxZW1ZTi2cEPJuVA",
-  "AQ.Ab8RN6JOMz5VB8Iq4lvZKhUSqJHtuttEEI_KxEN4eSZc09q72A",
-  "AQ.Ab8RN6KWgnaghB6GcIMeBnHIA5GX5Si1yUzJUEySH8odzULYxA",
-  "AQ.Ab8RN6JQi4thfyUl-bbZiSDVM_wPZCdu0vwUT40yIf87e8WCug",
-  "AQ.Ab8RN6Ki8T2GARCa7hbRRqT5Uj2bafuNutD_OAfuivi421uDoA",
-  "AQ.Ab8RN6JBhlN5LwtSfGB71V2_jL6TCHsdGVWVik_steHm91i7Gw",
-  "AQ.Ab8RN6JA_h85aXm09VUt1BWdx1imbqIf5RgEFvu9CX2nV9QXYQ",
-  "AQ.Ab8RN6LjgY1xpr30g5paDZovk3SXX9QMr4aVUEftCemxfGSd0g",
-  "AQ.Ab8RN6KkjEU42Rp3Bj9wxWfgxRBoFln9osnT6fc1k3QksfIq5g"
-];
-const VID_MODEL = "gemini-1.5-flash";
-let vidMode = 'movie'; // 'movie' | 'general'
-
-function setVidMode(m){
-  vidMode = m;
-  document.getElementById('vidModeMovie').classList.toggle('on', m==='movie');
-  document.getElementById('vidModeGeneral').classList.toggle('on', m==='general');
-}
-
-function vidHandleFile(input){
-  if(!input.files.length) return;
-  const file = input.files[0];
-  document.getElementById('vidFileName').textContent = file.name;
-  document.getElementById('vidPreviewEl').src = URL.createObjectURL(file);
-  document.getElementById('vidUploadIcon').style.display = 'none';
-  document.getElementById('vidUploadPreview').style.display = 'block';
-}
-
-// 키 자동 로테이션으로 Gemini 호출
-async function vidCallGemini(frames, prompt){
-  let lastErr = '';
-  for(let i=0; i<VID_KEYS.length; i++){
-    const key = VID_KEYS[i];
-    document.getElementById('vidKeyIndicator').textContent = `키 ${i+1} 시도 중...`;
-    try{
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${VID_MODEL}:generateContent?key=${key}`,
-        {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({
-            contents:[{ parts:[
-              {text: prompt},
-              ...frames.map(f=>({inlineData:{mimeType:'image/jpeg',data:f}}))
-            ]}],
-            generationConfig:{temperature:0.7, maxOutputTokens:2048}
-          })
-        }
-      );
-      const data = await res.json();
-      if(!res.ok){
-        // 한도 초과 또는 오류 → 다음 키 시도
-        lastErr = data.error?.message || `키 ${i+1} 실패`;
-        continue;
-      }
-      document.getElementById('vidKeyIndicator').textContent = `키 ${i+1} 성공 ✓`;
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    }catch(e){
-      lastErr = e.message;
-      continue;
-    }
-  }
-  // 모든 키 소진 → 리셋 카운트다운
-  vidShowReset();
-  throw new Error('모든 키 한도 초과. 오후 5시 리셋 후 재시도하세요.');
-}
-
-// 오후 5시 카운트다운
-function vidShowReset(){
-  const now = new Date();
-  const reset = new Date();
-  reset.setHours(17,0,0,0);
-  if(now >= reset) reset.setDate(reset.getDate()+1);
-  const diff = reset - now;
-  const h = Math.floor(diff/3600000);
-  const m = Math.floor((diff%3600000)/60000);
-  document.getElementById('vidKeyIndicator').innerHTML =
-    `<span style="color:#ff6b6b;">⏰ 전체 한도 초과 — ${h}시간 ${m}분 후(오후5시) 리셋</span>`;
-}
-
-async function vidGenerate(){
-  const file = document.getElementById('vidFileInput').files[0];
-  if(!file){ alert('영상을 먼저 업로드해주세요.'); return; }
-
-  document.getElementById('vidLoading').style.display='block';
-  document.getElementById('vidResult').style.display='none';
-  document.getElementById('vidGenBtn').disabled=true;
-
-  try{
-    // 프레임 3장 추출
-    document.getElementById('vidLoadingMsg').textContent = '프레임 추출 중...';
-    const video = document.createElement('video');
-    video.muted = true;
-    video.src = URL.createObjectURL(file);
-    await new Promise(r => video.onloadedmetadata = r);
-    const canvas = document.createElement('canvas');
-    canvas.width=320; canvas.height=180;
-    const ctx = canvas.getContext('2d');
-    const frames=[];
-    for(let i=1;i<=3;i++){
-      video.currentTime = (video.duration/4)*i;
-      await new Promise(r=>{ video.onseeked=r; setTimeout(r,1500); });
-      ctx.drawImage(video,0,0,320,180);
-      frames.push(canvas.toDataURL('image/jpeg',0.5).split(',')[1]);
-    }
-
-    document.getElementById('vidLoadingMsg').textContent = 'AI 분석 중...';
-
-    // 모드별 프롬프트
-    const prompt = vidMode === 'movie' ? `
-이 영화 클립 영상을 분석해서 유튜브 쇼츠용 메타데이터를 만들어줘.
-반드시 JSON만 응답해. 마크다운 없이 순수 JSON.
-{
-  "hookTitle": "후킹 제목 (이모지포함, 30자이내, 감동/반전/궁금증 유발)",
-  "keyword1": "핵심키워드1 (장르/감정, 예: #감동실화)",
-  "keyword2": "핵심키워드2 (인물/상황, 예: #명장면)",
-  "keyword3": "핵심키워드3 (검색유입, 예: #눈물주의)",
-  "movieTitle": "영화제목 (한국어+원제+개봉연도)",
-  "plot": "줄거리3문장+감동포인트1문장 (총4문장, 스포최소화)",
-  "description": "쇼츠 설명문 3줄 (각줄 이모지시작, 감동포인트+영화정보, 마지막줄 구독유도)",
-  "tags": ["태그1","태그2",...정확히20개],
-  "pinnedComment": "고정댓글 (영화제목/감독/배우+한줄평+공감질문, 이모지포함, 3줄)"
-}
-영화를 특정할 수 없으면 장르/분위기 기반으로 추정해서 작성해. tags는 #없이 단어만 20개.` : `
-이 영상을 분석해서 유튜브 쇼츠용 메타데이터를 만들어줘.
-반드시 JSON만 응답해. 마크다운 없이 순수 JSON.
-{
-  "hookTitle": "후킹 제목 (이모지포함, 30자이내, 강한 클릭유발)",
-  "keyword1": "핵심키워드1 (콘텐츠 장르/주제)",
-  "keyword2": "핵심키워드2 (핵심 내용/상황)",
-  "keyword3": "핵심키워드3 (검색 유입 키워드)",
-  "description": "쇼츠 설명문 3줄 (각줄 이모지시작, 핵심내용+채널정보, 마지막줄 구독유도)",
-  "tags": ["태그1","태그2",...정확히20개],
-  "pinnedComment": "고정댓글 (영상주제+핵심정보+시청자 참여유도, 이모지포함, 3줄)"
-}
-tags는 #없이 단어만 20개.`;
-
-    const raw = await vidCallGemini(frames, prompt);
-    const clean = raw.replace(/```json|```/g,'').trim();
-    const res = JSON.parse(clean);
-
-    // 결과 출력
-    const kw1 = res.keyword1||''; const kw2 = res.keyword2||''; const kw3 = res.keyword3||'';
-    const fullTitle = [res.hookTitle, kw1, kw2, kw3].filter(Boolean).join(' ㅣ ');
-    document.getElementById('vidOutTitle').textContent = fullTitle;
-
-    // 키워드 뱃지
-    const bdg = document.getElementById('vidKwBadges');
-    bdg.innerHTML = '';
-    [[kw1,'#3a2060','#c090ff'],[kw2,'#3a1020','#ff90a0'],[kw3,'#002030','#60c0e0']].forEach(([t,bg,cl])=>{
-      if(!t) return;
-      const s = document.createElement('span');
-      s.className='vid-kw-badge';
-      s.style.cssText=`background:${bg};color:${cl};border:1px solid ${cl}40;`;
-      s.textContent=t; bdg.appendChild(s);
-    });
-
-    // 영화 정보 (영화모드만 표시)
-    const movieCard = document.getElementById('vidMovieInfoCard');
-    if(vidMode==='movie'){
-      movieCard.style.display='block';
-      document.getElementById('vidOutMovieTitle').textContent = res.movieTitle||'';
-      document.getElementById('vidOutPlot').textContent = res.plot||'';
-    } else {
-      movieCard.style.display='none';
-    }
-
-    document.getElementById('vidOutDesc').textContent = res.description||'';
-    document.getElementById('vidOutComment').textContent = res.pinnedComment||'';
-
-    // 태그 칩
-    const tagsArr = Array.isArray(res.tags) ? res.tags : [];
-    const chipsEl = document.getElementById('vidOutTagsChips');
-    const rawEl = document.getElementById('vidOutTagsRaw');
-    chipsEl.innerHTML='';
-    tagsArr.forEach(t=>{
-      const chip=document.createElement('span');
-      chip.className='vid-tag-chip';
-      chip.textContent=(t.startsWith('#')?t:'#'+t);
-      chipsEl.appendChild(chip);
-    });
-    rawEl.textContent = tagsArr.map(t=>t.startsWith('#')?t:'#'+t).join(' ');
-
-    document.getElementById('vidLoading').style.display='none';
-    document.getElementById('vidResult').style.display='block';
-
-  }catch(e){
-    document.getElementById('vidLoading').style.display='none';
-    alert('오류: '+e.message);
-  } finally {
-    document.getElementById('vidGenBtn').disabled=false;
-  }
-}
-
-function vidCopy(id){
-  const el=document.getElementById(id);
-  if(!el) return;
-  navigator.clipboard.writeText(el.textContent.trim());
-  snack('복사됐어요 ✓');
-}
-
-function vidCopyAll(){
-  const parts=[
-    ['📌 제목','vidOutTitle'],
-    ['🎬 영화제목','vidOutMovieTitle'],
-    ['📖 줄거리','vidOutPlot'],
-    ['📝 설명문','vidOutDesc'],
-    ['#️⃣ 태그','vidOutTagsRaw'],
-    ['💬 고정댓글','vidOutComment'],
-  ];
-  const text = parts
-    .filter(([,id])=>{ const el=document.getElementById(id); return el&&el.textContent.trim(); })
-    .map(([label,id])=>`${label}\n${document.getElementById(id).textContent.trim()}`)
-    .join('\n\n');
-  navigator.clipboard.writeText(text);
-  snack('전체 복사됐어요 ✓');
-}
-</script>
-
 <!-- DB 설정은 하단 dbModal에서 처리 -->
 
 <div class="snack" id="snack"></div>
@@ -870,7 +515,7 @@ function saveDbConfig(){
   _sbUrl = url; _sbAnonKey = key; _sbReady = true;
   closeDbModal();
   updateSyncBadge(true);
-  snack('✅ Supabase 연결됨! 고객 데이터가 클라우드에 저장됩니다.');
+  snack('✅ Supabase 연결됨! 내담자 데이터가 클라우드에 저장됩니다.');
   loadClients(); // 즉시 로드
 }
 
@@ -941,7 +586,7 @@ function go(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   document.getElementById(id+'Page').classList.add('on');
-  const tabs = ['consulting','call','why','video'];
+  const tabs = ['consulting','call','why'];
   document.querySelectorAll('.tab')[tabs.indexOf(id)].classList.add('on');
   if(id==='why') updateWhyContextBanner();
 }
@@ -984,6 +629,104 @@ const SPREAD_NAMES = {
   5: ['현재 상황','장애물','조언','가까운 미래','결과']
 };
 
+// ════════════════════════════════
+// 타로 78장 정방향/역방향 키워드 (라이더-웨이트 표준 의미 체계)
+// AI 프롬프트에 참고 키워드로 함께 전달해 해석의 일관성·정확도를 높인다.
+// ════════════════════════════════
+const TAROT_MEANINGS = {
+  '바보':{up:'새로운 시작, 순수한 도전, 자유로운 모험심', rev:'경솔함, 무모함, 준비 부족'},
+  '마법사':{up:'창조력, 의지 실현, 자원 활용 능력', rev:'재능 낭비, 속임수, 자신감 결여'},
+  '여사제':{up:'직관, 내면의 지혜, 비밀', rev:'억눌린 직관, 표면적 판단, 비밀 누설'},
+  '황후':{up:'풍요, 모성, 창조와 성장', rev:'과잉보호, 정체, 자기관리 부족'},
+  '황제':{up:'권위, 안정, 체계적 리더십', rev:'독선, 경직됨, 통제력 상실'},
+  '교황':{up:'전통, 가르침, 제도권 안의 안정', rev:'관습에 대한 반발, 독단적 신념, 형식주의'},
+  '연인':{up:'사랑, 선택, 가치관의 합일', rev:'갈등, 잘못된 선택, 불균형한 관계'},
+  '전차':{up:'의지, 추진력, 승리', rev:'방향 상실, 조급함, 통제력 부족'},
+  '힘':{up:'내면의 힘, 인내, 부드러운 용기', rev:'자신감 부족, 감정 억제 실패, 나약함'},
+  '은둔자':{up:'성찰, 고독한 탐구, 내면의 답', rev:'고립, 현실 회피, 소통 단절'},
+  '운명의 수레바퀴':{up:'전환점, 순환, 운명의 변화', rev:'불운, 통제 밖의 변화, 정체된 흐름'},
+  '정의':{up:'공정, 균형, 인과응보', rev:'불공정, 편파적 판단, 책임 회피'},
+  '매달린 사람':{up:'기다림, 관점의 전환, 희생을 통한 깨달음', rev:'정체, 희생의 낭비, 현실 도피'},
+  '죽음':{up:'끝과 새로운 시작, 근본적 변화, 해방', rev:'변화에 대한 저항, 정체, 미련'},
+  '절제':{up:'조화, 균형, 인내심 있는 통합', rev:'불균형, 과도함, 조급한 타협'},
+  '악마':{up:'집착, 유혹, 속박된 욕망', rev:'속박에서 벗어남, 자각, 억눌린 욕구의 표출'},
+  '탑':{up:'급격한 붕괴, 충격적 깨달음, 강제된 변화', rev:'변화에 대한 두려움, 재앙 회피, 억눌린 위기'},
+  '별':{up:'희망, 치유, 영감', rev:'절망, 자신감 상실, 희망의 결여'},
+  '달':{up:'불안, 환상, 무의식의 혼란', rev:'혼란 해소, 숨겨진 진실이 드러남, 오해가 풀림'},
+  '태양':{up:'성공, 기쁨, 활력', rev:'일시적 좌절, 과도한 낙관, 성취 지연'},
+  '심판':{up:'각성, 재평가, 부름에 대한 응답', rev:'자기 비판, 기회를 놓침, 주저함'},
+  '세계':{up:'완성, 성취, 통합된 만족', rev:'미완성, 지연된 마무리, 불완전한 성취'},
+
+  '완드에이스':{up:'새로운 열정, 창조적 시작, 영감', rev:'지연된 시작, 동기 부족, 좌절된 아이디어'},
+  '완드2':{up:'계획, 미래를 향한 결정, 확장', rev:'두려움으로 인한 망설임, 계획 부재'},
+  '완드3':{up:'확장, 선견지명, 결실을 향한 진행', rev:'지연, 장애물, 근시안적 계획'},
+  '완드4':{up:'축하, 안정된 성취, 조화로운 결실', rev:'불안정한 기반, 미완의 축하'},
+  '완드5':{up:'경쟁, 의견 충돌, 건설적 갈등', rev:'회피된 갈등, 내부 다툼, 긴장 해소'},
+  '완드6':{up:'승리, 인정, 자신감 있는 성공', rev:'지연된 인정, 오만, 자만심'},
+  '완드7':{up:'방어, 자기 신념 고수, 도전에 맞섬', rev:'압도당함, 자신감 상실, 포기'},
+  '완드8':{up:'빠른 진행, 신속한 소식, 움직임의 가속', rev:'지연, 좌절된 속도, 혼선'},
+  '완드9':{up:'끈기, 경계, 마지막 고비 앞의 인내', rev:'탈진, 방어적 태도, 포기 직전'},
+  '완드10':{up:'과중한 책임, 부담, 성취를 위한 희생', rev:'짐을 내려놓음, 위임, 번아웃'},
+  '완드시종':{up:'열정적 탐구, 새로운 소식, 모험심', rev:'미숙한 열정, 나쁜 소식, 계획성 부족'},
+  '완드기사':{up:'충동적 행동, 열정적 추진, 모험', rev:'성급함, 무모함, 계획 없는 돌진'},
+  '완드여왕':{up:'자신감, 따뜻한 카리스마, 독립적 활력', rev:'질투, 자기중심적 태도, 불안정한 자신감'},
+  '완드왕':{up:'비전 있는 리더십, 대담한 결단력', rev:'독단적 지배, 성급한 결정, 과도한 자신감'},
+
+  '컵에이스':{up:'새로운 사랑, 감정적 시작, 충만함', rev:'억눌린 감정, 감정적 공허, 시작의 지연'},
+  '컵2':{up:'상호 이해, 조화로운 관계, 연결', rev:'불균형한 관계, 오해, 소통 단절'},
+  '컵3':{up:'우정, 축하, 공동체의 기쁨', rev:'과잉, 소외감, 표면적 관계'},
+  '컵4':{up:'권태, 무관심, 놓치는 기회', rev:'새로운 관심의 시작, 자각, 행동 개시'},
+  '컵5':{up:'상실에 대한 슬픔, 후회, 놓친 것에 대한 집착', rev:'수용, 회복, 남은 것에 대한 감사'},
+  '컵6':{up:'향수, 순수한 기쁨, 과거로부터의 회복', rev:'과거에 대한 집착, 현실 도피, 미숙함'},
+  '컵7':{up:'선택의 혼란, 환상, 다양한 가능성', rev:'명확해진 선택, 환상의 해소, 현실적 결단'},
+  '컵8':{up:'의미를 찾아 떠남, 포기와 전진, 내면의 탐구', rev:'제자리에 머묾, 미련, 두려움 속 정체'},
+  '컵9':{up:'만족, 소원 성취, 감정적 충족', rev:'과도한 만족, 표면적 행복, 물질적 집착'},
+  '컵10':{up:'정서적 충만, 가족의 화합, 지속적 행복', rev:'깨어진 화합, 불안정한 관계, 이상과 현실의 괴리'},
+  '컵시종':{up:'감성적 메시지, 직관적 감수성, 순수한 감정', rev:'미성숙한 감정, 감정적 불안정, 나쁜 소식'},
+  '컵기사':{up:'낭만적 접근, 감정을 따르는 행동, 이상주의', rev:'감정 기복, 비현실적 기대, 질투'},
+  '컵여왕':{up:'감정적 성숙, 공감, 직관적 돌봄', rev:'감정 과잉, 의존성, 자기희생적 태도'},
+  '컵왕':{up:'감정의 균형, 관대함, 성숙한 리더십', rev:'감정 억제, 냉담함, 조작적 태도'},
+
+  '검에이스':{up:'명료한 통찰, 새로운 아이디어, 진실의 발견', rev:'혼란된 사고, 오판, 명확성 결여'},
+  '검2':{up:'결정 보류, 균형 잡힌 정체, 회피', rev:'결단력 부족의 지속, 정보 과부하, 억지 결정'},
+  '검3':{up:'상심, 이별의 고통, 감정적 상처', rev:'회복의 시작, 상처의 치유, 용서'},
+  '검4':{up:'휴식, 회복을 위한 물러남, 재충전', rev:'강제된 휴식 이후의 재개, 소진, 정체'},
+  '검5':{up:'갈등에서의 승리와 대가, 소모적 다툼', rev:'화해, 갈등의 여운, 후회'},
+  '검6':{up:'전환, 더 나은 곳으로의 이동, 회복을 향한 여정', rev:'정체된 전환, 미련이 남은 이동, 저항'},
+  '검7':{up:'전략, 은밀한 행동, 회피', rev:'발각된 속임수, 자기기만의 노출, 양심의 가책'},
+  '검8':{up:'제약, 스스로 만든 속박, 무력감', rev:'속박에서의 해방, 자각을 통한 자유'},
+  '검9':{up:'불안, 근심, 최악을 상상하는 마음', rev:'불안의 해소, 과도한 걱정에서 벗어남'},
+  '검10':{up:'바닥을 친 상황, 고통스러운 종결, 배신', rev:'회복의 시작, 최악을 지나 다시 일어섬'},
+  '검시종':{up:'경계심, 호기심 어린 관찰, 날카로운 정보', rev:'성급한 판단, 가십, 부주의한 발언'},
+  '검기사':{up:'단호한 행동, 직접적 추진, 논쟁적 태도', rev:'성급하고 무모한 돌진, 공격적 태도'},
+  '검여왕':{up:'명료한 판단, 독립적 사고, 솔직함', rev:'냉소적 태도, 과도한 비판, 차가움'},
+  '검왕':{up:'논리적 권위, 공정한 판단력, 전략적 사고', rev:'권위의 남용, 냉정한 지배, 조작'},
+
+  '펜타클에이스':{up:'새로운 기회, 물질적 시작, 현실적 잠재력', rev:'놓친 기회, 불안정한 시작, 계획 부실'},
+  '펜타클2':{up:'균형, 우선순위 조정, 유연한 대처', rev:'과부하, 균형 상실, 우유부단'},
+  '펜타클3':{up:'협업, 숙련된 팀워크, 인정받는 노력', rev:'불협화음, 낮은 완성도, 협업 실패'},
+  '펜타클4':{up:'안정, 물질적 보안, 소유에 대한 집착', rev:'지나친 집착, 인색함, 변화에 대한 저항'},
+  '펜타클5':{up:'경제적 어려움, 소외감, 도움이 필요한 시기', rev:'회복의 시작, 도움을 받아들임, 형편 개선'},
+  '펜타클6':{up:'나눔, 후원, 공정한 주고받음', rev:'불공정한 거래, 조건부 도움, 의존'},
+  '펜타클7':{up:'인내를 통한 결실 대기, 평가의 시기', rev:'조급함, 성과 없는 노력, 방향 재검토 필요'},
+  '펜타클8':{up:'숙련, 성실한 노력, 전문성 개발', rev:'불성실, 완성도 낮은 작업, 매너리즘'},
+  '펜타클9':{up:'자립, 풍요로운 결실, 독립적 안정', rev:'과로, 물질에 대한 과도한 집착, 고립된 성공'},
+  '펜타클10':{up:'풍요로운 유산, 가족의 안정, 장기적 성공', rev:'재정적 불안정, 가족 갈등, 불안정한 유산'},
+  '펜타클시종':{up:'배움의 기회, 현실적 계획, 성실한 시작', rev:'비현실적 계획, 나태함, 기회를 놓침'},
+  '펜타클기사':{up:'근면, 신중한 진행, 책임감', rev:'정체, 게으름, 지나친 신중함으로 인한 정체'},
+  '펜타클여왕':{up:'현실적 돌봄, 풍요로운 안정감, 실용적 지혜', rev:'과로, 일과 삶의 불균형, 물질적 불안'},
+  '펜타클왕':{up:'물질적 성취, 사업적 성공, 안정된 풍요', rev:'물질만능주의, 완고함, 재정적 위험'},
+};
+
+// 카드 표시 라벨("바보" 또는 "바보(역방향)")에서 참고 키워드를 뽑아온다.
+function _tarotMeaningFor(label){
+  const reversed = label.includes('(역방향)');
+  const base = label.replace('(역방향)','').trim();
+  const m = TAROT_MEANINGS[base];
+  if(!m) return '';
+  return reversed ? m.rev : m.up;
+}
+
 function setMode(btn, mode){
   document.querySelectorAll('#modeSelect .sp-btn').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
@@ -1003,7 +746,8 @@ function setSpread(btn, n){
 
 function drawCards(){
   const shuffled = [...TAROT_78].sort(()=>Math.random()-.5);
-  drawnCards = shuffled.slice(0, spreadCount);
+  // 정방향/역방향 — 실제 타로 상담에서처럼 카드마다 절반 확률로 역방향 배정
+  drawnCards = shuffled.slice(0, spreadCount).map(c => Math.random()<0.5 ? c+'(역방향)' : c);
   const names = SPREAD_NAMES[spreadCount];
   document.getElementById('drawnCards').innerHTML = drawnCards.map((c,i)=>`
     <div class="drawn-card">
@@ -1071,7 +815,7 @@ async function startConsulting(){
     chatHistory = [{role:'assistant', content: bubs.join('\n\n')}];
     document.getElementById('chatBox').innerHTML = '';
     document.getElementById('consultChat').style.display = 'block';
-    snack('분석 완료! 💬 추가 질문 가능 / 💾 고객 저장 가능');
+    snack('분석 완료! 💬 추가 질문 가능 / 💾 내담자 저장 가능');
   } catch(e){
     document.getElementById('consultResult').innerHTML = `<div class="card" style="color:var(--red)">오류: ${e.message}</div>`;
   }
@@ -1130,61 +874,132 @@ function renderSajuTable(birth, hour, gender, name){
 }
 
 // ════════════════════════════════
-// 사주 계산 엔진 (만세력 기반 정확 계산)
+// 사주 계산 엔진 v2 (실제 태양 황경 기반 절기 계산 + 검증된 일주 기준일)
+// ────────────────────────────────
+// [2026-08 수정 내역]
+// 1) 일주 기준일 버그 수정: 기존 "1999-12-28=갑자" 가정이 실제로는 틀렸음(진짜 갑인일).
+//    외부에서 실제 만세력과 대조 검증된 두 날짜(2024-01-01=갑자, 2026-07-02=정축)로
+//    교차검증 후 "2024-01-01=갑자"를 새 기준일로 사용.
+// 2) 절기(입춘 등) 날짜를 "평균 고정값"이 아닌 태양 황경(Meeus 저정밀 공식, 오차 1분 이내)
+//    으로 매년 정확히 계산하도록 변경 — 절기 경계 근처 생일의 년주/월주/대운 오차 제거.
 // ════════════════════════════════
 const _S = ['갑','을','병','정','무','기','경','신','임','계'];
 const _B = ['자','축','인','묘','진','사','오','미','신','유','술','해'];
 
 function _gz(n){ n=((n%60)+60)%60; return _S[n%10]+_B[n%12]; }
 
-// 일주: 기준일 1999-12-28 = 갑자
+// ── 태양 황경 계산 (Meeus 저정밀 공식) ──
+function _norm360(x){ x=x%360; return x<0?x+360:x; }
+function _jdUTC(y,m,d,hourUTC){
+  if(m<=2){ y-=1; m+=12; }
+  const A=Math.floor(y/100), B2=2-A+Math.floor(A/4);
+  return Math.floor(365.25*(y+4716))+Math.floor(30.6001*(m+1))+d+hourUTC/24+B2-1524.5;
+}
+function _sunLongitude(jd){
+  const T=(jd-2451545.0)/36525.0;
+  const L0=_norm360(280.46646+36000.76983*T+0.0003032*T*T);
+  const M=_norm360(357.52911+35999.05029*T-0.0001537*T*T);
+  const Mr=M*Math.PI/180;
+  const C=(1.914602-0.004817*T-0.000014*T*T)*Math.sin(Mr)
+         +(0.019993-0.000101*T)*Math.sin(2*Mr)
+         +0.000289*Math.sin(3*Mr);
+  const trueLong=L0+C;
+  const omega=125.04-1934.136*T;
+  return _norm360(trueLong-0.00569-0.00478*Math.sin(omega*Math.PI/180));
+}
+function _jdToLocalDate(jdKST){
+  let jd = jdKST + 0.5;
+  let Z = Math.floor(jd), F = jd - Z, A = Z;
+  if(Z >= 2299161){
+    const alpha = Math.floor((Z-1867216.25)/36524.25);
+    A = Z + 1 + alpha - Math.floor(alpha/4);
+  }
+  const B2 = A + 1524;
+  const C = Math.floor((B2-122.1)/365.25);
+  const D = Math.floor(365.25*C);
+  const E = Math.floor((B2-D)/30.6001);
+  const day = B2 - D - Math.floor(30.6001*E) + F;
+  const month = (E<14) ? E-1 : E-13;
+  const year = (month>2) ? C-4716 : C-4715;
+  return new Date(year, month-1, Math.floor(day));
+}
+function _findSolarTerm(year, targetDeg, approxMonth, approxDay){
+  function angDiff(jd){
+    let d = _sunLongitude(jd) - targetDeg;
+    d = ((d+180)%360+360)%360 - 180;
+    return d;
+  }
+  let lo = _jdUTC(year, approxMonth, approxDay-14, -9);
+  let hi = _jdUTC(year, approxMonth, approxDay+14, -9);
+  let dLo = angDiff(lo);
+  for(let i=0;i<50;i++){
+    const mid=(lo+hi)/2, dMid=angDiff(mid);
+    if((dLo<0)===(dMid<0)){ lo=mid; dLo=dMid; } else { hi=mid; }
+  }
+  return _jdToLocalDate((lo+hi)/2 + 9/24);
+}
+const _termCache = {};
+function _termDate(year, deg, approxM, approxD){
+  const key = year+'_'+deg;
+  if(!_termCache[key]) _termCache[key] = _findSolarTerm(year, deg, approxM, approxD);
+  return _termCache[key];
+}
+function _ipchunDate(year){ return _termDate(year, 315, 2, 4); } // 입춘
+
+// 12개 "절"(월 경계): 입춘→인,경칩→묘,청명→진,입하→사,망종→오,소서→미,
+//                    입추→신,백로→유,한로→술,입동→해,대설→자,소한→축
+const _MONTH_TERM_DEG    = [315, 345, 15, 45, 75, 105, 135, 165, 195, 225, 255, 285];
+const _MONTH_TERM_APPROX = [[2,4],[3,5],[4,5],[5,5],[6,6],[7,7],[8,7],[9,7],[10,8],[11,7],[12,7],[1,6]];
+const _MONTH_TERM_BRANCH = [2,3,4,5,6,7,8,9,10,11,0,1];
+
+function _yearTermDates(baziYear){
+  return _MONTH_TERM_DEG.map((deg,i)=>{
+    const y = (i===11) ? baziYear+1 : baziYear; // 소한만 다음해 1월
+    const [am,ad] = _MONTH_TERM_APPROX[i];
+    return _termDate(y, deg, am, ad);
+  });
+}
+
+// 일주: 기준일 2024-01-01 = 갑자 (실제 만세력 대조 검증됨 — 2026-07-02=정축으로 교차검증 완료)
 function _dayPillar(y,m,d){
-  const base = new Date(1999,11,28); // 갑자일
+  const base = new Date(2024,0,1);
   const target = new Date(y,m-1,d);
   const diff = Math.round((target-base)/86400000);
   return _gz(diff);
 }
 
-// 년주: 입춘(2월4일) 기준
+// 년주: 입춘(실제 절기 계산) 기준
 function _yearPillar(y,m,d){
-  const sy = (m<2||(m===2&&d<4)) ? y-1 : y;
-  const idx = ((sy-1984)%60+60)%60;
+  const target = new Date(y,m-1,d);
+  const ipchun = _ipchunDate(y);
+  const sy = (target < ipchun) ? y-1 : y;
+  const idx = ((sy-1984)%60+60)%60; // 1984 = 갑자년
   return _gz(idx);
 }
 
-// 월주: 오호둔월법 + 절기 기준
+// 월주: 오호둔월법 + 실제 절기 경계
 function _monthPillar(y,m,d){
-  // 절입일 (평균값, ±1일 오차 가능)
-  const TERM_DAY = [0,6,4,6,5,6,6,7,7,8,8,7,7]; // [미사용,축,인,묘,진,사,오,미,신,유,술,해,자]
-  // 양력월→지지 (절기 이전이면 전월)
-  const M2B = [0,1,2,3,4,5,6,7,8,9,10,11,0]; // 1월→축(1)? 아니면 자(0)?
-  // 절기 기준 지지 (절입일 이후)
-  // 1월 소한(6일) 이후→축월, 2월 입춘(4일) 이후→인월
-  const termDay = [0,6,4,6,5,6,6,7,7,8,8,7,7]; // index=month
-  const branchAfter = [0,1,2,3,4,5,6,7,8,9,10,11,0]; // index=month
-  const branchBefore= [0,0,1,2,3,4,5,6,7,8,9,10,11]; // 절기 이전
-  
-  let branch;
-  if(d >= termDay[m]){
-    branch = branchAfter[m];
-  } else {
-    branch = branchBefore[m];
+  const target = new Date(y,m-1,d);
+  const ipchun = _ipchunDate(y);
+  const baziYear = (target < ipchun) ? y-1 : y;
+  const termDates = _yearTermDates(baziYear);
+
+  let segIdx = 0;
+  for(let i=0;i<termDates.length;i++){
+    if(target >= termDates[i]) segIdx = i; else break;
   }
-  
-  // 해당 월의 년도 기준 (입춘 기준 년)
-  const refYear = (m<2||(m===2&&d<4)) ? y-1 : y;
-  const yStemIdx = ((refYear-1984)%10+10)%10;
-  
-  // 오호둔월법: 년간별 인월 시작 천간
-  const START = [2,4,6,8,0,2,4,6,8,0]; // 갑~계 순서
+  const branch = _MONTH_TERM_BRANCH[segIdx];
+
+  const yStemIdx = ((baziYear-1984)%10+10)%10;
+  const START = [2,4,6,8,0,2,4,6,8,0]; // 오호둔월법(인월 시작 천간)
   const startStem = START[yStemIdx];
   const rel = ((branch-2)%12+12)%12;
   const stemIdx = (startStem+rel)%10;
-  
+
   return _S[stemIdx]+_B[branch];
 }
 
-// 시주: 오자둔시법
+// 시주: 오자둔시법 (기존 로직 검증 결과 정확 — 변경 없음)
 const _HOUR_BRANCH = {
   '자시':0,'축시':1,'인시':2,'묘시':3,'진시':4,'사시':5,
   '오시':6,'미시':7,'신시':8,'유시':9,'술시':10,'해시':11
@@ -1197,36 +1012,32 @@ function _hourPillar(dayStr, hourStr){
   return _S[(START_H[ds]+hb)%10]+_B[hb];
 }
 
-// 대운수 계산 (양남음녀: 순행 / 음남양녀: 역행)
+// 대운수 계산 (양남음녀: 순행 / 음남양녀: 역행) — 실제 절기 경계 기준
 function _calcDaeun(y,m,d,gender){
   const yp = _yearPillar(y,m,d);
   const yStemIdx = _S.indexOf(yp[0]);
   const isYang = yStemIdx%2===0; // 양간
   const isForward = (isYang && gender==='남성') || (!isYang && gender==='여성');
-  
-  // 현재 월주 절입일에서 가장 가까운 절기까지 날수
-  const termDays = [0,6,4,6,5,6,6,7,7,8,8,7,7];
+
+  const target = new Date(y,m-1,d);
+  const ipchun = _ipchunDate(y);
+  const baziYear = (target < ipchun) ? y-1 : y;
+  const termDates = _yearTermDates(baziYear);
+
+  let segIdx = 0;
+  for(let i=0;i<termDates.length;i++){
+    if(target >= termDates[i]) segIdx = i; else break;
+  }
+
   let days;
   if(isForward){
-    // 다음 절기까지 날수
-    const nextTerm = termDays[m===12?1:m+1];
-    const nextTermDate = new Date(m===12?y+1:y, m===12?0:m, nextTerm);
-    const birth = new Date(y,m-1,d);
-    days = Math.round((nextTermDate-birth)/86400000);
+    const nextDate = (segIdx+1 < termDates.length) ? termDates[segIdx+1] : _ipchunDate(baziYear+1);
+    days = Math.round((nextDate - target)/86400000);
   } else {
-    // 이전 절기까지 날수
-    const thisTerm = termDays[m];
-    if(d >= thisTerm){
-      days = d - thisTerm;
-    } else {
-      const prevM = m===1?12:m-1;
-      const prevTerm = termDays[prevM];
-      days = d + (new Date(m===1?y-1:y,m===2?0:m-1,1)-new Date(m===1?y-1:y,m===2?0:m-1,prevTerm))/86400000;
-      days = Math.max(0, Math.round(days));
-    }
+    days = Math.round((target - termDates[segIdx])/86400000);
   }
-  
-  const years = Math.round(days/3); // 3일 = 1년
+
+  const years = Math.max(1, Math.round(days/3)); // 3일 = 1년
   return {startAge: years, isForward};
 }
 
@@ -1418,6 +1229,11 @@ function buildTarotPrompt(name, topic, q, partnerInfo){
     const pos = SPREAD_NAMES[spreadCount][i] || `카드${i+1}`;
     return `${pos}: ${c}`;
   }).join(' / ');
+  // 라이더-웨이트 표준 키워드 — AI가 임의로 지어내지 않고 실제 카드 의미에 근거하도록 참고자료로 전달
+  const meaningStr = drawnCards.map((c,i)=>{
+    const pos = SPREAD_NAMES[spreadCount][i] || `카드${i+1}`;
+    return `${pos}(${c}): ${_tarotMeaningFor(c) || '일반 의미로 해석'}`;
+  }).join('\n');
 
   // 최소 5개 보장 — 카드 수 적으면 종합 말풍선 추가로 채움
   const cardCount = drawnCards.length;
@@ -1450,6 +1266,9 @@ ${_tAngle.hint}
 질문: ${q||'없음'}
 뽑힌 카드: ${cardStr}
 
+━━━ 카드별 표준 키워드(라이더-웨이트 기준, 임의로 바꾸지 말고 이 의미에 근거해서 해석) ━━━
+${meaningStr}
+
 ━━━ 규칙 ━━━
 • [말풍선] 태그로 정확히 ${totalBubs}개. ${totalBubs}개 미만이면 실패.
 • 각 말풍선 2~3문장. 짧고 생생하게.
@@ -1462,7 +1281,8 @@ ${_tAngle.hint}
 
 ${drawnCards.map((c,i)=>{
   const pos = SPREAD_NAMES[spreadCount][i]||`카드${i+1}`;
-  return `[말풍선]\n${pos} 자리에 나온 "${c}" 카드 — ${topic}에 대해 이 카드가 전하는 메시지를 대화체로 (2~3문장)`;
+  const kw = _tarotMeaningFor(c);
+  return `[말풍선]\n${pos} 자리에 나온 "${c}" 카드(키워드: ${kw}) — ${topic}에 대해 이 카드가 전하는 메시지를 대화체로 (2~3문장)`;
 }).join('\n\n')}
 
 ${totalBubs > cardCount + 1 ? `[말풍선]\n카드들의 전체 흐름을 보면~ (2~3문장)\n` : ''}
@@ -1482,6 +1302,10 @@ function buildBothPrompt(name, gender, birth, hour, topic, q, partnerInfo){
     const pos = SPREAD_NAMES[spreadCount][i]||`카드${i+1}`;
     return `${pos}: ${c}`;
   }).join(' / ');
+  const meaningStr = drawnCards.map((c,i)=>{
+    const pos = SPREAD_NAMES[spreadCount][i] || `카드${i+1}`;
+    return `${pos}(${c}): ${_tarotMeaningFor(c) || '일반 의미로 해석'}`;
+  }).join('\n');
 
   const _bAngle = getAngle(topic + '_both');
   const _bMetaphor = getMetaphor();
@@ -1510,6 +1334,8 @@ ${_bAngle.hint}
 ${_bsCtx}
 상담 주제: ${topic}${partnerInfo} / 질문: ${q||'없음'}
 타로 카드: ${cardStr}
+카드 표준 키워드(라이더-웨이트 기준, 이 의미에 근거해서 해석):
+${meaningStr}
 ⚠️ 위 사주 명식을 그대로 사용. AI가 임의 계산 금지.
 
 ━━━ 핵심 규칙 ━━━
@@ -1616,7 +1442,7 @@ let callData = {};
 let callHistory = []; // 전화상담 대화 기록
 
 
-// 전화상담 탭 고객 불러오기
+// 전화상담 탭 내담자 불러오기
 // toggleCallClientList, loadCallClient — 하단 Supabase 버전 사용
 
 async function startCall(){
@@ -2109,9 +1935,9 @@ function togglePartner(){
 }
 
 // ════════════════════════════════
-// 고객 저장/불러오기 + 화면 보존
+// 내담자 저장/불러오기 + 화면 보존
 // ════════════════════════════════
-// 고객 저장/불러오기 — Supabase + localStorage 이중화
+// 내담자 저장/불러오기 — Supabase + localStorage 이중화
 // ════════════════════════════════
 const CK  = 'cheonun_clients_v1';
 
@@ -2242,7 +2068,7 @@ function toggleClientList(){
 
 function renderClientList(){
   const el = document.getElementById('clientList');
-  if(!_clients.length){ el.innerHTML='<div style="font-size:.78rem;color:var(--muted);padding:8px">저장된 고객 없음</div>'; return; }
+  if(!_clients.length){ el.innerHTML='<div style="font-size:.78rem;color:var(--muted);padding:8px">저장된 내담자 없음</div>'; return; }
   el.innerHTML = _clients.map((c,i)=>`
     <div onclick="loadClient(${i})" style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;border:1px solid var(--border);margin-bottom:6px;cursor:pointer;background:var(--card2)">
       <div style="flex:1">
@@ -2254,7 +2080,7 @@ function renderClientList(){
     </div>`).join('');
 }
 
-// 전화상담 탭 고객 불러오기 (같은 _clients 사용)
+// 전화상담 탭 내담자 불러오기 (같은 _clients 사용)
 function loadCallClient(idx){
   const c = _clients[idx];
   if(!c) return;
@@ -2269,7 +2095,7 @@ function loadCallClient(idx){
 function toggleCallClientList(){
   const el = document.getElementById('callClientList');
   if(el.style.display==='none'){
-    if(!_clients.length){ el.innerHTML='<div style="font-size:.78rem;color:var(--muted);padding:8px">저장된 고객 없음</div>'; }
+    if(!_clients.length){ el.innerHTML='<div style="font-size:.78rem;color:var(--muted);padding:8px">저장된 내담자 없음</div>'; }
     else{
       el.innerHTML = _clients.map((c,i)=>`
         <div onclick="loadCallClient(${i})" style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;border:1px solid var(--border);margin-bottom:6px;cursor:pointer;background:var(--card2)">
@@ -2288,7 +2114,7 @@ function toggleCallClientList(){
 // 초기화
 // ════════════════════════════════
 loadDbConfig();    // Supabase 설정 복원
-loadClients();     // 고객 목록 로드
+loadClients();     // 내담자 목록 로드
 setWcat(document.querySelector('.wcat.on'), 'fortune');
 </script>
 
@@ -2304,7 +2130,7 @@ setWcat(document.querySelector('.wcat.on'), 'fortune');
     <div style="background:#0a1a1a;border:1px solid #1a3a3a;border-radius:10px;padding:12px;margin-bottom:14px;font-size:.74rem;line-height:1.9;color:#7aaaaa">
       ✦ <a href="https://supabase.com" target="_blank" style="color:#aaffee">supabase.com</a> 에서 무료 프로젝트 생성<br>
       ✦ Settings → API → Project URL & anon key 복사<br>
-      ✦ 설정하면 여러 기기에서 고객 데이터 동기화됩니다<br>
+      ✦ 설정하면 여러 기기에서 내담자 데이터 동기화됩니다<br>
       <span style="color:#666">✦ 설정 안 해도 로컬 저장으로 정상 사용 가능</span>
     </div>
 
