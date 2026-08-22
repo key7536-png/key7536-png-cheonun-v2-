@@ -18,11 +18,15 @@ function loadKeys() {
 
 let keyIdx = 0;
 
+// 2026년 6월부터 구글이 신규 발급하는 "AQ." 형식 키가, 일부 계정에서
+// x-goog-api-key 헤더 방식으로는 "ACCESS_TOKEN_TYPE_UNSUPPORTED"(401)로
+// 거부되는 문제가 보고됨. 쿼리스트링(?key=) 방식으로 보내면 통과되는
+// 경우가 많다고 확인되어 이 방식으로 전환.
 async function callGemini(key, prompt, maxTokens) {
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent';
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent?key=' + encodeURIComponent(key.trim());
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: { maxOutputTokens: maxTokens || 8192, temperature: 0.85 }
