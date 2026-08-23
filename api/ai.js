@@ -22,6 +22,9 @@ let keyIdx = 0;
 // x-goog-api-key 헤더 방식으로는 "ACCESS_TOKEN_TYPE_UNSUPPORTED"(401)로
 // 거부되는 문제가 보고됨. 쿼리스트링(?key=) 방식으로 보내면 통과되는
 // 경우가 많다고 확인되어 이 방식으로 전환.
+// 2026-08: Gemini 2.5는 답변 전 "생각(thinking)" 단계에서 토큰을 소모하는데,
+// 이게 답변엔 안 보이면서 무료 할당량만 훨씬 빨리 갉아먹는다(체감상 몇 배).
+// thinkingBudget:0으로 꺼서 응답 속도도 빠르게, 할당량 소모도 줄인다.
 async function callGemini(key, prompt, maxTokens) {
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent?key=' + encodeURIComponent(key.trim());
   const res = await fetch(url, {
@@ -29,7 +32,11 @@ async function callGemini(key, prompt, maxTokens) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: maxTokens || 8192, temperature: 0.85 }
+      generationConfig: {
+        maxOutputTokens: maxTokens || 8192,
+        temperature: 0.85,
+        thinkingConfig: { thinkingBudget: 0 }
+      }
     })
   });
   const data = await res.json();
@@ -75,11 +82,16 @@ module.exports = async function handler(req, res) {
     }
 
     if (PAID) {
-      const text = await callGemini(PAID, prompt, maxTokens);
-      return res.status(200).json({ text, source: 'paid' });
+      try {
+        const text = await callGemini(PAID, prompt, maxTokens);
+        return res.status(200).json({ text, source: 'paid' });
+      } catch (e) {
+        // 유료키도 실패 — 원인이 뭐든 사용자에게는 명확한 메시지로.
+        return res.status(500).json({ error: '무료 키가 전부 한도 초과이고, 예비 유료 키도 실패했습니다(' + e.message + '). 잠시 후 다시 시도하거나 GEMINI_PAID_KEY를 확인해주세요.' });
+      }
     }
 
-    return res.status(500).json({ error: '무료 키 10개가 모두 한도 초과이거나 오류입니다. 잠시 후 다시 시도해주세요.' });
+    return res.status(500).json({ error: '지금 등록된 무료 키가 전부 한도 초과 상태예요. 몇 분 후 다시 시도해주세요 (매일/매분 한도가 있어서 시간 지나면 다시 됩니다).' });
 
   } catch (e) {
     return res.status(500).json({ error: e.message });
