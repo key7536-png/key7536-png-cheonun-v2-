@@ -2,10 +2,10 @@
 // 키는 절대 이 파일에 직접 적지 않는다 — Vercel 프로젝트 환경변수에
 // GEMINI_KEY_1 ~ GEMINI_KEY_30, (선택) GEMINI_PAID_KEY 이름으로 등록해서 process.env로 읽는다.
 // 무료 키 한도(429)나 일시 장애(503)를 만나면 다음 키로 자동 전환하고,
-// 등록된 키가 전부 실패하면 마지막으로 유료 키(있으면)를 시도한다.
+// 등록된 일반 키가 모두 실패하면 마지막으로 예비 키(있으면)를 시도한다.
 
 const MODEL = 'gemini-2.5-flash';
-const MAX_KEYS = 30; // 10 → 30: 키를 더 늘려 등록할 수 있도록 여유를 넓힘 (2026-08-24)
+const MAX_KEYS = 30;
 
 function loadKeys() {
   const keys = [];
@@ -18,16 +18,16 @@ function loadKeys() {
 
 let keyIdx = 0;
 
-// Google Gemini 공식 REST 인증 방식인 x-goog-api-key 헤더를 사용한다.
-// Standard API key와 새 Authorization API key 모두 같은 헤더로 전달한다.
+// 이 앱의 generateContent 엔드포인트와 현재 발급 키 조합에서 검증된 query key 방식을 사용한다.
+// 키는 브라우저가 아닌 Vercel 서버 함수에서만 붙으므로 클라이언트 화면에는 노출되지 않는다.
 // 2026-08: Gemini 2.5는 답변 전 "생각(thinking)" 단계에서 토큰을 소모하는데,
 // 이게 답변엔 안 보이면서 무료 할당량만 훨씬 빨리 갉아먹는다(체감상 몇 배).
 // thinkingBudget:0으로 꺼서 응답 속도도 빠르게, 할당량 소모도 줄인다.
 async function callGemini(key, prompt, maxTokens) {
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent';
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent?key=' + encodeURIComponent(key.trim());
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key.trim() },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
@@ -92,8 +92,7 @@ module.exports = async function handler(req, res) {
         const text = await callGemini(PAID, prompt, maxTokens);
         return res.status(200).json({ text, source: 'paid' });
       } catch (e) {
-        // 유료키도 실패 — 원인이 뭐든 사용자에게는 명확한 메시지로.
-        return res.status(500).json({ error: '무료 키를 사용할 수 없고 예비 유료 키도 실패했습니다(' + e.message + '). Vercel의 Gemini 키 설정을 확인해 주세요.' });
+        return res.status(500).json({ error: '등록된 일반 키를 사용할 수 없고 예비 키도 실패했습니다(' + e.message + '). Vercel의 Gemini 키 설정을 확인해 주세요.' });
       }
     }
 
