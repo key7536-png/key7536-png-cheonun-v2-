@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>✦ 천운 자미두수 상담</title>
+  <style>
+    :root{--bg:#09090e;--card:#12121a;--line:#292938;--text:#eeeaf7;--muted:#9792a6;--gold:#d9a53b;--gold2:#ffd879;--purple:#7658bc;--purple2:#b99af8;--red:#ff7b83}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif}
+    .topbar{height:58px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 18px;gap:16px;position:sticky;top:0;background:rgba(9,9,14,.96);z-index:10}
+    .brand{font-weight:800;color:var(--gold2);white-space:nowrap}.tabs{display:flex;gap:5px;overflow-x:auto}.tab{border:1px solid transparent;border-radius:9px;padding:8px 11px;color:var(--muted);font-size:.78rem;text-decoration:none;white-space:nowrap}.tab.on{color:var(--gold2);border-color:#59431f;background:#211b11}
+    main{max-width:980px;margin:0 auto;padding:20px 14px 60px}.intro{margin-bottom:16px}.intro h1{font-size:1.35rem;margin:0 0 7px}.intro p{font-size:.8rem;color:var(--muted);line-height:1.55;margin:0}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:17px;margin-bottom:13px}.card-title{font-weight:800;color:var(--gold2);font-size:.92rem;margin-bottom:14px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}.field{margin-bottom:11px}.field label{display:block;color:#bbb5c9;font-size:.73rem;margin-bottom:6px}input,select,textarea{width:100%;background:#0b0b11;border:1px solid #30303e;border-radius:9px;color:var(--text);padding:10px 11px;font:inherit;font-size:.84rem}textarea{min-height:84px;resize:vertical}.inline-check{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:.75rem}.inline-check input{width:auto}
+    .btn{width:100%;border:0;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#b77a14,#e3b34e);color:#15100a}.btn:disabled{opacity:.55;cursor:wait}.error{color:var(--red);font-size:.78rem;margin-top:9px}
+    .zw-summary{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.zw-summary span{font-size:.69rem;color:#d8cfeb;background:#1b1825;border:1px solid #352d4b;border-radius:999px;padding:5px 8px}.zw-current{font-size:.76rem;color:var(--purple2);margin:10px 0}.zw-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.zw-palace{min-height:96px;border:1px solid #302b3d;border-radius:10px;padding:9px;background:#0d0c13}.zw-palace.soul{border-color:var(--gold);box-shadow:0 0 0 1px rgba(217,165,59,.16) inset}.zw-palace-head{display:flex;justify-content:space-between;gap:5px;font-size:.74rem}.zw-palace-head b{color:var(--gold2)}.zw-palace-head span{color:var(--muted);font-size:.65rem}.zw-stars{font-size:.76rem;line-height:1.45;margin-top:8px}.zw-decade{font-size:.63rem;color:#817b8e;margin-top:7px}.zw-note{font-size:.67rem;color:var(--muted);line-height:1.5;margin:11px 0 0}
+    .bubble{border-left:3px solid var(--purple);background:#0d0d14;border-radius:5px 12px 12px 5px;padding:12px 13px;margin:9px 0;font-size:.84rem;line-height:1.65}.bubble-num{display:block;color:var(--purple2);font-size:.64rem;font-weight:800;margin-bottom:4px}.copy{float:right;background:none;border:0;color:var(--muted);font-size:.68rem;cursor:pointer}.loading{color:var(--muted);font-size:.8rem;text-align:center;padding:16px}
+    @media(max-width:680px){.grid2{grid-template-columns:1fr}.zw-grid{grid-template-columns:repeat(2,1fr)}.topbar{padding:0 10px}.brand{font-size:.83rem}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">✦ 천운 상담도구</div>
+    <nav class="tabs">
+      <a class="tab" href="/">💬 상담</a>
+      <a class="tab" href="/#call">📞 전화상담</a>
+      <a class="tab" href="/#why">🤔 왜요?</a>
+      <a class="tab on" href="/ziwei.html">⭐ 자미두수</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="intro">
+      <h1>⭐ 자미두수 상담</h1>
+      <p>기존 사주·타로 기능과 분리된 독립 상담 화면입니다. 자미두수는 출생시간에 따라 명반이 달라지므로 시간을 모르면 상담을 시작하지 않습니다.</p>
+    </section>
+
+    <section class="card">
+      <div class="card-title">📋 내담자 정보</div>
+      <div class="grid2">
+        <div class="field"><label>이름 / 닉네임</label><input id="zName" placeholder="예) 김미나"></div>
+        <div class="field"><label>성별</label><select id="zGender"><option value="여성">여성</option><option value="남성">남성</option></select></div>
+        <div class="field"><label>양력 / 음력</label><select id="zCalendar" onchange="toggleLeap()"><option value="양력">양력</option><option value="음력">음력</option></select></div>
+        <div class="field"><label>생년월일</label><input id="zBirth" type="date"></div>
+        <div class="field"><label>태어난 시간</label>
+          <select id="zHour"><option value="">시간을 선택하세요</option><option>자시</option><option>축시</option><option>인시</option><option>묘시</option><option>진시</option><option>사시</option><option>오시</option><option>미시</option><option>신시</option><option>유시</option><option>술시</option><option>해시</option></select>
+        </div>
+        <div class="field"><label>상담 주제</label><select id="zTopic"><option>종합운</option><option>직업/사업운</option><option>재물운</option><option>연애/결혼</option><option>인간관계</option><option>가족관계</option><option>이동/변화</option><option>현재 대운</option><option>올해 운세</option></select></div>
+      </div>
+      <label id="leapWrap" class="inline-check" style="display:none"><input id="zLeap" type="checkbox"> 음력 윤달</label>
+      <div class="field" style="margin-top:10px"><label>구체적인 질문</label><textarea id="zQuestion" placeholder="궁금한 점을 구체적으로 적어주세요."></textarea></div>
+      <button id="zStart" class="btn" onclick="startZiwei()">⭐ 명반 계산 및 상담 시작</button>
+      <div id="zError" class="error"></div>
+    </section>
+
+    <section id="zChart"></section>
+    <section id="zResult"></section>
+  </main>
+
+  <script src="/vendor/iztro-v2.6.0.min.js"></script>
+  <script src="/ziwei.js"></script>
+  <script>
+    const API_BASE = location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? 'http://localhost:3000' : '';
+
+    function toggleLeap(){
+      const isLunar = document.getElementById('zCalendar').value === '음력';
+      const birth = document.getElementById('zBirth');
+      document.getElementById('leapWrap').style.display = isLunar ? 'flex' : 'none';
+      birth.type = isLunar ? 'text' : 'date';
+      birth.placeholder = isLunar ? '예) 1969-8-1' : '';
+    }
+
+    async function callAi(prompt){
+      const response = await fetch(API_BASE + '/api/ai', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,maxTokens:8192})});
+      const data = await response.json().catch(function(){ return {}; });
+      if(!response.ok) throw new Error(data.error || 'AI 상담 요청에 실패했습니다.');
+      return data.text || '';
+    }
+
+    function buildZiweiPrompt(name, topic, question, chart){
+      return `당신은 자미두수 전통 삼합파를 공부하고 실제 상담에 적용하는 상담사 천운입니다.
+지금 ${name}님과 카카오톡으로 자미두수 상담 중입니다.
+
+━━━ 계산된 명반 ━━━
+${CheonunZiwei.toPrompt(chart)}
+
+상담 주제: ${topic}
+질문: ${question || '명반의 핵심 구조와 현재 흐름을 알고 싶음'}
+
+━━━ 해석 순서 ━━━
+1. 명궁·신궁으로 기본 구조를 읽는다.
+2. 질문과 관련된 궁을 중심으로 보되 반드시 삼방사정을 함께 본다.
+3. 생년 사화와 현재 대한·유년을 원국 위에 겹쳐 읽는다.
+4. 단일 별 하나만으로 길흉을 단정하지 않는다.
+5. 명반에 없는 별·궁·사화를 만들어내지 않는다.
+6. 미래 사건을 확정하거나 공포를 조장하지 않고 현실적인 선택지를 제시한다.
+7. 의료·법률·투자·수명은 단정하지 않는다.
+
+━━━ 말투와 출력 ━━━
+• [말풍선] 태그로 정확히 6개 작성한다.
+• 각 말풍선은 2~4문장으로 짧고 구체적으로 쓴다.
+• 1번: 명궁·신궁 첫인상
+• 2번: 질문과 관련된 핵심 궁과 주성
+• 3번: 삼방사정과 사화
+• 4번: 현재 대한
+• 5번: 올해 유년과 현실적인 주의점
+• 6번: 실행할 수 있는 조언과 따뜻한 마무리
+• 어려운 한자는 피하고, 전문용어에는 바로 쉬운 뜻을 붙인다.
+• “무조건”, “반드시 일어난다”, “큰일 난다” 같은 단정은 금지한다.`;
+    }
+
+    function escapeHtml(value){
+      return String(value == null ? '' : value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    }
+
+    function renderBubbles(text){
+      const parts = text.split(/\[말풍선\]/).map(function(x){return x.trim();}).filter(function(x){return x.length>5;});
+      return '<div class="card"><div class="card-title">💬 자미두수 상담 말풍선</div>' + parts.map(function(part,index){
+        return '<div class="bubble"><button class="copy" onclick="copyBubble(this)">복사</button><span class="bubble-num">말풍선 '+(index+1)+'</span>'+escapeHtml(part).replace(/\n/g,'<br>')+'</div>';
+      }).join('') + '</div>';
+    }
+
+    function copyBubble(button){
+      const text = button.parentElement.innerText.replace(/^복사\s*/, '').replace(/^말풍선 \d+\s*/, '').trim();
+      navigator.clipboard.writeText(text);
+      button.textContent = '완료'; setTimeout(function(){button.textContent='복사';},900);
+    }
+
+    async function startZiwei(){
+      const error = document.getElementById('zError');
+      const button = document.getElementById('zStart');
+      const name = document.getElementById('zName').value.trim() || '내담자';
+      error.textContent = '';
+      try{
+        const chart = CheonunZiwei.calculate({
+          birth: document.getElementById('zBirth').value,
+          hour: document.getElementById('zHour').value,
+          gender: document.getElementById('zGender').value,
+          calendar: document.getElementById('zCalendar').value,
+          isLeap: document.getElementById('zLeap').checked,
+          targetDate: new Date()
+        });
+        document.getElementById('zChart').innerHTML = CheonunZiwei.render(chart,name);
+        document.getElementById('zResult').innerHTML = '<div class="card loading">명반을 바탕으로 상담 내용을 정리하고 있습니다…</div>';
+        button.disabled=true; button.textContent='상담 생성 중…';
+        const prompt = buildZiweiPrompt(name,document.getElementById('zTopic').value,document.getElementById('zQuestion').value.trim(),chart);
+        const text = await callAi(prompt);
+        document.getElementById('zResult').innerHTML = renderBubbles(text);
+      }catch(e){
+        error.textContent = e.message;
+        document.getElementById('zResult').innerHTML='';
+      }finally{
+        button.disabled=false; button.textContent='⭐ 명반 계산 및 상담 시작';
+      }
+    }
+  </script>
+</body>
+</html>
