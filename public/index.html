@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>✦ 천운 상담도구</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script src="/vendor/iztro-v2.6.0.min.js"></script>
 <style>
 :root{
   --bg:#0d0d0f;--card:#15151a;--card2:#1c1c24;
@@ -220,10 +221,11 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
         <select id="cGender"><option value="여성">여성</option><option value="남성">남성</option></select>
       </div>
       <div class="field"><label>양/음력</label>
-        <select id="cLunar"><option value="양력">양력</option><option value="음력">음력</option></select>
+        <select id="cLunar" onchange="toggleSajuLeap()"><option value="양력">양력</option><option value="음력">음력</option></select>
       </div>
     </div>
     <div class="field"><label>생년월일</label><input id="cBirth" type="date"></div>
+    <label id="cLeapWrap" style="display:none;align-items:center;gap:6px;color:var(--muted);font-size:.75rem;margin-bottom:10px"><input id="cLeap" type="checkbox" style="width:auto"> 음력 윤달</label>
     <div class="field"><label>태어난 시간</label>
       <select id="cHour">
         <option value="">모름</option>
@@ -261,10 +263,11 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
           <select id="pGender"><option value="남성">남성</option><option value="여성">여성</option></select>
         </div>
         <div class="field"><label>양/음력</label>
-          <select id="pLunar"><option>양력</option><option>음력</option></select>
+          <select id="pLunar" onchange="togglePartnerLeap()"><option>양력</option><option>음력</option></select>
         </div>
       </div>
       <div class="field"><label>생년월일 (모르면 비워도 됨)</label><input id="pBirth" type="date"></div>
+      <label id="pLeapWrap" style="display:none;align-items:center;gap:6px;color:var(--muted);font-size:.75rem;margin-bottom:10px"><input id="pLeap" type="checkbox" style="width:auto"> 음력 윤달</label>
       <div class="field"><label>현재 관계</label>
         <select id="pRelation">
           <option>헤어진 사이 (재회 원함)</option>
@@ -352,6 +355,8 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
         </select>
       </div>
     </div>
+    <div class="field"><label>양/음력</label><select id="callLunar" onchange="toggleCallLeap()"><option>양력</option><option>음력</option></select></div>
+    <label id="callLeapWrap" style="display:none;align-items:center;gap:6px;color:var(--muted);font-size:.75rem;margin-bottom:10px"><input id="callLeap" type="checkbox" style="width:auto"> 음력 윤달</label>
     <button class="btn btn-gold" onclick="startCall()">✦ 전화상담 준비</button>
   </div>
 
@@ -764,6 +769,8 @@ async function startConsulting(){
   const gender = document.getElementById('cGender').value;
   const birth = document.getElementById('cBirth').value;
   const hour = document.getElementById('cHour').value;
+  const calendar = document.getElementById('cLunar').value;
+  const isLeap = document.getElementById('cLeap').checked;
   const topic = document.getElementById('cTopic').value;
   const q = document.getElementById('cQ').value.trim();
 
@@ -782,7 +789,8 @@ async function startConsulting(){
     const pBirth = document.getElementById('pBirth').value;
     const pRelation = document.getElementById('pRelation').value;
     if(pName || pBirth){
-      partnerInfo = `\n상대방: ${pName||'미상'}(${pGender}) ${pBirth||'생년미상'} / 현재관계: ${pRelation}`;
+      const pCalendar=document.getElementById('pLunar').value, pIsLeap=document.getElementById('pLeap').checked;
+      partnerInfo = `\n상대방: ${pName||'미상'}(${pGender}) ${pCalendar} ${pBirth||'생년미상'}${pIsLeap?' 윤달':''} / 현재관계: ${pRelation}`;
     }
   }
 
@@ -796,11 +804,11 @@ async function startConsulting(){
     let prompt = '';
 
     if(consultMode === 'saju'){
-      prompt = buildSajuPrompt(name, gender, birth, hour, topic, q, partnerInfo);
+      prompt = buildSajuPrompt(name, gender, birth, hour, topic, q, partnerInfo, calendar, isLeap);
     } else if(consultMode === 'tarot'){
       prompt = buildTarotPrompt(name, topic, q, partnerInfo);
     } else {
-      prompt = buildBothPrompt(name, gender, birth, hour, topic, q, partnerInfo);
+      prompt = buildBothPrompt(name, gender, birth, hour, topic, q, partnerInfo, calendar, isLeap);
     }
 
     const txt = await ai(prompt, 8192);
@@ -808,11 +816,12 @@ async function startConsulting(){
     
     // 사주 명식표 먼저 렌더링 (사주/사주+타로 모드)
     if(consultMode !== 'tarot'){
-      renderSajuTable(birth, hour, gender, name);
+      renderSajuTable(birth, hour, gender, name, calendar, isLeap);
     }
     renderBubs(bubs, 'consultResult');
 
-    lastConsultInfo = {name, gender, birth, hour, topic, q, mode: consultMode, cards: drawnCards.join('/')};
+    const fixedSaju = consultMode==='tarot' ? null : calcSaju(birth,hour,gender,calendar,isLeap);
+    lastConsultInfo = {name, gender, birth, hour, calendar, isLeap, topic, q, mode: consultMode, cards: drawnCards.join('/'), saju:fixedSaju};
     renderWhyLink(lastConsultInfo);
     chatHistory = [{role:'assistant', content: bubs.join('\n\n')}];
     document.getElementById('chatBox').innerHTML = '';
@@ -826,8 +835,8 @@ async function startConsulting(){
 
 
 // ── 사주 명식표 화면 렌더링 ──
-function renderSajuTable(birth, hour, gender, name){
-  const saju = calcSaju(birth, hour, gender);
+function renderSajuTable(birth, hour, gender, name, calendar='양력', isLeap=false){
+  const saju = calcSaju(birth, hour, gender, calendar, isLeap);
   if(!saju) return;
   
   const el = document.getElementById('sajuTableWrap');
@@ -866,6 +875,7 @@ function renderSajuTable(birth, hour, gender, name){
           <tr>${cell(saju.hp[1]||'?',true)}${cell(saju.dp[1],true)}${cell(saju.mp[1],true)}${cell(saju.yp[1],true)}</tr>
         </tbody>
       </table>
+      <div style="font-size:.7rem;color:var(--muted);margin-bottom:6px">입력 ${calendar} ${birth}${isLeap?'(윤달)':''}${calendar==='음력'?' → 계산 기준 양력 '+saju.solarBirth:''}</div>
       <div style="font-size:.74rem;color:var(--muted);line-height:1.9">
         일간 <span style="color:var(--gold2);font-weight:700">${saju.dp[0]}</span> · 
         현재 대운 <span style="color:var(--purple2);font-weight:700">${saju.curDaeun}</span>(${saju.curDaeunAge}세~) · 
@@ -1043,10 +1053,23 @@ function _calcDaeun(y,m,d,gender){
   return {startAge: years, isForward};
 }
 
+// 음력 입력은 검증된 iztro 달력으로 양력 변환 후 기존 사주 엔진에 전달한다.
+// 변환 모듈이 없거나 날짜가 잘못되면 양력으로 조용히 계산하지 않고 즉시 중단한다.
+function _resolveSajuSolarBirth(birthStr, calendar='양력', isLeap=false){
+  if(calendar!=='음력') return birthStr;
+  if(typeof iztro==='undefined' || !iztro.astro) throw new Error('음력 변환 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
+  try{
+    const chart=iztro.astro.byLunar(birthStr,0,'男',!!isLeap,true,'ko-KR');
+    if(!chart || !chart.solarDate) throw new Error('변환 결과 없음');
+    return String(chart.solarDate).replace(/\./g,'-');
+  }catch(e){ throw new Error('음력 생년월일을 양력으로 변환하지 못했습니다. 날짜와 윤달 여부를 확인해 주세요.'); }
+}
+
 // 핵심 함수: 전체 사주 명식 계산
-function calcSaju(birthStr, hourStr, gender){
+function calcSaju(birthStr, hourStr, gender, calendar='양력', isLeap=false){
   if(!birthStr) return null;
-  const d = new Date(birthStr);
+  const solarBirth = _resolveSajuSolarBirth(birthStr,calendar,isLeap);
+  const d = new Date(solarBirth);
   if(isNaN(d)) return null;
   const y=d.getFullYear(), m=d.getMonth()+1, day=d.getDate();
   
@@ -1089,6 +1112,7 @@ function calcSaju(birthStr, hourStr, gender){
   
   return {
     year:y, month:m, day,
+    inputBirth:birthStr, inputCalendar:calendar, inputLeap:!!isLeap, solarBirth,
     yp, mp, dp, hp,
     ilgan: dp[0],
     daeunStart: daeunNum,
@@ -1171,15 +1195,16 @@ function getSaidTopics(history) {
   return '\n⚠️ 이미 언급한 내용: ' + topics.join(', ') + ' → 이 내용과 겹치지 않게 새로운 각도로만 답하세요.';
 }
 
-function buildSajuPrompt(name, gender, birth, hour, topic, q, partnerInfo){
+function buildSajuPrompt(name, gender, birth, hour, topic, q, partnerInfo, calendar='양력', isLeap=false){
   const d = new Date(birth);
   const y = d.getFullYear(), m = d.getMonth()+1, day = d.getDate();
   const hourTxt = hour ? `${hour}` : '시간 모름';
   
   // ── 사주 정확 계산 ──
-  const saju = calcSaju(birth, hour, gender);
+  const saju = calcSaju(birth, hour, gender, calendar, isLeap);
   const sajuInfo = saju ? `
 사주 명식 (계산 완료):
+  입력: ${calendar} ${birth}${isLeap?' 윤달':''}${calendar==='음력'?' → 양력 '+saju.solarBirth:''}
   년주: ${saju.yp} / 월주: ${saju.mp} / 일주: ${saju.dp} / 시주: ${saju.hp}
   일간: ${saju.ilgan}
   현재 대운: ${saju.curDaeun} (${saju.curDaeunAge}세 시작)
@@ -1305,11 +1330,11 @@ ${totalBubs > cardCount + 1 ? `[말풍선]\n카드들의 전체 흐름을 보면
 모든 카드를 종합해서 ${name}님께 드리는 천운의 한마디. 따뜻하고 힘이 되는 마무리 (2~3문장)`;
 }
 
-function buildBothPrompt(name, gender, birth, hour, topic, q, partnerInfo){
+function buildBothPrompt(name, gender, birth, hour, topic, q, partnerInfo, calendar='양력', isLeap=false){
   const d = new Date(birth);
   const y = d.getFullYear(), m = d.getMonth()+1, day = d.getDate();
   // 중첩 백틱 방지 — 사주 미리 계산
-  const _bs = calcSaju(birth, hour, gender);
+  const _bs = calcSaju(birth, hour, gender, calendar, isLeap);
   const _bsCtx = _bs
     ? '사주: 년'+_bs.yp+'/월'+_bs.mp+'/일'+_bs.dp+'/시'+_bs.hp+' | 일간:'+_bs.ilgan+' | 대운:'+_bs.curDaeun+'('+_bs.curDaeunAge+'세) | 세운:'+_bs.seun2026
     : y+'년 '+m+'월 '+day+'일생';
@@ -1425,10 +1450,12 @@ async function sendChat(){
   chatHistory.push({role:'user', content: q});
 
   const info = lastConsultInfo;
+  const fixedSajuCtx = info.saju ? `\n고정 사주명식(절대 변경·재계산 금지): ${info.saju.pillarsText} / 대운 ${info.saju.curDaeun} / 세운 ${info.saju.seun2026}` : '';
   const ctx = chatHistory.slice(-4).map(h=>`${h.role==='user'?'내담자':'천운'}: ${h.content}`).join('\n\n');
 
   const prompt = `당신은 30년 경력 명리학·타로 상담사 천운입니다.
 현재 ${info.name||'내담자'}님과 ${info.topic} 상담 중입니다.
+${fixedSajuCtx}
 이전 대화를 이어서, 새 질문에 카카오톡 대화체로 답변하세요.
 한자 금지. 2~4문장으로 짧고 명확하게. [말풍선] 1개만 작성.
 ${HONEST_STYLE_RULES}
@@ -1465,16 +1492,18 @@ async function startCall(){
   const birth = document.getElementById('callBirth').value;
   const gender = document.getElementById('callGender').value;
   const topic = document.getElementById('callTopic').value;
+  const calendar = document.getElementById('callLunar').value;
+  const isLeap = document.getElementById('callLeap').checked;
 
   if(!birth){ snack('생년월일을 입력하세요.'); return; }
 
   const d = new Date(birth);
   const y = d.getFullYear(), m = d.getMonth()+1, day = d.getDate();
-  callData = {name, birth, gender, topic, y, m, day};
+  callData = {name, birth, gender, calendar, isLeap, topic, y, m, day};
 
   // 기본 정보 표시
   // 사주 계산
-  const callSaju = calcSaju(birth, '', gender);
+  const callSaju = calcSaju(birth, '', gender, calendar, isLeap);
   const sajuLine = callSaju
     ? `<span style="color:var(--purple2);font-size:.74rem">일간 ${callSaju.ilgan} · 대운 ${callSaju.curDaeun} · 세운 ${callSaju.seun2026}</span>`
     : '';
@@ -1512,7 +1541,7 @@ async function callQ(question){
   if(!question || !question.trim()){ return; }
   if(!callData.name){ snack('전화상담 정보를 먼저 입력하세요.'); return; }
 
-  const {name, gender, birth, topic} = callData;
+  const {name, gender, birth, calendar, isLeap, topic} = callData;
 
   // 대화창 표시 + 질문 추가
   const chatCard = document.getElementById('callChatCard');
@@ -1533,7 +1562,7 @@ async function callQ(question){
   chatLog.scrollTop = chatLog.scrollHeight;
 
   // 사주 계산
-  const saju = calcSaju(birth, '', gender);
+  const saju = calcSaju(birth, '', gender, calendar, isLeap);
   const sajuCtx = saju
     ? `사주: 년${saju.yp}/월${saju.mp}/일${saju.dp} | 일간:${saju.ilgan} | 대운:${saju.curDaeun}(${saju.curDaeunAge}세~) | 세운:${saju.seun2026}`
     : `${callData.y}년 ${callData.m}월 ${callData.day}일생`;
@@ -1819,10 +1848,11 @@ async function askWhy(question){
   if(lastConsultInfo && lastConsultInfo.name){
     const ci = lastConsultInfo;
     const d = ci.birth ? new Date(ci.birth) : null;
-    const birthStr = d ? `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일생` : '';
+    const birthStr = d ? `${ci.calendar||'양력'} ${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일생${ci.isLeap?'(윤달)':''}` : '';
+    const sajuStr = ci.saju ? `\n고정 사주명식: ${ci.saju.pillarsText}` : '';
     const cardStr = ci.cards ? `\n타로 카드: ${ci.cards}` : '';
     clientName = ci.name;
-    clientCtx = `\n\n━━━ 내담자 정보 ━━━\n이름: ${ci.name}(${ci.gender||''}) ${birthStr}\n주제: ${ci.topic}${cardStr}\n→ 이 내담자 상황에 맞게 구체적으로. 이름 호칭 사용.\n━━━━━━━━━━━━━━━━━━`;
+    clientCtx = `\n\n━━━ 내담자 정보 ━━━\n이름: ${ci.name}(${ci.gender||''}) ${birthStr}${sajuStr}\n주제: ${ci.topic}${cardStr}\n→ 이 내담자 상황에 맞게 구체적으로. 이름 호칭 사용.\n━━━━━━━━━━━━━━━━━━`;
   }
 
   const prompt = `당신은 30년 경력 명리학·타로 전문 상담사 천운입니다.
@@ -1944,6 +1974,9 @@ function _copyWhyAllOld(){
 }
 
 // ── 상대방 정보 토글 ──
+function toggleSajuLeap(){ document.getElementById('cLeapWrap').style.display=document.getElementById('cLunar').value==='음력'?'flex':'none'; }
+function togglePartnerLeap(){ document.getElementById('pLeapWrap').style.display=document.getElementById('pLunar').value==='음력'?'flex':'none'; }
+function toggleCallLeap(){ document.getElementById('callLeapWrap').style.display=document.getElementById('callLunar').value==='음력'?'flex':'none'; }
 function togglePartner(){
   const on = document.getElementById('partnerToggle').checked;
   document.getElementById('partnerSection').style.display = on ? 'block' : 'none';
@@ -1978,7 +2011,7 @@ function mergeManagedClients(){
     const topicMap = {'직업/사업':'직업/사업운','재물':'재물/돈버는시기','연애/결혼':'연애운','가족':'가족관계','인간관계':'종합운','이동/변화':'이사시기','종합운':'종합운'};
     managed = (Array.isArray(rows) ? rows : []).map(r => ({
       id: r.id, name: r.name, gender: r.gender, birth: r.birth,
-      hour: r.birthHour, calendar: r.calendar,
+      hour: r.birthHour, calendar: r.calendar, leap: !!r.leap,
       topic: topicMap[(r.topics||[])[0]] || '종합운',
       q: r.question || r.reason || '', savedAt: (r.updatedAt||'').slice(0,10),
       managed: true
@@ -1999,6 +2032,7 @@ async function loadClients(){
     try{
       const rows = await sbFetch('GET', '/cheonun_clients?select=*&order=updated_at.desc&limit=50');
       if(rows && Array.isArray(rows)){
+        const localCalendar = Object.fromEntries(_clients.map(c=>[c.name,{calendar:c.calendar,leap:c.leap}]));
         _clients = rows.map(r => ({
           id: r.id,
           name: r.name,
@@ -2007,6 +2041,8 @@ async function loadClients(){
           hour: r.hour,
           topic: r.topic,
           q: r.question,
+          calendar: (localCalendar[r.name]&&localCalendar[r.name].calendar)||'양력',
+          leap: !!(localCalendar[r.name]&&localCalendar[r.name].leap),
           savedAt: r.saved_at || new Date(r.updated_at).toLocaleDateString('ko-KR')
         }));
         lsSet(CK, JSON.stringify(_clients)); // 로컬에도 캐시
@@ -2027,6 +2063,8 @@ async function saveClient(){
     gender: document.getElementById('cGender').value,
     birth: document.getElementById('cBirth').value,
     hour: document.getElementById('cHour').value,
+    calendar: document.getElementById('cLunar').value,
+    leap: document.getElementById('cLeap').checked,
     topic: document.getElementById('cTopic').value,
     q: document.getElementById('cQ').value,
     savedAt: new Date().toLocaleDateString('ko-KR')
@@ -2067,6 +2105,8 @@ function loadClient(idx){
   document.getElementById('cName').value = c.name;
   document.getElementById('cGender').value = c.gender;
   if(c.calendar) document.getElementById('cLunar').value = c.calendar;
+  document.getElementById('cLeap').checked = !!c.leap;
+  toggleSajuLeap();
   document.getElementById('cBirth').value = c.birth||'';
   document.getElementById('cHour').value = c.hour||'';
   document.getElementById('cTopic').value = c.topic||'연애운';
@@ -2123,6 +2163,9 @@ function loadCallClient(idx){
   document.getElementById('callName').value  = c.name;
   document.getElementById('callBirth').value = c.birth||'';
   document.getElementById('callGender').value= c.gender;
+  document.getElementById('callLunar').value = c.calendar||'양력';
+  document.getElementById('callLeap').checked = !!c.leap;
+  toggleCallLeap();
   const callTopicMap = {'재회운 ⭐':'재회운 ★','직업/사업운':'직업운','재물/돈버는시기':'재물운','이사시기':'종합운','가족관계':'종합운'};
   document.getElementById('callTopic').value = callTopicMap[c.topic] || c.topic || '종합운';
   document.getElementById('callClientList').style.display='none';
