@@ -4,7 +4,7 @@
 // 무료 키 한도(429)나 일시 장애(503)를 만나면 다음 키로 자동 전환하고,
 // 등록된 일반 키가 모두 실패하면 마지막으로 예비 키(있으면)를 시도한다.
 
-const MODEL = 'gemini-2.5-flash';
+const MODEL = 'gemini-3.6-flash';
 const MAX_KEYS = 30;
 
 function loadKeys() {
