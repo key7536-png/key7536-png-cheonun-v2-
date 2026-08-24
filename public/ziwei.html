@@ -48,7 +48,7 @@
 
     <section class="card">
       <div class="card-title">📋 내담자 정보</div>
-      <div class="field"><label>고객관리에서 불러오기</label><div style="display:flex;gap:8px"><select id="zManagedClient" style="flex:1"><option value="">저장된 고객을 선택하세요</option></select><button type="button" class="btn" onclick="loadZiweiManagedClient()" style="width:auto;white-space:nowrap;padding:10px 14px">불러오기</button></div></div>
+      <div class="field"><label>고객관리에서 불러오기</label><select id="zManagedClient" onchange="loadZiweiManagedClient()"><option value="">저장된 고객을 선택하세요</option></select></div>
       <div class="grid2">
         <div class="field"><label>이름 / 닉네임</label><input id="zName" placeholder="예) 김미나"></div>
         <div class="field"><label>성별</label><select id="zGender"><option value="여성">여성</option><option value="남성">남성</option></select></div>
@@ -178,13 +178,14 @@ ${CheonunZiwei.toPrompt(chart)}
 
     function renderBubbles(text){
       const parts = text.split(/\[말풍선\]/).map(function(x){return x.trim();}).filter(function(x){return x.length>5;});
-      return '<div class="card"><div class="card-title">💬 자미두수 상담 말풍선</div>' + parts.map(function(part,index){
-        return '<div class="bubble"><button class="copy" onclick="copyBubble(this)">복사</button><span class="bubble-num">말풍선 '+(index+1)+'</span>'+escapeHtml(part).replace(/\n/g,'<br>')+'</div>';
+      return '<div class="card"><div class="card-title">💬 자미두수 상담 결과</div>' + parts.map(function(part){
+        const cleanPart=part.replace(/^\[?말풍선\]?\s*\d*\s*[:：.-]?\s*/,'').trim();
+        return '<div class="bubble"><button class="copy" onclick="copyBubble(this)">복사</button>'+escapeHtml(cleanPart).replace(/\n/g,'<br>')+'</div>';
       }).join('') + '</div>';
     }
 
     function copyBubble(button){
-      const text = button.parentElement.innerText.replace(/^복사\s*/, '').replace(/^말풍선 \d+\s*/, '').trim();
+      const text = button.parentElement.innerText.replace(/^복사\s*/, '').trim();
       navigator.clipboard.writeText(text);
       button.textContent = '완료'; setTimeout(function(){button.textContent='복사';},900);
     }
