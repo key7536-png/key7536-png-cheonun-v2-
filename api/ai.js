@@ -33,7 +33,7 @@ async function callGemini(key, prompt, maxTokens) {
       generationConfig: {
         maxOutputTokens: maxTokens || 8192,
         temperature: 0.85,
-        thinkingConfig: { thinkingBudget: 0 }
+        thinkingConfig: { thinkingLevel: 'minimal' }
       }
     })
   });

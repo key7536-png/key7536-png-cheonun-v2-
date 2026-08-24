@@ -8,7 +8,7 @@ delete process.env.GEMINI_PAID_KEY;
 const calls = [];
 global.fetch = async (url, options) => {
   const key = new URL(url).searchParams.get('key');
-  calls.push({url, key});
+  calls.push({url, key, body:JSON.parse(options.body)});
   if (key === 'invalid-key') {
     return { json: async () => ({ error: { code: 401, message: 'Request had invalid authentication credentials' } }) };
   }
@@ -28,6 +28,8 @@ function response(){
   assert.equal(calls.length,2,'인증 실패 키 다음의 정상 키를 시도해야 함');
   assert.equal(calls[1].key,'valid-key');
   assert(calls[1].url.includes('/models/gemini-3.6-flash:generateContent'),'현재 안정 모델을 사용해야 함');
+  assert.equal(calls[1].body.generationConfig.thinkingConfig.thinkingLevel,'minimal','Gemini 3용 최소 사고 수준을 사용해야 함');
+  assert.equal(calls[1].body.generationConfig.thinkingConfig.thinkingBudget,undefined,'Gemini 2.5용 thinkingBudget을 보내면 안 됨');
   assert.equal(new URL(calls[1].url).searchParams.get('key'),'valid-key','검증된 query key 방식으로 전달해야 함');
 
   const second=response();
