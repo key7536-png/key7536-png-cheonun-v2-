@@ -48,6 +48,7 @@
 
     <section class="card">
       <div class="card-title">📋 내담자 정보</div>
+      <div class="field"><label>고객관리에서 불러오기</label><div style="display:flex;gap:8px"><select id="zManagedClient" style="flex:1"><option value="">저장된 고객을 선택하세요</option></select><button type="button" class="btn" onclick="loadZiweiManagedClient()" style="width:auto;white-space:nowrap;padding:10px 14px">불러오기</button></div></div>
       <div class="grid2">
         <div class="field"><label>이름 / 닉네임</label><input id="zName" placeholder="예) 김미나"></div>
         <div class="field"><label>성별</label><select id="zGender"><option value="여성">여성</option><option value="남성">남성</option></select></div>
@@ -87,12 +88,40 @@
   <script src="/ziwei.js"></script>
   <script>
     const API_BASE = location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? 'http://localhost:3000' : '';
+    const Z_MANAGED_CLIENT_KEY = 'cheonun.clients.v1';
 
     // 후속 채팅 상태 — 최초 명반/상담과 별개로, 세션 동안만 유지 (페이지 새로고침 시 초기화)
     let ziweiChart = null;
     let ziweiName = '내담자';
     let ziweiHistory = []; // [{role:'user'|'assistant', content:string}, ...]
     let ziweiSending = false;
+
+    function getZiweiManagedClients(){
+      try{ const rows=JSON.parse(localStorage.getItem(Z_MANAGED_CLIENT_KEY)||'[]'); return Array.isArray(rows)?rows:[]; }
+      catch(e){ return []; }
+    }
+
+    function renderZiweiManagedClients(){
+      const rows=getZiweiManagedClients();
+      document.getElementById('zManagedClient').innerHTML='<option value="">저장된 고객을 선택하세요</option>'+rows.map(function(r){return '<option value="'+escapeHtml(r.id)+'">'+escapeHtml(r.name)+' · '+escapeHtml(r.birth||'생년월일 미입력')+'</option>';}).join('');
+    }
+
+    function loadZiweiManagedClient(){
+      const id=document.getElementById('zManagedClient').value;
+      const r=getZiweiManagedClients().find(function(x){return x.id===id;});
+      if(!r){ document.getElementById('zError').textContent='불러올 고객을 선택해 주세요.'; return; }
+      const topicMap={'직업/사업':'직업/사업운','재물':'재물운','연애/결혼':'연애/결혼','가족':'가족관계','인간관계':'인간관계','이동/변화':'이동/변화','종합운':'종합운'};
+      document.getElementById('zName').value=r.name||'';
+      if(r.gender==='여성'||r.gender==='남성') document.getElementById('zGender').value=r.gender;
+      document.getElementById('zCalendar').value=r.calendar||'양력';
+      toggleLeap();
+      document.getElementById('zBirth').value=r.birth||'';
+      document.getElementById('zHour').value=r.birthHour||'';
+      document.getElementById('zLeap').checked=!!r.leap;
+      document.getElementById('zTopic').value=topicMap[(r.topics||[])[0]]||'종합운';
+      document.getElementById('zQuestion').value=r.question||r.reason||'';
+      document.getElementById('zError').textContent='고객정보를 불러왔습니다.';
+    }
 
     function toggleLeap(){
       const isLunar = document.getElementById('zCalendar').value === '음력';
@@ -101,6 +130,8 @@
       birth.type = isLunar ? 'text' : 'date';
       birth.placeholder = isLunar ? '예) 1969-8-1' : '';
     }
+
+    renderZiweiManagedClients();
 
     async function callAi(prompt){
       const response = await fetch(API_BASE + '/api/ai', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,maxTokens:8192})});
