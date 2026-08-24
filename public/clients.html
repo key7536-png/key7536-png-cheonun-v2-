@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>✦ 천운 고객관리</title>
+  <style>
+    :root{--bg:#09090e;--card:#12121a;--line:#292938;--text:#eeeaf7;--muted:#9792a6;--gold:#d9a53b;--gold2:#ffd879;--red:#ff7b83;--green:#76d6b1}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;font-size:14px}
+    .topbar{min-height:58px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:8px 18px;gap:16px;position:sticky;top:0;background:rgba(9,9,14,.97);z-index:10}.brand{font-weight:800;color:var(--gold2);white-space:nowrap}.tabs{display:flex;gap:5px;overflow-x:auto}.tab{border:1px solid transparent;border-radius:9px;padding:8px 11px;color:var(--muted);font-size:.78rem;text-decoration:none;white-space:nowrap}.tab.on{color:var(--gold2);border-color:#59431f;background:#211b11}
+    main{max-width:1180px;margin:0 auto;padding:20px 14px 60px}.intro{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:16px}.intro h1{font-size:1.35rem;margin:0 0 7px}.intro p,.notice{font-size:.77rem;color:var(--muted);line-height:1.55;margin:0}.layout{display:grid;grid-template-columns:330px 1fr;gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:16px;margin-bottom:13px}.card-title{font-weight:800;color:var(--gold2);font-size:.92rem;margin-bottom:13px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}.field{margin-bottom:11px}.field label{display:block;color:#bbb5c9;font-size:.73rem;margin-bottom:6px}input,select,textarea{width:100%;background:#0b0b11;border:1px solid #30303e;border-radius:9px;color:var(--text);padding:10px 11px;font:inherit;font-size:.84rem}textarea{min-height:80px;resize:vertical}.checks{display:flex;flex-wrap:wrap;gap:8px}.check{display:flex;align-items:center;gap:6px;border:1px solid #30303e;border-radius:9px;padding:8px 10px;color:#c7c1d1;font-size:.76rem}.check input{width:auto}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:0;border-radius:9px;padding:10px 13px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#b77a14,#e3b34e);color:#15100a}.btn.ghost{background:#1b1b25;color:#c9c3d4;border:1px solid #30303e}.btn.danger{background:#2b161b;color:#ff9da3;border:1px solid #63313a}.btn:disabled{opacity:.5;cursor:not-allowed}.search{margin-bottom:10px}.client-list{display:flex;flex-direction:column;gap:7px;max-height:62vh;overflow:auto}.client{border:1px solid #2c2c39;border-radius:10px;padding:10px;background:#0d0d14;cursor:pointer}.client.on{border-color:var(--gold);background:#1d1810}.client strong{display:block;color:var(--gold2);margin-bottom:3px}.client small{color:var(--muted);line-height:1.45}.empty{text-align:center;color:var(--muted);padding:25px 8px}.status{font-size:.75rem;color:var(--green);min-height:20px;margin-top:8px}.warning{border-left:3px solid var(--gold);padding:9px 11px;background:#18140d;color:#cfc5ae;font-size:.74rem;line-height:1.55;margin-bottom:13px}.section-note{color:var(--muted);font-size:.7rem;margin:-6px 0 12px}.hidden{display:none!important}
+    @media(max-width:820px){.layout{grid-template-columns:1fr}.client-list{max-height:260px}.grid3{grid-template-columns:1fr 1fr}.topbar{padding:8px 10px}.brand{font-size:.82rem}.intro{display:block}.intro .actions{margin-top:12px}}
+    @media(max-width:560px){.grid2,.grid3{grid-template-columns:1fr}.actions .btn{flex:1}.card{padding:13px}}
+  </style>
+</head>
+<body>
+  <header class="topbar"><div class="brand">✦ 천운 상담도구</div><nav class="tabs"><a class="tab" href="/">💬 상담</a><a class="tab" href="/#call">📞 전화상담</a><a class="tab" href="/#why">🤔 왜요?</a><a class="tab" href="/ziwei.html">⭐ 자미두수</a><a class="tab on" href="/clients.html">📁 고객관리</a></nav></header>
+  <main>
+    <div class="intro"><div><h1>📁 고객관리 · 상담 전 질문지</h1><p>1단계 상담 기록 기반입니다. 저장한 정보는 이 브라우저에만 보관되며 AI 상담 API로 전송되지 않습니다.</p></div><div class="actions"><button class="btn ghost" onclick="exportData()">외장메모리에 백업</button><button class="btn ghost" onclick="document.getElementById('importFile').click()">외장메모리에서 복원</button><input id="importFile" class="hidden" type="file" accept="application/json,.json" onchange="importData(event)"></div></div>
+    <div class="warning">공용 컴퓨터에서는 사용하지 마세요. 상담 후 ‘외장메모리에 백업’을 눌러 USB·외장메모리를 저장 위치로 선택하세요. 다른 컴퓨터에서는 이 고객관리 화면을 열고 ‘외장메모리에서 복원’을 누르면 기록을 옮길 수 있습니다.</div>
+    <div class="layout">
+      <aside class="card"><div class="card-title">고객 목록 <span id="count" style="color:var(--muted)"></span></div><input id="search" class="search" placeholder="이름·연락처·상담주제 검색" oninput="renderList()"><div class="actions" style="margin-bottom:10px"><button class="btn" onclick="newClient()">＋ 새 고객</button></div><div id="clientList" class="client-list"></div></aside>
+      <section>
+        <form id="clientForm" onsubmit="saveClient(event)">
+          <input id="clientId" type="hidden">
+          <div class="card"><div class="card-title">① 기본 정보</div><div class="grid3">
+            <div class="field"><label>이름 또는 상담용 닉네임 *</label><input id="name" required></div>
+            <div class="field"><label>연락처</label><input id="contact" placeholder="전화번호 또는 카카오톡 ID"></div>
+            <div class="field"><label>연락 방법</label><select id="contactMethod"><option>전화</option><option>카카오톡</option><option>크몽</option><option>문자</option><option>기타</option></select></div>
+            <div class="field"><label>성별</label><select id="gender"><option value="">선택 안 함</option><option>여성</option><option>남성</option><option>기타/비공개</option></select></div>
+            <div class="field"><label>양력/음력</label><select id="calendar"><option>양력</option><option>음력</option></select></div>
+            <div class="field"><label>생년월일</label><input id="birth" type="date"></div>
+            <div class="field"><label>태어난 시간</label><select id="birthHour"><option value="">모름</option><option>자시</option><option>축시</option><option>인시</option><option>묘시</option><option>진시</option><option>사시</option><option>오시</option><option>미시</option><option>신시</option><option>유시</option><option>술시</option><option>해시</option></select></div>
+            <div class="field"><label>상담 시간</label><select id="duration"><option value="50">50분</option><option value="60">60분</option></select></div>
+            <div class="field"><label>상담 상태</label><select id="status"><option>접수</option><option>예약</option><option>진행 중</option><option>완료</option><option>보류</option></select></div>
+          </div><label class="check"><input id="leap" type="checkbox"> 음력 윤달</label></div>
+
+          <div class="card"><div class="card-title">② 상담 전 질문지</div><div class="section-note">필요한 정보만 받고, 내담자가 말하고 싶지 않은 내용은 강요하지 않습니다.</div>
+            <div class="field"><label>상담을 신청한 가장 큰 이유 *</label><textarea id="reason" required placeholder="현재 가장 답답하거나 확인하고 싶은 문제"></textarea></div>
+            <div class="field"><label>상담에서 가장 알고 싶은 구체적인 질문</label><textarea id="question" placeholder="질문을 1~3개로 구체적으로 작성"></textarea></div>
+            <div class="field"><label>원하는 상담 결과</label><textarea id="goal" placeholder="정리, 선택지 비교, 시기 확인, 마음의 방향 등"></textarea></div>
+            <div class="field"><label>관련 배경과 최근 변화</label><textarea id="background" placeholder="문제의 시작 시점, 최근 달라진 상황, 이미 해본 노력"></textarea></div>
+            <div class="field"><label>상담 주제</label><div class="checks" id="topics"><label class="check"><input type="checkbox" value="직업/사업">직업/사업</label><label class="check"><input type="checkbox" value="재물">재물</label><label class="check"><input type="checkbox" value="연애/결혼">연애/결혼</label><label class="check"><input type="checkbox" value="가족">가족</label><label class="check"><input type="checkbox" value="인간관계">인간관계</label><label class="check"><input type="checkbox" value="이동/변화">이동/변화</label><label class="check"><input type="checkbox" value="종합운">종합운</label></div></div>
+            <div class="grid2"><div class="field"><label>상대방 정보가 필요한 경우</label><textarea id="counterpart" placeholder="관계, 성별, 생년월일·시간(본인 동의를 받은 범위)"></textarea></div><div class="field"><label>이전에 받은 상담과 참고사항</label><textarea id="previous" placeholder="사주·타로 상담 경험, 특히 피하고 싶은 표현"></textarea></div></div>
+          </div>
+
+          <div class="card"><div class="card-title">③ 동의 및 상담사 메모</div>
+            <label class="check"><input id="consent" type="checkbox" required> 상담 진행과 로컬 기록 저장에 대해 안내하고 동의를 받았습니다. *</label>
+            <div class="field" style="margin-top:12px"><label>상담사 사전 메모</label><textarea id="memo" placeholder="확인할 핵심, 사용할 도구, 단정하지 말아야 할 부분"></textarea></div>
+            <div class="actions"><button class="btn" type="submit">고객 정보 저장</button><button class="btn ghost" type="button" onclick="newClient()">새로 작성</button><button id="deleteBtn" class="btn danger" type="button" onclick="deleteClient()" disabled>고객 삭제</button></div><div id="saveStatus" class="status"></div>
+          </div>
+        </form>
+      </section>
+    </div>
+  </main>
+  <script src="/clients.js"></script>
+</body>
+</html>
