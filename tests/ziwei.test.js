@@ -58,4 +58,16 @@ assert.equal(lunarChart.solarDate, chart.solarDate);
 assert.equal(lunarChart.soulPalace, chart.soulPalace);
 assert.equal(lunarChart.bodyPalace, chart.bodyPalace);
 
+// 실제 고객 회귀값: 음력 1969-08-05 평달, 남성, 묘시
+const maleLunarChart = context.CheonunZiwei.calculate({
+  birth: '1969-8-5', hour: '묘시', gender: '남성', calendar: '음력', isLeap: false, targetDate: '2026-8-24'
+});
+assert.equal(maleLunarChart.solarDate, '1969-9-16');
+assert.equal(maleLunarChart.soulPalace, '오');
+assert.equal(maleLunarChart.bodyPalace, '자');
+assert.equal(maleLunarChart.fiveElementsClass, '토오국');
+assert.equal(maleLunarChart.soulStar, '파군');
+assert.equal(maleLunarChart.bodyStar, '천동');
+assert.equal(maleLunarChart.current.decadalPalace, '질액');
+
 console.log('ziwei tests passed');

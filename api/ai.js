@@ -1,35 +1,33 @@
 // 천운 상담도구 — 상담/왜요? 답변용 Gemini 프록시.
 // 키는 절대 이 파일에 직접 적지 않는다 — Vercel 프로젝트 환경변수에
-// GEMINI_KEY_1 ~ GEMINI_KEY_10, (선택) GEMINI_PAID_KEY 이름으로 등록해서 process.env로 읽는다.
+// GEMINI_KEY_1 ~ GEMINI_KEY_30, (선택) GEMINI_PAID_KEY 이름으로 등록해서 process.env로 읽는다.
 // 무료 키 한도(429)나 일시 장애(503)를 만나면 다음 키로 자동 전환하고,
-// 10개 다 실패하면 마지막으로 유료 키(있으면)를 시도한다.
+// 등록된 키가 전부 실패하면 마지막으로 유료 키(있으면)를 시도한다.
 
 const MODEL = 'gemini-2.5-flash';
-const MAX_KEYS = 10;
+const MAX_KEYS = 30; // 10 → 30: 키를 더 늘려 등록할 수 있도록 여유를 넓힘 (2026-08-24)
 
 function loadKeys() {
   const keys = [];
   for (let i = 1; i <= MAX_KEYS; i++) {
     const k = process.env['GEMINI_KEY_' + i];
-    if (k) keys.push(k);
+    if (k && k.trim()) keys.push(k.trim());
   }
-  return keys;
+  return [...new Set(keys)];
 }
 
 let keyIdx = 0;
 
-// 2026년 6월부터 구글이 신규 발급하는 "AQ." 형식 키가, 일부 계정에서
-// x-goog-api-key 헤더 방식으로는 "ACCESS_TOKEN_TYPE_UNSUPPORTED"(401)로
-// 거부되는 문제가 보고됨. 쿼리스트링(?key=) 방식으로 보내면 통과되는
-// 경우가 많다고 확인되어 이 방식으로 전환.
+// Google Gemini 공식 REST 인증 방식인 x-goog-api-key 헤더를 사용한다.
+// Standard API key와 새 Authorization API key 모두 같은 헤더로 전달한다.
 // 2026-08: Gemini 2.5는 답변 전 "생각(thinking)" 단계에서 토큰을 소모하는데,
 // 이게 답변엔 안 보이면서 무료 할당량만 훨씬 빨리 갉아먹는다(체감상 몇 배).
 // thinkingBudget:0으로 꺼서 응답 속도도 빠르게, 할당량 소모도 줄인다.
 async function callGemini(key, prompt, maxTokens) {
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent?key=' + encodeURIComponent(key.trim());
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent';
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key.trim() },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
@@ -64,19 +62,27 @@ module.exports = async function handler(req, res) {
 
     if (KEYS.length === 0 && !PAID) {
       return res.status(500).json({
-        error: '서버에 Gemini API 키가 설정되어 있지 않습니다. Vercel 프로젝트 → Settings → Environment Variables에 GEMINI_KEY_1 ~ GEMINI_KEY_10을 등록한 뒤 Redeploy 해주세요.'
+        error: '서버에 Gemini API 키가 설정되어 있지 않습니다. Vercel 프로젝트 → Settings → Environment Variables에 GEMINI_KEY_1 ~ GEMINI_KEY_30을 등록한 뒤 Redeploy 해주세요.'
       });
     }
 
     const start = keyIdx % (KEYS.length || 1);
+    let lastErr = null;
+    let authFailures = 0;
+    let quotaFailures = 0;
     for (let i = 0; i < KEYS.length; i++) {
       const idx = (start + i) % KEYS.length;
       try {
         const text = await callGemini(KEYS[idx], prompt, maxTokens);
-        keyIdx = idx + 1;
+        // 성공한 키를 계속 사용하고, 실제 한도/장애가 발생할 때만 다음 키로 이동한다.
+        keyIdx = idx;
         return res.status(200).json({ text, source: 'free' });
       } catch (e) {
-        if (e.code === 429 || e.code === 503 || e.code === 403) continue;
+        lastErr = e;
+        const authError = e.code === 401 ||
+          ((e.code === 400 || e.code === 403) && /api key not valid|invalid authentication|access token|credential/i.test(e.message || ''));
+        if (authError) { authFailures++; keyIdx = idx + 1; continue; }
+        if (e.code === 429 || e.code === 503 || e.code === 403) { quotaFailures++; keyIdx = idx + 1; continue; }
         throw e;
       }
     }
@@ -87,11 +93,17 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ text, source: 'paid' });
       } catch (e) {
         // 유료키도 실패 — 원인이 뭐든 사용자에게는 명확한 메시지로.
-        return res.status(500).json({ error: '무료 키가 전부 한도 초과이고, 예비 유료 키도 실패했습니다(' + e.message + '). 잠시 후 다시 시도하거나 GEMINI_PAID_KEY를 확인해주세요.' });
+        return res.status(500).json({ error: '무료 키를 사용할 수 없고 예비 유료 키도 실패했습니다(' + e.message + '). Vercel의 Gemini 키 설정을 확인해 주세요.' });
       }
     }
 
-    return res.status(500).json({ error: '지금 등록된 무료 키가 전부 한도 초과 상태예요. 몇 분 후 다시 시도해주세요 (매일/매분 한도가 있어서 시간 지나면 다시 됩니다).' });
+    if (authFailures === KEYS.length) {
+      return res.status(401).json({ error: '등록된 Gemini 키가 모두 인증에 실패했습니다. Vercel 환경변수에는 OAuth 토큰이 아니라 Google AI Studio에서 발급한 Gemini API 키를 넣어주세요.' });
+    }
+    if (quotaFailures > 0) {
+      return res.status(429).json({ error: '사용 가능한 Gemini 키가 현재 할당량 초과 또는 일시 장애 상태입니다. 잠시 후 다시 시도해 주세요.' });
+    }
+    return res.status(500).json({ error: 'Gemini 요청에 실패했습니다: ' + (lastErr?.message || '알 수 없는 오류') });
 
   } catch (e) {
     return res.status(500).json({ error: e.message });

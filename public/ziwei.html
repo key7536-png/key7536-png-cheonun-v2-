@@ -103,12 +103,12 @@
 
     function renderZiweiManagedClients(){
       const rows=getZiweiManagedClients();
-      document.getElementById('zManagedClient').innerHTML='<option value="">저장된 고객을 선택하세요</option>'+rows.map(function(r){return '<option value="'+escapeHtml(r.id)+'">'+escapeHtml(r.name)+' · '+escapeHtml(r.birth||'생년월일 미입력')+'</option>';}).join('');
+      document.getElementById('zManagedClient').innerHTML='<option value="">저장된 고객을 선택하세요</option>'+rows.map(function(r,index){return '<option value="'+index+'">'+escapeHtml(r.name)+' · '+escapeHtml(r.birth||'생년월일 미입력')+'</option>';}).join('');
     }
 
     function loadZiweiManagedClient(){
-      const id=document.getElementById('zManagedClient').value;
-      const r=getZiweiManagedClients().find(function(x){return x.id===id;});
+      const selected=document.getElementById('zManagedClient').value;
+      const r=selected===''?null:getZiweiManagedClients()[Number(selected)];
       if(!r){ document.getElementById('zError').textContent='불러올 고객을 선택해 주세요.'; return; }
       const topicMap={'직업/사업':'직업/사업운','재물':'재물운','연애/결혼':'연애/결혼','가족':'가족관계','인간관계':'인간관계','이동/변화':'이동/변화','종합운':'종합운'};
       document.getElementById('zName').value=r.name||'';
@@ -133,8 +133,8 @@
 
     renderZiweiManagedClients();
 
-    async function callAi(prompt){
-      const response = await fetch(API_BASE + '/api/ai', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,maxTokens:8192})});
+    async function callAi(prompt,maxTokens){
+      const response = await fetch(API_BASE + '/api/ai', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,maxTokens:maxTokens||4096})});
       const data = await response.json().catch(function(){ return {}; });
       if(!response.ok) throw new Error(data.error || 'AI 상담 요청에 실패했습니다.');
       return data.text || '';
@@ -209,7 +209,7 @@ ${CheonunZiwei.toPrompt(chart)}
         document.getElementById('zResult').innerHTML = '<div class="card loading">명반을 바탕으로 상담 내용을 정리하고 있습니다…</div>';
         button.disabled=true; button.textContent='상담 생성 중…';
         const prompt = buildZiweiPrompt(name,topic,question,chart);
-        const text = await callAi(prompt);
+        const text = await callAi(prompt,4096);
         document.getElementById('zResult').innerHTML = renderBubbles(text);
 
         // 후속 채팅 세션 시작 — 명반과 최초 문답을 대화 기록에 남겨서 이어지는 질문에서도 맥락 유지
@@ -256,7 +256,7 @@ ${CheonunZiwei.toPrompt(chart)}
     }
 
     function buildZiweiFollowupPrompt(question){
-      const historyText = ziweiHistory.map(function(h){
+      const historyText = ziweiHistory.slice(-6).map(function(h){
         return (h.role === 'user' ? '내담자: ' : '상담사: ') + h.content;
       }).join('\n');
 
@@ -301,7 +301,7 @@ ${question}
 
       try{
         const prompt = buildZiweiFollowupPrompt(question);
-        const text = await callAi(prompt);
+        const text = await callAi(prompt,1024);
         const answer = text.replace(/\[말풍선\]/g,' ').trim();
         thinkingDiv.remove();
         appendZiweiChatBubble('assistant', answer);
