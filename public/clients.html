@@ -31,7 +31,7 @@
             <div class="field"><label>양력/음력</label><select id="calendar"><option>양력</option><option>음력</option></select></div>
             <div class="field"><label>생년월일</label><input id="birth" type="date"></div>
             <div class="field"><label>태어난 시간</label><select id="birthHour"><option value="">모름</option><option>자시</option><option>축시</option><option>인시</option><option>묘시</option><option>진시</option><option>사시</option><option>오시</option><option>미시</option><option>신시</option><option>유시</option><option>술시</option><option>해시</option></select></div>
-            <div class="field"><label>상담 시간</label><select id="duration"><option value="50">50분</option><option value="60">60분</option></select></div>
+            <div class="field"><label>상담 시간(분)</label><input id="duration" type="number" min="5" max="300" step="5" value="50" placeholder="예: 20, 45, 90"></div>
             <div class="field"><label>상담 상태</label><select id="status"><option>접수</option><option>예약</option><option>진행 중</option><option>완료</option><option>보류</option></select></div>
           </div><label class="check"><input id="leap" type="checkbox"> 음력 윤달</label></div>
 
@@ -47,7 +47,7 @@
           <div class="card"><div class="card-title">③ 동의 및 상담사 메모</div>
             <label class="check"><input id="consent" type="checkbox" required> 상담 진행과 로컬 기록 저장에 대해 안내하고 동의를 받았습니다. *</label>
             <div class="field" style="margin-top:12px"><label>상담사 사전 메모</label><textarea id="memo" placeholder="확인할 핵심, 사용할 도구, 단정하지 말아야 할 부분"></textarea></div>
-            <div class="actions"><button class="btn" type="submit">고객 정보 저장</button><button class="btn ghost" type="button" onclick="newClient()">새로 작성</button><button id="deleteBtn" class="btn danger" type="button" onclick="deleteClient()" disabled>고객 삭제</button></div><div id="saveStatus" class="status"></div>
+            <div class="actions"><button class="btn" type="submit">고객 정보 저장</button><button id="sajuFormBtn" class="btn ghost" type="button" onclick="openSajuForm()" disabled>사주 기본분석 작성</button><button class="btn ghost" type="button" onclick="newClient()">새로 작성</button><button id="deleteBtn" class="btn danger" type="button" onclick="deleteClient()" disabled>고객 삭제</button></div><div id="saveStatus" class="status"></div>
           </div>
         </form>
       </section>
