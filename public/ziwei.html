@@ -15,7 +15,17 @@
     .btn{width:100%;border:0;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#b77a14,#e3b34e);color:#15100a}.btn:disabled{opacity:.55;cursor:wait}.error{color:var(--red);font-size:.78rem;margin-top:9px}
     .zw-summary{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.zw-summary span{font-size:.69rem;color:#d8cfeb;background:#1b1825;border:1px solid #352d4b;border-radius:999px;padding:5px 8px}.zw-current{font-size:.76rem;color:var(--purple2);margin:10px 0}.zw-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.zw-palace{min-height:96px;border:1px solid #302b3d;border-radius:10px;padding:9px;background:#0d0c13}.zw-palace.soul{border-color:var(--gold);box-shadow:0 0 0 1px rgba(217,165,59,.16) inset}.zw-palace-head{display:flex;justify-content:space-between;gap:5px;font-size:.74rem}.zw-palace-head b{color:var(--gold2)}.zw-palace-head span{color:var(--muted);font-size:.65rem}.zw-stars{font-size:.76rem;line-height:1.45;margin-top:8px}.zw-decade{font-size:.63rem;color:#817b8e;margin-top:7px}.zw-note{font-size:.67rem;color:var(--muted);line-height:1.5;margin:11px 0 0}
     .bubble{border-left:3px solid var(--purple);background:#0d0d14;border-radius:5px 12px 12px 5px;padding:12px 13px;margin:9px 0;font-size:.84rem;line-height:1.65}.bubble-num{display:block;color:var(--purple2);font-size:.64rem;font-weight:800;margin-bottom:4px}.copy{float:right;background:none;border:0;color:var(--muted);font-size:.68rem;cursor:pointer}.loading{color:var(--muted);font-size:.8rem;text-align:center;padding:16px}
-    @media(max-width:680px){.grid2{grid-template-columns:1fr}.zw-grid{grid-template-columns:repeat(2,1fr)}.topbar{padding:0 10px}.brand{font-size:.83rem}}
+    .zw-chat-log{max-height:52vh;overflow-y:auto;display:flex;flex-direction:column;gap:9px;margin-bottom:4px}
+    .zw-chat-msg{border-radius:12px;padding:10px 12px;font-size:.83rem;line-height:1.6;max-width:88%}
+    .zw-chat-msg b{display:block;font-size:.66rem;color:var(--muted);margin-bottom:3px;font-weight:700}
+    .zw-chat-msg.me{align-self:flex-end;background:#1c1730;border:1px solid #352c55;color:var(--text)}
+    .zw-chat-msg.me b{color:var(--purple2)}
+    .zw-chat-msg.ai{align-self:flex-start;background:#0d0d14;border:1px solid var(--line)}
+    .zw-chat-msg.ai b{color:var(--gold2)}
+    .zw-chat-actions{display:flex;gap:8px;margin-top:10px}
+    .zw-chat-actions .btn.ghost{background:transparent;border:1px solid #30303e;color:var(--muted);font-weight:700}
+    #zFollowup{min-height:56px}
+    @media(max-width:680px){.grid2{grid-template-columns:1fr}.zw-grid{grid-template-columns:repeat(2,1fr)}.topbar{padding:0 10px}.brand{font-size:.83rem}.zw-chat-msg{max-width:96%}.zw-chat-log{max-height:44vh}}
   </style>
 </head>
 <body>
@@ -55,12 +65,33 @@
 
     <section id="zChart"></section>
     <section id="zResult"></section>
+
+    <section id="zChatSection" style="display:none">
+      <div class="card">
+        <div class="card-title">💬 이어서 질문하기</div>
+        <div id="zChatLog" class="zw-chat-log"></div>
+        <div class="field" style="margin-top:6px">
+          <textarea id="zFollowup" placeholder="추가로 궁금한 점을 입력하세요. (Enter 전송 / Shift+Enter 줄바꿈)" onkeydown="handleZiweiKeydown(event)"></textarea>
+        </div>
+        <div class="zw-chat-actions">
+          <button id="zSendBtn" class="btn" onclick="sendZiweiFollowup()" style="flex:2">질문 보내기</button>
+          <button class="btn ghost" onclick="resetZiweiConsult()" style="flex:1">새 상담 시작</button>
+        </div>
+        <div id="zChatError" class="error"></div>
+      </div>
+    </section>
   </main>
 
   <script src="/vendor/iztro-v2.6.0.min.js"></script>
   <script src="/ziwei.js"></script>
   <script>
     const API_BASE = location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? 'http://localhost:3000' : '';
+
+    // 후속 채팅 상태 — 최초 명반/상담과 별개로, 세션 동안만 유지 (페이지 새로고침 시 초기화)
+    let ziweiChart = null;
+    let ziweiName = '내담자';
+    let ziweiHistory = []; // [{role:'user'|'assistant', content:string}, ...]
+    let ziweiSending = false;
 
     function toggleLeap(){
       const isLunar = document.getElementById('zCalendar').value === '음력';
@@ -130,6 +161,8 @@ ${CheonunZiwei.toPrompt(chart)}
       const error = document.getElementById('zError');
       const button = document.getElementById('zStart');
       const name = document.getElementById('zName').value.trim() || '내담자';
+      const topic = document.getElementById('zTopic').value;
+      const question = document.getElementById('zQuestion').value.trim();
       error.textContent = '';
       try{
         const chart = CheonunZiwei.calculate({
@@ -143,15 +176,126 @@ ${CheonunZiwei.toPrompt(chart)}
         document.getElementById('zChart').innerHTML = CheonunZiwei.render(chart,name);
         document.getElementById('zResult').innerHTML = '<div class="card loading">명반을 바탕으로 상담 내용을 정리하고 있습니다…</div>';
         button.disabled=true; button.textContent='상담 생성 중…';
-        const prompt = buildZiweiPrompt(name,document.getElementById('zTopic').value,document.getElementById('zQuestion').value.trim(),chart);
+        const prompt = buildZiweiPrompt(name,topic,question,chart);
         const text = await callAi(prompt);
         document.getElementById('zResult').innerHTML = renderBubbles(text);
+
+        // 후속 채팅 세션 시작 — 명반과 최초 문답을 대화 기록에 남겨서 이어지는 질문에서도 맥락 유지
+        ziweiChart = chart;
+        ziweiName = name;
+        ziweiHistory = [
+          { role:'user', content: question || (topic + ' 관련 초기 상담 요청') },
+          { role:'assistant', content: text.replace(/\[말풍선\]/g,' ').trim() }
+        ];
+        document.getElementById('zChatLog').innerHTML = '';
+        document.getElementById('zChatError').textContent = '';
+        document.getElementById('zChatSection').style.display = 'block';
       }catch(e){
         error.textContent = e.message;
         document.getElementById('zResult').innerHTML='';
       }finally{
         button.disabled=false; button.textContent='⭐ 명반 계산 및 상담 시작';
       }
+    }
+
+    function appendZiweiChatBubble(role, text){
+      const log = document.getElementById('zChatLog');
+      const div = document.createElement('div');
+      div.className = 'zw-chat-msg ' + (role === 'user' ? 'me' : 'ai');
+      const label = role === 'user' ? (escapeHtml(ziweiName) + '님') : '천운';
+      const copyBtn = role === 'user' ? '' : '<button class="copy" onclick="copyZiweiMsg(this)" style="float:right">복사</button>';
+      div.innerHTML = copyBtn + '<b>' + label + '</b>' + escapeHtml(text).replace(/\n/g,'<br>');
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+      return div;
+    }
+
+    function copyZiweiMsg(button){
+      const text = button.parentElement.innerText.replace(/^복사\s*/, '').trim();
+      navigator.clipboard.writeText(text);
+      button.textContent = '완료'; setTimeout(function(){button.textContent='복사';},900);
+    }
+
+    function handleZiweiKeydown(e){
+      if(e.key === 'Enter' && !e.shiftKey){
+        e.preventDefault();
+        sendZiweiFollowup();
+      }
+    }
+
+    function buildZiweiFollowupPrompt(question){
+      const historyText = ziweiHistory.map(function(h){
+        return (h.role === 'user' ? '내담자: ' : '상담사: ') + h.content;
+      }).join('\n');
+
+      return `당신은 자미두수 전통 삼합파를 공부하고 실제 상담에 적용하는 상담사 천운입니다.
+지금 ${ziweiName}님과 자미두수 상담을 이어서 하는 중입니다. 명반은 이미 계산되어 있으니 절대 다시 계산하지 말고 아래 명반을 그대로 사용하세요.
+
+━━━ 계산된 명반 (그대로 사용, 임의 재계산 금지) ━━━
+${CheonunZiwei.toPrompt(ziweiChart)}
+
+━━━ 지금까지 나눈 대화 ━━━
+${historyText}
+
+━━━ 새 질문 ━━━
+${question}
+
+━━━ 규칙 ━━━
+• 명반에 없는 별·궁·사화를 만들어내지 않는다.
+• "무조건", "반드시 일어난다", "큰일 난다" 같은 단정 금지. 의료·법률·투자·수명 단정 금지.
+• [말풍선] 태그 1개만, 2~4문장으로 짧고 구체적인 대화체로 쓴다.
+• 어려운 한자는 피하고 전문용어에는 바로 쉬운 뜻을 붙인다.`;
+    }
+
+    async function sendZiweiFollowup(){
+      if(ziweiSending) return;
+      const input = document.getElementById('zFollowup');
+      const question = input.value.trim();
+      if(!question) return;
+
+      const errorEl = document.getElementById('zChatError');
+      const sendBtn = document.getElementById('zSendBtn');
+      if(!ziweiChart){ errorEl.textContent = '먼저 위에서 명반을 계산해주세요.'; return; }
+
+      errorEl.textContent = '';
+      appendZiweiChatBubble('user', question);
+      ziweiHistory.push({ role:'user', content: question });
+      input.value = '';
+
+      ziweiSending = true;
+      sendBtn.disabled = true;
+      sendBtn.textContent = '답변 작성 중…';
+      const thinkingDiv = appendZiweiChatBubble('assistant', '생각하는 중…');
+
+      try{
+        const prompt = buildZiweiFollowupPrompt(question);
+        const text = await callAi(prompt);
+        const answer = text.replace(/\[말풍선\]/g,' ').trim();
+        thinkingDiv.remove();
+        appendZiweiChatBubble('assistant', answer);
+        ziweiHistory.push({ role:'assistant', content: answer });
+      }catch(e){
+        thinkingDiv.remove();
+        errorEl.textContent = e.message;
+        // 명반과 지금까지의 대화 기록은 그대로 유지한다 (오류가 나도 안 사라짐)
+      }finally{
+        ziweiSending = false;
+        sendBtn.disabled = false;
+        sendBtn.textContent = '질문 보내기';
+      }
+    }
+
+    function resetZiweiConsult(){
+      ziweiChart = null;
+      ziweiHistory = [];
+      document.getElementById('zChart').innerHTML = '';
+      document.getElementById('zResult').innerHTML = '';
+      document.getElementById('zChatLog').innerHTML = '';
+      document.getElementById('zChatSection').style.display = 'none';
+      document.getElementById('zError').textContent = '';
+      document.getElementById('zChatError').textContent = '';
+      document.getElementById('zQuestion').value = '';
+      document.getElementById('zFollowup').value = '';
     }
   </script>
 </body>
