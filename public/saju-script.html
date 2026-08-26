@@ -472,9 +472,9 @@ ${numbered}
 - description_kr: 위 둘을 한국어로 한 줄 요약 (예: "천운에게 천천히 줌인, 따뜻한 조명")
 - table_highlight_kr: 상담사(counselor) 씬 중에서, "${topic}" 주제의 핵심 근거를 사주 명식표(팔자표 — 천간·지지·십성·지장간·12운성·12신살이 있는 표)로 짚어가며 설명하면 시청자가 직관적으로 이해하기 좋은 대사에만 채우세요. 이 주제와 직접 관련된 살/운성/십성이 있으면 그 이름과 위치를 한 줄로 적으세요 (예: "도화살 — 지지에 자·오·묘·유 중 하나가 있는 자리", "역마살 — 지지에 인·신·사·해 자리"). 전체 ${scenes.length}개 씬 중 이 조건에 가장 잘 맞는 상담사 대사 딱 1~2개에만 채우고, 나머지 모든 씬(의뢰인 씬 포함)은 반드시 빈 문자열 ""로 두세요. 애매하면 채우지 말고 빈 문자열로 두세요.
 
-오직 하나의 JSON 배열만 출력하세요. 코드블록이나 설명 문장 없이, 반드시 씬 개수(${scenes.length}개)와 순서를 정확히 맞춰서 출력합니다.
+오직 아래 스키마 그대로의 JSON 객체 하나만 출력하세요 (바깥이 "{"로 시작해서 "}"로 끝나야 합니다 — 바깥을 배열 "["로 감싸서 출력하지 마세요). 코드블록이나 설명 문장 없이, 반드시 씬 개수(${scenes.length}개)와 순서를 정확히 맞춰서 "scenes" 배열 안에 담아 출력합니다.
 
-[출력 JSON 스키마]
+[출력 JSON 스키마 — 이 형태(객체 하나) 그대로]
 {"scenes": [{"camera_en": "...", "mood_en": "...", "description_kr": "...", "table_highlight_kr": "..."}]}`;
 }
 
@@ -521,9 +521,21 @@ function extractJson(text) {
   let t = text.trim();
   const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fence) t = fence[1].trim();
-  const start = t.indexOf('{');
-  const end = t.lastIndexOf('}');
-  if (start === -1) throw new Error('응답에서 JSON을 찾지 못했습니다.');
+  // 모델이 가끔 객체 대신 바로 배열을 반환할 때가 있다(특히 라이트 모델에서 잦음) —
+  // "{"와 "[" 중 먼저 나오는 쪽을 진짜 시작점으로 잡고, 그에 맞는 닫는 괄호로 찾는다.
+  // 이걸 무조건 "{"만 찾도록 하면, 배열 응답일 때 첫 원소의 "{"부터 마지막 원소의
+  // "}"까지만 잘려서 바깥 대괄호 없이 콤마로 이어붙인 무효 JSON이 만들어진다.
+  const braceStart = t.indexOf('{');
+  const bracketStart = t.indexOf('[');
+  let start, closeChar;
+  if (braceStart === -1 && bracketStart === -1) {
+    throw new Error('응답에서 JSON을 찾지 못했습니다.');
+  } else if (bracketStart === -1 || (braceStart !== -1 && braceStart < bracketStart)) {
+    start = braceStart; closeChar = '}';
+  } else {
+    start = bracketStart; closeChar = ']';
+  }
+  const end = t.lastIndexOf(closeChar);
   const body = end === -1 ? t.slice(start) : t.slice(start, end + 1);
   try {
     return JSON.parse(body);
@@ -700,7 +712,9 @@ form.addEventListener('submit', async (e) => {
     const client = pickClientDescriptor(clientGenderChoice || 'random');
 
     const storyboardResp = await callAi(buildStoryboardPrompt(topic, scenes), 32768);
-    const aiScenes = storyboardResp.scenes || [];
+    // 프롬프트에서 객체 하나로 못박아뒀지만, 모델이 그래도 배열을 바로 반환하는
+    // 경우에 대비해 둘 다 받아준다 (배열이면 그 자체가 scenes, 객체면 .scenes).
+    const aiScenes = Array.isArray(storyboardResp) ? storyboardResp : (storyboardResp.scenes || []);
 
     // 천운(상담사)은 실사용 레퍼런스 이미지가 항상 같은 사람이므로, 텍스트 설명도
     // 매번(계정이 바뀌어도) 성별·나이대가 흔들리지 않도록 고정 문구로 못박는다.
