@@ -3,7 +3,10 @@
 // SAJU_SCRIPT_KEY_1 ~ SAJU_SCRIPT_KEY_10 이름으로 등록해서 process.env로 읽는다.
 // 무료 키 한도(429)나 일시 장애(503), 키 거부(403)를 만나면 다음 키로 자동 전환한다.
 
-const MODEL = 'gemini-flash-latest';
+// 2026-08-15 사고 이후 확정됐던 'gemini-flash-lite-latest'가 실제로는 커밋되지
+// 않고 'gemini-flash-latest'로 남아있었음(2026-08-26 발견 — 응답이 44초 넘게
+// 걸려 Vercel 함수 타임아웃(비-JSON 에러 페이지)이 발생). 검증된 값으로 재적용.
+const MODEL = 'gemini-flash-lite-latest';
 const MAX_KEYS = 10;
 
 function loadKeys() {
