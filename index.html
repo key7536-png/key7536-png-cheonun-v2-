@@ -345,14 +345,20 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
     <div id="callClientList" style="display:none;margin-bottom:10px;max-height:200px;overflow-y:auto"></div>
     <div class="field"><label>내담자 이름</label><input id="callName" placeholder="예) 김미나님"></div>
     <div class="field"><label>생년월일</label><input id="callBirth" type="date"></div>
-    <div class="row2">
-      <div class="field"><label>성별</label>
-        <select id="callGender"><option>여성</option><option>남성</option></select>
+    <div class="field"><label>성별</label>
+      <div id="callGenderChips" style="display:flex;gap:6px">
+        <button type="button" class="wcat on" data-val="여성" onclick="setCallGender(this)">여성</button>
+        <button type="button" class="wcat" data-val="남성" onclick="setCallGender(this)">남성</button>
       </div>
-      <div class="field"><label>상담 주제</label>
-        <select id="callTopic">
-          <option>재회운 ★</option><option>연애운</option><option>결혼운</option><option>재물운</option><option>직업운</option><option>종합운</option>
-        </select>
+    </div>
+    <div class="field"><label>상담 주제</label>
+      <div id="callTopicChips" style="display:flex;gap:6px;flex-wrap:wrap">
+        <button type="button" class="wcat on" data-val="재회운 ★" onclick="setCallTopic(this)">재회운 ★</button>
+        <button type="button" class="wcat" data-val="연애운" onclick="setCallTopic(this)">연애운</button>
+        <button type="button" class="wcat" data-val="결혼운" onclick="setCallTopic(this)">결혼운</button>
+        <button type="button" class="wcat" data-val="재물운" onclick="setCallTopic(this)">재물운</button>
+        <button type="button" class="wcat" data-val="직업운" onclick="setCallTopic(this)">직업운</button>
+        <button type="button" class="wcat" data-val="종합운" onclick="setCallTopic(this)">종합운</button>
       </div>
     </div>
     <div class="field"><label>양/음력</label><select id="callLunar" onchange="toggleCallLeap()"><option>양력</option><option>음력</option></select></div>
@@ -1487,11 +1493,33 @@ let callHistory = []; // 전화상담 대화 기록
 // 전화상담 탭 내담자 불러오기
 // toggleCallClientList, loadCallClient — 하단 Supabase 버전 사용
 
+// 전화상담 폼 — 성별/주제는 매번 드롭다운 열 필요 없이 원터치 칩으로 선택
+let callGenderVal = '여성';
+let callTopicVal = '재회운 ★';
+function setCallGender(el){
+  callGenderVal = el.dataset.val;
+  document.querySelectorAll('#callGenderChips .wcat').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+}
+function setCallGenderByValue(v){
+  const btn = document.querySelector(`#callGenderChips .wcat[data-val="${v}"]`);
+  if(btn) setCallGender(btn);
+}
+function setCallTopic(el){
+  callTopicVal = el.dataset.val;
+  document.querySelectorAll('#callTopicChips .wcat').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+}
+function setCallTopicByValue(v){
+  const btn = document.querySelector(`#callTopicChips .wcat[data-val="${v}"]`);
+  if(btn) setCallTopic(btn);
+}
+
 async function startCall(){
   const name = document.getElementById('callName').value.trim() || '내담자';
   const birth = document.getElementById('callBirth').value;
-  const gender = document.getElementById('callGender').value;
-  const topic = document.getElementById('callTopic').value;
+  const gender = callGenderVal;
+  const topic = callTopicVal;
   const calendar = document.getElementById('callLunar').value;
   const isLeap = document.getElementById('callLeap').checked;
 
@@ -1604,12 +1632,16 @@ ${_cAngle.hint}
 ━━━ 금지 ━━━
 "나타냅니다" "의미합니다" "시사합니다" AI 보고서 말투 금지.
 이전 대화와 똑같은 답변 절대 금지.
+비유·수식어 남발 금지 ("~처럼", "마치~" 같은 문학적 비유 최대 1개, 없어도 됨).
+한 문장에 여러 절 이어붙이지 말 것 — 짧게 끊어서.
 ${HONEST_STYLE_RULES}
-━━━ 규칙 ━━━
-• [말풍선] 태그 3개. 각 2~3문장.
+━━━ 규칙 (지금 실제로 전화기 붙잡고 말하는 것처럼) ━━━
+• [말풍선] 태그 딱 2개만. 각 1~2문장, 한 문장은 15자 내외로 짧게.
+• 첫 번째 말풍선: 질문에 대한 결론부터 바로. 둘러대지 말 것.
+• 두 번째 말풍선: 짧은 이유 + 따뜻한 한마디로 마무리.
 • 위 사주 명식 그대로. AI 임의계산 금지.
-• 전화 통화체 — "네~", "그게요~", "있잖아요~"
-• 질문에 직접 답하고, 마지막은 따뜻하게.`;
+• 실제 통화 말투 — "네~", "그게요~", "있잖아요~", "~거든요", "~더라고요"
+• 소리 내서 읽었을 때 안 어색해야 함. 눈으로 읽는 글이 아니라 입으로 말하는 대사.`;
 
   try{
     const txt = await ai(prompt, 4096);
@@ -2162,12 +2194,12 @@ function loadCallClient(idx){
   if(!c) return;
   document.getElementById('callName').value  = c.name;
   document.getElementById('callBirth').value = c.birth||'';
-  document.getElementById('callGender').value= c.gender;
+  setCallGenderByValue(c.gender||'여성');
   document.getElementById('callLunar').value = c.calendar||'양력';
   document.getElementById('callLeap').checked = !!c.leap;
   toggleCallLeap();
   const callTopicMap = {'재회운 ⭐':'재회운 ★','직업/사업운':'직업운','재물/돈버는시기':'재물운','이사시기':'종합운','가족관계':'종합운'};
-  document.getElementById('callTopic').value = callTopicMap[c.topic] || c.topic || '종합운';
+  setCallTopicByValue(callTopicMap[c.topic] || c.topic || '종합운');
   document.getElementById('callClientList').style.display='none';
   snack('📂 불러옴: '+c.name+'님');
 }
