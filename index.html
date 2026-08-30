@@ -7,6 +7,7 @@
 <title>✦ 천운 상담도구</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script src="/vendor/iztro-v2.6.0.min.js"></script>
+<script src="/ziwei.js"></script>
 <style>
 :root{
   --bg:#0d0d0f;--card:#15151a;--card2:#1c1c24;
@@ -363,6 +364,23 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
     </div>
     <div class="field"><label>양/음력</label><select id="callLunar" onchange="toggleCallLeap()"><option>양력</option><option>음력</option></select></div>
     <label id="callLeapWrap" style="display:none;align-items:center;gap:6px;color:var(--muted);font-size:.75rem;margin-bottom:10px"><input id="callLeap" type="checkbox" style="width:auto"> 음력 윤달</label>
+    <div class="field"><label>태어난 시간 (자미두수·기질 분석용, 모르면 생략)</label>
+      <select id="callHour">
+        <option value="">모름</option>
+        <option value="자시">자시 (23:30~01:29)</option>
+        <option value="축시">축시 (01:30~03:29)</option>
+        <option value="인시">인시 (03:30~05:29)</option>
+        <option value="묘시">묘시 (05:30~07:29)</option>
+        <option value="진시">진시 (07:30~09:29)</option>
+        <option value="사시">사시 (09:30~11:29)</option>
+        <option value="오시">오시 (11:30~13:29)</option>
+        <option value="미시">미시 (13:30~15:29)</option>
+        <option value="신시">신시 (15:30~17:29)</option>
+        <option value="유시">유시 (17:30~19:29)</option>
+        <option value="술시">술시 (19:30~21:29)</option>
+        <option value="해시">해시 (21:30~23:29)</option>
+      </select>
+    </div>
     <button class="btn btn-gold" onclick="startCall()">✦ 전화상담 준비</button>
   </div>
 
@@ -1522,12 +1540,13 @@ async function startCall(){
   const topic = callTopicVal;
   const calendar = document.getElementById('callLunar').value;
   const isLeap = document.getElementById('callLeap').checked;
+  const hour = document.getElementById('callHour').value; // '' = 모름
 
   if(!birth){ snack('생년월일을 입력하세요.'); return; }
 
   const d = new Date(birth);
   const y = d.getFullYear(), m = d.getMonth()+1, day = d.getDate();
-  callData = {name, birth, gender, calendar, isLeap, topic, y, m, day};
+  callData = {name, birth, gender, calendar, isLeap, topic, hour, y, m, day};
 
   // 기본 정보 표시
   // 사주 계산
@@ -1536,9 +1555,22 @@ async function startCall(){
     ? `<span style="color:var(--purple2);font-size:.74rem">일간 ${callSaju.ilgan} · 대운 ${callSaju.curDaeun} · 세운 ${callSaju.seun2026}</span>`
     : '';
 
+  // 자미두수 — 태어난 시간을 알 때만 계산해서 캐싱 (질문마다 다시 계산 안 함)
+  callData.ziweiPrompt = '';
+  if(hour && window.CheonunZiwei){
+    try{
+      const zChart = CheonunZiwei.calculate({ birth, hour, gender, calendar, isLeap });
+      callData.ziweiPrompt = CheonunZiwei.toPrompt(zChart);
+    }catch(e){ console.warn('자미두수 계산 실패:', e.message); }
+  }
+  const ziweiLine = callData.ziweiPrompt
+    ? `<span style="color:var(--gold2);font-size:.74rem">⭐ 자미두수 준비됨</span>`
+    : `<span style="color:var(--muted);font-size:.7rem">⭐ 자미두수: 태어난 시간 모름 (기본 사주+타로만 사용)</span>`;
+
   document.getElementById('callInfoBox').innerHTML = `
     <b style="color:var(--gold2)">${name}님</b> · ${gender} · ${y}년생<br>
     ${sajuLine}<br>
+    ${ziweiLine}<br>
     상담 주제: <b style="color:var(--gold2)">${topic}</b><br>
     <span style="color:var(--muted);font-size:.75rem">전화 중 나온 질문을 아래 버튼으로 바로 확인하세요</span>`;
 
@@ -1569,7 +1601,7 @@ async function callQ(question){
   if(!question || !question.trim()){ return; }
   if(!callData.name){ snack('전화상담 정보를 먼저 입력하세요.'); return; }
 
-  const {name, gender, birth, calendar, isLeap, topic} = callData;
+  const {name, gender, birth, calendar, isLeap, topic, ziweiPrompt} = callData;
 
   // 대화창 표시 + 질문 추가
   const chatCard = document.getElementById('callChatCard');
@@ -1601,6 +1633,9 @@ async function callQ(question){
   const cardMeaning = _tarotMeaningFor(cardLabel);
   const tarotCtx = `\n타로(가까운 3개월 참고용, 이번에 뽑힌 카드): "${cardLabel}" — 표준 키워드: ${cardMeaning}`;
 
+  // 자미두수 — 태어난 시간을 입력해뒀을 때만 (startCall에서 미리 계산해 캐싱해둠)
+  const ziweiCtx = ziweiPrompt ? `\n\n${ziweiPrompt}` : '';
+
   // 이전 대화 컨텍스트 구성
   const NL = String.fromCharCode(10);
   const historyCtx = callHistory.length > 0
@@ -1620,11 +1655,11 @@ async function callQ(question){
 • 매번 다른 각도에서 답변 — 이전 대화와 겹치지 않게
 • 희망적이되 현실적으로. 무조건 된다 금지.` : '';
 
-  const prompt = `당신은 30년 경력 명리학·타로 통합 상담사 천운입니다.
-지금 ${name}님과 전화 통화 중입니다.
+  const prompt = `당신은 30년 경력 명리학·자미두수·타로 통합 상담사 천운입니다.
+지금 ${name}님과 전화 통화 중입니다. 이번 한 질문에 대해 전화로 약 10분간 계속 설명해야 하니, 충분히 길고 알차게 답하세요.
 
 내담자: ${name}(${gender})
-${sajuCtx}${tarotCtx}
+${sajuCtx}${tarotCtx}${ziweiCtx}
 상담 주제: ${topic}${historyCtx}${reunionExtra}
 
 ━━━ 지금 질문 ━━━
@@ -1640,17 +1675,22 @@ ${_cAngle.hint}${_saidWarn}
 "연약해 보여도", "~같은 분이세요" 식으로 성격만 감성적으로 묘사하는 문장 금지 — 반드시 실제 오행/일간 명칭을 그대로 말할 것.
 한 문장에 여러 절 이어붙이지 말 것 — 짧게 끊어서.
 ${HONEST_STYLE_RULES}
-━━━ 규칙 (지금 실제로 전화기 붙잡고 말하는 것처럼) ━━━
-• [말풍선] 태그 딱 3개. 문장은 짧게 끊어서 말하듯.
-• 첫 번째 말풍선(결론) — 1~2문장, 짧게: "${name}님은 (일간 한자/오행 그대로, 예: 을목·경금 등) 기운이라"로 시작 → 바로 이어서 질문에 대한 결론(된다/안 된다/시기 등). 비유·감성 묘사 없이 사실만. 결론을 뒤로 미루지 말 것.
-• 두 번째 말풍선(사주 풀이) — 2~4문장, 여기는 조금 풀어서 설명해도 됨: 대운 또는 세운의 구체적 명칭(예: 병오 세운)을 짚고 → "이게 무슨 말이냐면요~" 식으로 그 운이 이 사람 사주와 만나 어떻게 작용하는지 쉽게 풀어서 설명 → "그래서 결론이 이렇게 나오는 거예요" 식으로 첫 번째 말풍선의 결론과 연결해서 마무리.
-• 세 번째 말풍선(타로 보강) — 1~2문장: 위에서 뽑힌 타로 카드를 자연스럽게 언급하며("타로도 한번 볼게요~", "카드로 봐도~" 등) 가까운 3개월 관점에서 사주 결론을 더 구체화하거나 보강. 카드 이름과 표준 키워드에 근거해서, 임의 해석 금지.
-• 위 사주 명식·타로 카드 그대로. AI 임의계산·임의 카드 금지.
+━━━ 규칙 (전화로 이 질문 하나에 약 10분간 계속 설명 — 전체 분량 2500~3200자 정도로 충분히 길게) ━━━
+• [말풍선] 태그로 아래 섹션을 순서대로 전부 작성. ${ziweiPrompt ? '자미두수 정보가 있으니 7개 섹션 전부' : '자미두수 정보가 없으니 자미두수 섹션은 빼고 6개 섹션'} 작성.
+1. [결론] 1~2문장, 짧게: "${name}님은 (일간 한자/오행 그대로) 기운이라"로 시작 → 바로 결론(된다/안 된다/시기 등). 비유 없이 사실만.
+2. [기질/성향]${ziweiPrompt ? ' 자미두수 명궁·신궁·주성을 근거로' : ' 일간·오행을 근거로'} "${name}님은 원래 이런 분이에요" 식으로 타고난 성향을 3~4문장으로 풀어서 설명 (지어내지 말고 위 명식에 실제로 나온 별/오행만 사용).${ziweiPrompt ? '\n3. [자미두수 풀이] 현재 대한(大限)과 유년명궁을 짚어서 "요즘 흐름이 이렇게 들어와 있다"를 3~4문장으로 설명.' : ''}
+${ziweiPrompt ? '4' : '3'}. [사주 풀이 - 대운] 대운 이름을 짚고 "이게 무슨 말이냐면요~" 식으로 이 사람 사주와 만나 어떻게 작용하는지 3~4문장으로 풀어서 설명.
+${ziweiPrompt ? '5' : '4'}. [사주 풀이 - 세운/시기] 올해 세운을 짚고, 몇 월쯤 어떤 흐름인지 구체적 시기("○월엔~", "○월 넘어가면~")를 포함해서 3~4문장.
+${ziweiPrompt ? '6' : '5'}. [조언] 이 흐름을 잘 살리기 위해 조심할 점 1가지 + 실천하면 좋을 점 1가지, 2~3문장.
+${ziweiPrompt ? '7' : '6'}. [타로 보강] 위에서 뽑힌 타로 카드를 "타로도 한번 볼게요~" 식으로 자연스럽게 언급, 가까운 3개월 관점에서 결론을 구체화. 카드 이름과 표준 키워드에 근거. 2~3문장.
+• 마지막 섹션 말미에 짧게 마무리 인사(응원 한마디, 1문장) 덧붙이기.
+• 각 섹션 안에서도 문장은 한 호흡씩 짧게 끊어서 — 한 문장에 절 여러 개 이어붙이지 말 것.
+• 위 사주 명식·자미두수 명반·타로 카드 그대로. AI 임의계산·임의 별자리·임의 카드 절대 금지.
 • 실제 통화 말투 — "네~", "그게요~", "있잖아요~", "~거든요", "~더라고요"
 • 소리 내서 읽었을 때 안 어색해야 함. 눈으로 읽는 글이 아니라 입으로 말하는 대사.`;
 
   try{
-    const txt = await ai(prompt, 4096);
+    const txt = await ai(prompt, 8192);
     const bubs = parseBubs(txt);
 
     // 로딩 제거
