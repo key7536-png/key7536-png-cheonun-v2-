@@ -36,7 +36,8 @@ async function callGemini(key, prompt, maxTokens) {
     err.code = data.error.code;
     throw err;
   }
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  return parts.filter(p => p && p.text && !p.thought).map(p => p.text).join('');
 }
 
 module.exports = async function handler(req, res) {

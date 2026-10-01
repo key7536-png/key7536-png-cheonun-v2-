@@ -43,7 +43,10 @@ async function callGemini(key, prompt, maxTokens) {
     err.code = data.error.code;
     throw err;
   }
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  // Gemini는 답변을 여러 조각(parts)으로 나눠 보낼 때가 있다.
+  // 첫 조각만 쓰면 답변이 중간에 끊기므로, 생각(thought) 조각을 뺀 모든 글 조각을 이어 붙인다.
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  return parts.filter(p => p && p.text && !p.thought).map(p => p.text).join('');
 }
 
 module.exports = async function handler(req, res) {
