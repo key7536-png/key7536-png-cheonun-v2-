@@ -23,6 +23,16 @@
     return String(date || '').replace(/-/g, '-').replace(/^0+/, '');
   }
 
+  // 화면·상담 문구용 한국 음력 표기 (예: 1969년 8월 1일 / 2017년 윤5월 1일)
+  function koreanLunarText(solarDate) {
+    if (!root.KoreanLunar || !solarDate) return '';
+    try {
+      const p = String(solarDate).split(/[-.]/).map(Number);
+      const l = root.KoreanLunar.solarToLunar(p[0], p[1], p[2]);
+      return l.year + '년 ' + (l.isLeap ? '윤' : '') + l.month + '월 ' + l.day + '일';
+    } catch (e) { return ''; }
+  }
+
   function calculate(options) {
     if (!root.iztro || !root.iztro.astro) {
       throw new Error('자미두수 계산 모듈을 불러오지 못했습니다.');
@@ -35,9 +45,33 @@
 
     const gender = normalizeGender(options.gender);
     const isLunar = options.calendar === '음력';
-    const chart = isLunar
-      ? root.iztro.astro.byLunar(birth, hourIndex, gender, !!options.isLeap, true, 'ko-KR')
-      : root.iztro.astro.bySolar(birth, hourIndex, gender, true, 'ko-KR');
+    // 음력 입력: 자미두수는 내담자가 아는 '음력 월·일'로 별을 배치하는 것이 한국 관례이므로 byLunar를 기본으로 쓴다.
+    // 먼저 한국 음력표로 실제로 있는 날짜인지 확인하고(없는 날짜면 이유를 알려 줌),
+    // 중국 달력에는 없는 날(예: 한국에만 있는 30일·윤달)이면 실제 양력 생일로 계산한다.
+    let chart;
+    if (isLunar) {
+      let koreanSolar = null;
+      if (root.KoreanLunar) {
+        const p = birth.split('-');
+        koreanSolar = root.KoreanLunar.lunarToSolar(+p[0], +p[1], +p[2], !!options.isLeap);
+      }
+      try {
+        chart = root.iztro.astro.byLunar(birth, hourIndex, gender, !!options.isLeap, true, 'ko-KR');
+      } catch (e) {
+        if (!koreanSolar) throw e;
+        chart = null;
+      }
+      // 중국 달력 기준으로 바꾼 양력이 실제 생일과 하루 넘게 다르면(윤달이 다른 해 등) 달 자체가 어긋난 것이므로 실제 양력으로 계산
+      const dayGap = function (a, b) {
+        const x = String(a).split(/[-.]/).map(Number), y = String(b).split(/[-.]/).map(Number);
+        return Math.abs(Date.UTC(x[0], x[1] - 1, x[2]) - Date.UTC(y[0], y[1] - 1, y[2])) / 86400000;
+      };
+      if (koreanSolar && (!chart || !chart.palaces || chart.palaces.length !== 12 || dayGap(chart.solarDate, koreanSolar) > 1)) {
+        chart = root.iztro.astro.bySolar(koreanSolar, hourIndex, gender, true, 'ko-KR');
+      }
+    } else {
+      chart = root.iztro.astro.bySolar(birth, hourIndex, gender, true, 'ko-KR');
+    }
 
     const targetDate = options.targetDate || new Date();
     const horoscope = chart.horoscope(targetDate);
@@ -66,7 +100,7 @@
     return {
       raw: chart,
       solarDate: chart.solarDate,
-      lunarDate: chart.lunarDate,
+      lunarDate: koreanLunarText(chart.solarDate) || chart.lunarDate,
       chineseDate: chart.chineseDate,
       time: chart.time,
       soulPalace: chart.earthlyBranchOfSoulPalace,

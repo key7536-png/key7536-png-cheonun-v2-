@@ -36,8 +36,16 @@ async function callGemini(key, prompt, maxTokens) {
     err.code = data.error.code;
     throw err;
   }
-  const parts = data.candidates?.[0]?.content?.parts || [];
-  return parts.filter(p => p && p.text && !p.thought).map(p => p.text).join('');
+  const cand = data.candidates?.[0];
+  const parts = cand?.content?.parts || [];
+  const text = parts.filter(p => p && p.text && !p.thought).map(p => p.text).join('');
+  if (!text.trim()) {
+    // 안전필터 차단·일시 오류 등으로 빈 답이 오면 다음 키로 다시 시도하도록 일시 장애(503)로 취급
+    const err = new Error('AI가 빈 답변을 보냈습니다' + (cand?.finishReason ? ' (' + cand.finishReason + ')' : '') + '. 다시 시도해 주세요.');
+    err.code = 503;
+    throw err;
+  }
+  return text;
 }
 
 module.exports = async function handler(req, res) {
