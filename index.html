@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>✦ 천운 상담도구</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script src="/korean-lunar.js"></script>
 <script src="/vendor/iztro-v2.6.0.min.js"></script>
 <script src="/ziwei.js"></script>
 <style>
@@ -802,10 +802,20 @@ function setSpread(btn, n){
   document.getElementById('drawnCards').innerHTML = '';
 }
 
+// 공정한 카드 섞기(피셔-예이츠) — 예전의 무작위 정렬 방식은 특정 카드가 몇 배 더 자주 나오는 치우침이 있다
+function _rand(){
+  try{ const a=new Uint32Array(1); crypto.getRandomValues(a); return a[0]/4294967296; }catch(e){ return Math.random(); }
+}
+function shuffleDeck(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(_rand()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
 function drawCards(){
-  const shuffled = [...TAROT_78].sort(()=>Math.random()-.5);
+  const shuffled = shuffleDeck(TAROT_78);
   // 정방향/역방향 — 실제 타로 상담에서처럼 카드마다 절반 확률로 역방향 배정
-  drawnCards = shuffled.slice(0, spreadCount).map(c => Math.random()<0.5 ? c+'(역방향)' : c);
+  drawnCards = shuffled.slice(0, spreadCount).map(c => _rand()<0.5 ? c+'(역방향)' : c);
   const names = SPREAD_NAMES[spreadCount];
   document.getElementById('drawnCards').innerHTML = drawnCards.map((c,i)=>`
     <div class="drawn-card">
@@ -1000,7 +1010,8 @@ function _findSolarTerm(year, targetDeg, approxMonth, approxDay){
     const mid=(lo+hi)/2, dMid=angDiff(mid);
     if((dLo<0)===(dMid<0)){ lo=mid; dLo=dMid; } else { hi=mid; }
   }
-  return _jdToLocalDate((lo+hi)/2 + 9/24);
+  // 절입 '순간'을 실제 시각(밀리초)으로 돌려준다 — 같은 날이라도 절입 전/후 출생을 구분하기 위함
+  return Math.round(((lo+hi)/2 - 2440587.5) * 86400000);
 }
 const _termCache = {};
 function _termDate(year, deg, approxM, approxD){
@@ -1024,6 +1035,14 @@ function _yearTermDates(baziYear){
   });
 }
 
+// 출생 순간(한국시간 KST) — 시진을 알면 시진 가운데 시각(예: 축시 02:30), 모르면 정오로 본다.
+// 자시는 그날 00:30(조자시)로 본다. 절입일에 태어난 경우 절입 전/후를 정확히 가르기 위해 쓴다.
+function _birthInstant(y,m,d,hourStr){
+  let hh=12, mm=0;
+  if(hourStr && _HOUR_BRANCH.hasOwnProperty(hourStr)){ hh=_HOUR_BRANCH[hourStr]*2; mm=30; }
+  return Date.UTC(y,m-1,d,hh,mm) - 9*3600000;
+}
+
 // 일주: 기준일 2024-01-01 = 갑자 (실제 만세력 대조 검증됨 — 2026-07-02=정축으로 교차검증 완료)
 function _dayPillar(y,m,d){
   const base = new Date(2024,0,1);
@@ -1033,8 +1052,8 @@ function _dayPillar(y,m,d){
 }
 
 // 년주: 입춘(실제 절기 계산) 기준
-function _yearPillar(y,m,d){
-  const target = new Date(y,m-1,d);
+function _yearPillar(y,m,d,hourStr){
+  const target = _birthInstant(y,m,d,hourStr);
   const ipchun = _ipchunDate(y);
   const sy = (target < ipchun) ? y-1 : y;
   const idx = ((sy-1984)%60+60)%60; // 1984 = 갑자년
@@ -1042,8 +1061,8 @@ function _yearPillar(y,m,d){
 }
 
 // 월주: 오호둔월법 + 실제 절기 경계
-function _monthPillar(y,m,d){
-  const target = new Date(y,m-1,d);
+function _monthPillar(y,m,d,hourStr){
+  const target = _birthInstant(y,m,d,hourStr);
   const ipchun = _ipchunDate(y);
   const baziYear = (target < ipchun) ? y-1 : y;
   const termDates = _yearTermDates(baziYear);
@@ -1077,13 +1096,13 @@ function _hourPillar(dayStr, hourStr){
 }
 
 // 대운수 계산 (양남음녀: 순행 / 음남양녀: 역행) — 실제 절기 경계 기준
-function _calcDaeun(y,m,d,gender){
-  const yp = _yearPillar(y,m,d);
+function _calcDaeun(y,m,d,gender,hourStr){
+  const yp = _yearPillar(y,m,d,hourStr);
   const yStemIdx = _S.indexOf(yp[0]);
   const isYang = yStemIdx%2===0; // 양간
   const isForward = (isYang && gender==='남성') || (!isYang && gender==='여성');
 
-  const target = new Date(y,m-1,d);
+  const target = _birthInstant(y,m,d,hourStr);
   const ipchun = _ipchunDate(y);
   const baziYear = (target < ipchun) ? y-1 : y;
   const termDates = _yearTermDates(baziYear);
@@ -1096,9 +1115,9 @@ function _calcDaeun(y,m,d,gender){
   let days;
   if(isForward){
     const nextDate = (segIdx+1 < termDates.length) ? termDates[segIdx+1] : _ipchunDate(baziYear+1);
-    days = Math.round((nextDate - target)/86400000);
+    days = (nextDate - target)/86400000;
   } else {
-    days = Math.round((target - termDates[segIdx])/86400000);
+    days = (target - termDates[segIdx])/86400000;
   }
 
   const years = Math.max(1, Math.round(days/3)); // 3일 = 1년
@@ -1109,6 +1128,11 @@ function _calcDaeun(y,m,d,gender){
 // 변환 모듈이 없거나 날짜가 잘못되면 양력으로 조용히 계산하지 않고 즉시 중단한다.
 function _resolveSajuSolarBirth(birthStr, calendar='양력', isLeap=false){
   if(calendar!=='음력') return birthStr;
+  // 한국 음력표(한국천문연구원 기준)로 변환 — 중국 음력과 다른 달에서도 정확하다.
+  if(typeof KoreanLunar!=='undefined'){
+    const p=String(birthStr).split('-');
+    return KoreanLunar.lunarToSolar(+p[0],+p[1],+p[2],!!isLeap); // 없는 날짜·윤달이면 이유를 담은 오류를 던진다
+  }
   if(typeof iztro==='undefined' || !iztro.astro) throw new Error('음력 변환 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
   try{
     const chart=iztro.astro.byLunar(birthStr,0,'男',!!isLeap,true,'ko-KR');
@@ -1121,15 +1145,16 @@ function _resolveSajuSolarBirth(birthStr, calendar='양력', isLeap=false){
 function calcSaju(birthStr, hourStr, gender, calendar='양력', isLeap=false){
   if(!birthStr) return null;
   const solarBirth = _resolveSajuSolarBirth(birthStr,calendar,isLeap);
-  const d = new Date(solarBirth);
-  if(isNaN(d)) return null;
-  const y=d.getFullYear(), m=d.getMonth()+1, day=d.getDate();
+  // 날짜 문자열을 직접 나눠 읽는다 — new Date('YYYY-MM-DD')는 해외(한국 외 시간대)에서 하루 밀릴 수 있다
+  const _p = String(solarBirth).split('-').map(Number);
+  if(_p.length!==3 || _p.some(isNaN)) return null;
+  const y=_p[0], m=_p[1], day=_p[2];
   
-  const yp = _yearPillar(y,m,day);
-  const mp = _monthPillar(y,m,day);
+  const yp = _yearPillar(y,m,day,hourStr);
+  const mp = _monthPillar(y,m,day,hourStr);
   const dp = _dayPillar(y,m,day);
   const hp = _hourPillar(dp, hourStr) || '미상';
-  const daeun = _calcDaeun(y,m,day,gender);
+  const daeun = _calcDaeun(y,m,day,gender,hourStr);
   
   // 현재 대운 계산 (2026년 기준)
   const currentYear = new Date().getFullYear(); // 실제 현재 연도 자동 인식
@@ -1156,9 +1181,9 @@ function calcSaju(birthStr, hourStr, gender, calendar='양력', isLeap=false){
     if(age >= de.startAge) curDaeun = de;
   }
   
-  // 세운 — 현재 연도 자동 계산
-  const seunIdx = ((currentYear-1984)%60+60)%60;
-  const seun2026 = _gz(seunIdx); // 변수명 유지 (호환성)
+  // 세운 — 오늘 날짜 기준(입춘 전이면 아직 작년 세운)
+  const _now = new Date(Date.now()+9*3600000); // 한국시간 오늘
+  const seun2026 = _yearPillar(_now.getUTCFullYear(), _now.getUTCMonth()+1, _now.getUTCDate(), ''); // 변수명 유지 (호환성)
   const seunIdx27 = ((nextYear-1984)%60+60)%60;
   const seun2027 = _gz(seunIdx27);
   
@@ -1193,6 +1218,11 @@ const HONEST_STYLE_RULES = `
 • 답변을 통째로 따옴표(" ")로 감싸지 말 것 — 그대로 복사해서 카톡에 붙여넣을 걸 감안해서, 문장 자체를 자연스러운 대화체 그대로 쓸 것.
 • 이모지는 문장 전체에 1~2개 정도만 자연스럽게, 남발하지 말 것.
 • 너무 격식 차리거나 딱딱하게 쓰지 말 것 — 전문성은 있으되 사람 냄새 나는 편안한 말투 유지.
+━━━ 상담 판단 원칙 (질문의 본질 → 핵심 원인 → 행동) ━━━
+• 질문의 겉말이 아니라 내담자가 진짜 알고 싶은 핵심 고민을 먼저 짚고, 그 고민에 답할 것.
+• 지금 상황을 가장 크게 좌우하는 핵심 원인 1가지를 명식·카드 근거로 짚을 것 — 원인을 여러 개 나열해 초점을 흐리지 말 것.
+• 명식·카드에 실제로 나타난 것과 해석상 추정을 구분할 것. 근거 없는 정확한 날짜·퍼센트·확률은 만들지 말고, 시기는 근거가 되는 운의 흐름과 함께 말할 것.
+• 마지막에는 내담자가 지금 바로 할 수 있는 구체적인 행동 1가지를 한 문장으로 제시할 것 (짧은 답변에서도).
 `;
 
 // ════════════════════════════════
@@ -1251,8 +1281,7 @@ function getSaidTopics(history) {
 }
 
 function buildSajuPrompt(name, gender, birth, hour, topic, q, partnerInfo, calendar='양력', isLeap=false){
-  const d = new Date(birth);
-  const y = d.getFullYear(), m = d.getMonth()+1, day = d.getDate();
+  const [y, m, day] = String(birth).split('-').map(Number); // 해외 시간대에서도 날짜가 밀리지 않게
   const hourTxt = hour ? `${hour}` : '시간 모름';
   
   // ── 사주 정확 계산 ──
@@ -1400,8 +1429,7 @@ ${totalBubs > cardCount + 1 ? `[말풍선]\n카드들의 전체 흐름을 보면
 }
 
 function buildBothPrompt(name, gender, birth, hour, topic, q, partnerInfo, calendar='양력', isLeap=false){
-  const d = new Date(birth);
-  const y = d.getFullYear(), m = d.getMonth()+1, day = d.getDate();
+  const [y, m, day] = String(birth).split('-').map(Number); // 해외 시간대에서도 날짜가 밀리지 않게
   // 중첩 백틱 방지 — 사주 미리 계산
   const _bs = calcSaju(birth, hour, gender, calendar, isLeap);
   const _bsCtx = _bs
@@ -1497,7 +1525,9 @@ function renderBubs(bubs, targetId){
     div.className = 'bub';
     div.style.paddingTop = '20px';
     div.innerHTML = `<span class="bub-num">말풍선 ${i+1}</span>${b.replace(/\n/g,'<br>')}
-      <button class="bub-copy" onclick="copyText(this.previousSibling.textContent)">복사</button>`;
+      <button class="bub-copy">복사</button>`;
+    // 말풍선 전체 원문을 복사 (예전 방식은 여러 줄일 때 마지막 줄만 복사되는 버그가 있었음)
+    div.querySelector('.bub-copy').onclick = () => copyText(b);
     wrap.appendChild(div);
   });
 
@@ -1527,7 +1557,8 @@ async function sendChat(){
   input.value = '';
 
   const box = document.getElementById('chatBox');
-  box.innerHTML += `<div class="msg me"><div class="bubble">${q}</div></div>`;
+  const _qSafe = q.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  box.innerHTML += `<div class="msg me"><div class="bubble">${_qSafe}</div></div>`;
   box.scrollTop = box.scrollHeight;
 
   chatHistory.push({role:'user', content: q});
@@ -1603,13 +1634,14 @@ async function startCall(){
 
   if(!birth){ snack('생년월일을 입력하세요.'); return; }
 
-  const d = new Date(birth);
-  const y = d.getFullYear(), m = d.getMonth()+1, day = d.getDate();
+  const [y, m, day] = String(birth).split('-').map(Number);
   callData = {name, birth, gender, calendar, isLeap, topic, hour, y, m, day};
 
   // 기본 정보 표시
   // 사주 계산
-  const callSaju = calcSaju(birth, '', gender, calendar, isLeap);
+  let callSaju = null;
+  try{ callSaju = calcSaju(birth, hour, gender, calendar, isLeap); }
+  catch(e){ snack(e.message); return; }
   const sajuLine = callSaju
     ? `<span style="color:var(--purple2);font-size:.74rem">일간 ${callSaju.ilgan} · 대운 ${callSaju.curDaeun} · 세운 ${callSaju.seun2026}</span>`
     : '';
@@ -1681,14 +1713,15 @@ async function callQ(question){
   chatLog.scrollTop = chatLog.scrollHeight;
 
   // 사주 계산
-  const saju = calcSaju(birth, '', gender, calendar, isLeap);
+  let saju = null;
+  try{ saju = calcSaju(birth, callData.hour, gender, calendar, isLeap); }catch(e){ saju = null; }
   const sajuCtx = saju
-    ? `사주: 년${saju.yp}/월${saju.mp}/일${saju.dp} | 일간:${saju.ilgan} | 대운:${saju.curDaeun}(${saju.curDaeunAge}세~) | 세운:${saju.seun2026}`
+    ? `사주: 년${saju.yp}/월${saju.mp}/일${saju.dp}${saju.hp && saju.hp!=='미상' ? '/시'+saju.hp : ''} | 일간:${saju.ilgan} | 대운:${saju.curDaeun}(${saju.curDaeunAge}세~) | 세운:${saju.seun2026}`
     : `${callData.y}년 ${callData.m}월 ${callData.day}일생`;
 
   // 타로 1장 — 가까운 3개월 관점 보강용 (질문마다 새로 뽑음)
-  const drawnCard = [...TAROT_78].sort(()=>Math.random()-.5)[0];
-  const cardLabel = Math.random()<0.5 ? drawnCard+'(역방향)' : drawnCard;
+  const drawnCard = shuffleDeck(TAROT_78)[0];
+  const cardLabel = _rand()<0.5 ? drawnCard+'(역방향)' : drawnCard;
   const cardMeaning = _tarotMeaningFor(cardLabel);
   const tarotCtx = `\n타로(가까운 3개월 참고용, 이번에 뽑힌 카드): "${cardLabel}" — 표준 키워드: ${cardMeaning}`;
 
@@ -1770,7 +1803,8 @@ ${ziweiPrompt ? '7' : '6'}. [타로 보강] 위에서 뽑힌 타로 카드를 "�
       bDiv.style.paddingTop = '20px';
       const NL = String.fromCharCode(10);
       bDiv.innerHTML = `<span class="bub-num">${i+1}</span>${b.split(NL).join('<br>')}
-        <button class="bub-copy" onclick="navigator.clipboard.writeText(this.previousSibling.textContent).then(()=>snack('복사됨 ✓'))">복사</button>`;
+        <button class="bub-copy">복사</button>`;
+      bDiv.querySelector('.bub-copy').onclick = () => copyText(b); // 여러 줄 전체 복사
       ansDiv.appendChild(bDiv);
     });
     chatLog.appendChild(ansDiv);
@@ -1990,8 +2024,8 @@ async function askWhy(question){
   let clientName = '';
   if(lastConsultInfo && lastConsultInfo.name){
     const ci = lastConsultInfo;
-    const d = ci.birth ? new Date(ci.birth) : null;
-    const birthStr = d ? `${ci.calendar||'양력'} ${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일생${ci.isLeap?'(윤달)':''}` : '';
+    const _bp = ci.birth ? String(ci.birth).split('-').map(Number) : null;
+    const birthStr = _bp ? `${ci.calendar||'양력'} ${_bp[0]}년 ${_bp[1]}월 ${_bp[2]}일생${ci.isLeap?'(윤달)':''}` : '';
     const sajuStr = ci.saju ? `\n고정 사주명식: ${ci.saju.pillarsText}` : '';
     const cardStr = ci.cards ? `\n타로 카드: ${ci.cards}` : '';
     clientName = ci.name;
