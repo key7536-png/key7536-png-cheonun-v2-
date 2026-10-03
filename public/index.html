@@ -293,6 +293,7 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
     <div class="spread-sel" id="modeSelect">
       <button class="sp-btn on" onclick="setMode(this,'saju')">📜 사주상담 (자미두수 포함)</button>
       <button class="sp-btn" onclick="setMode(this,'tarot')">🔮 타로상담 (가까운 일)</button>
+      <button class="sp-btn" onclick="setMode(this,'deep')">📖 심층 사주풀이 (3천자 이상)</button>
     </div>
 
     <!-- 타로 뽑기 영역 (타로/둘다 모드일 때) -->
@@ -824,7 +825,7 @@ async function startConsulting(){
   const topic = document.getElementById('cTopic').value;
   const q = document.getElementById('cQ').value.trim();
 
-  if(consultMode==='saju' && !birth){
+  if((consultMode==='saju' || consultMode==='deep') && !birth){
     snack('생년월일을 입력해주세요.'); return;
   }
   if(consultMode==='tarot' && !drawnCards.length){
@@ -855,18 +856,21 @@ async function startConsulting(){
 
     if(consultMode === 'tarot'){
       prompt = buildTarotPrompt(name, topic, q, partnerInfo);
+    } else if(consultMode === 'deep'){
+      prompt = buildDeepSajuPrompt(name, gender, birth, hour, topic, q, partnerInfo, calendar, isLeap);
     } else {
       prompt = buildSajuPrompt(name, gender, birth, hour, topic, q, partnerInfo, calendar, isLeap);
     }
 
-    const txt = await ai(prompt, 8192);
-    const bubs = parseBubs(txt);
-    
+    const txt = await ai(prompt, consultMode==='deep' ? 16384 : 8192);
+    const bubs = consultMode==='deep' ? [] : parseBubs(txt);
+
     // 사주 명식표 먼저 렌더링 (사주/사주+타로 모드)
     if(consultMode !== 'tarot'){
       renderSajuTable(birth, hour, gender, name, calendar, isLeap);
     }
-    renderBubs(bubs, 'consultResult');
+    if(consultMode==='deep') bubs.push(renderDeepResult(txt, 'consultResult'));
+    else renderBubs(bubs, 'consultResult');
 
     const fixedSaju = consultMode==='tarot' ? null : calcSaju(birth,hour,gender,calendar,isLeap);
     lastConsultInfo = {name, gender, birth, hour, calendar, isLeap, topic, q, mode: consultMode, cards: drawnCards.join('/'), saju:fixedSaju};
@@ -1166,6 +1170,7 @@ function calcSaju(birthStr, hourStr, gender, calendar='양력', isLeap=false){
     daeunStart: daeunNum,
     curDaeun: curDaeun.pillar,
     curDaeunAge: curDaeun.startAge,
+    daeunList: currentDaeunPillars,
     seun2026, seun2027,
     thisYear: currentYear,
     nextYear: nextYear,
@@ -2337,6 +2342,7 @@ loadClients();     // 내담자 목록 로드
 setWcat(document.querySelector('.wcat.on'), 'fortune');
 </script>
 <script src="/quick.js"></script>
+<script src="/deep-saju.js"></script>
 
 <!-- ── Supabase DB 설정 모달 ── -->
 <div id="dbModal" style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:600;display:none;align-items:center;justify-content:center;padding:16px">
