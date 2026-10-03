@@ -408,7 +408,7 @@ ${ch.facts ? '\n[이 장의 추가 자료]\n' + ch.facts + '\n' : ''}
   function renderDoc() {
     const { info, data } = R, p = R.plan, s = data.saju, P = info.tier === 'premium';
     const doc = $('reportDoc');
-    doc.className = 'rp-doc rp-' + info.theme;
+    doc.className = 'rp-doc rp-' + info.theme + (P ? ' rp-premium' : '');
     const dateStr = `${data.today.y}. ${data.today.m}. ${data.today.d}.`;
     const birthStr = `${info.calendar} ${info.birth.replace(/-/g, '. ')}.${info.isLeap ? ' (윤달)' : ''}${info.calendar === '음력' ? ` → 양력 ${s.solarBirth.replace(/-/g, '. ')}.` : ''}`;
 

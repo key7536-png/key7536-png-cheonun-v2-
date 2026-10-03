@@ -38,6 +38,8 @@
 
 .rp-body { font-size: 11pt; line-height: 1.95; text-align: justify; word-break: keep-all; outline: none; }
 .rp-body p { margin: 0 0 4.2mm; text-indent: .6em; }
+.rp-premium .rp-body { font-size: 11.6pt; line-height: 2.05; }
+.rp-premium .rp-body p { margin-bottom: 5mm; }
 .rp-body p:first-child::first-letter { font-size: 1.5em; color: var(--accent); font-weight: 700; }
 .rp-body:focus { background: rgba(255, 230, 150, .12); }
 .rp-wait { color: var(--muted); font-style: italic; text-indent: 0 !important; }
