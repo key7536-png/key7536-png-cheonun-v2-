@@ -66,7 +66,30 @@
       chart: D.chartTable(saju),
       factsText: D.analyze(saju).text,
       allowed: [...allowed].filter(x => x && x !== '미상'),
+      termWarn: termWarning(info, saju),
     };
+  }
+
+  // 절입(절기가 바뀌는 순간)이 출생 시간대 안에 끼어 있으면, 분 단위 출생 시각에 따라 월주(입춘이면 년주도)가 달라진다.
+  // 엔진은 시진 가운데 시각(예: 묘시 06:30)으로 계산하므로, 이런 고객은 상담사가 정확한 시각을 확인해야 한다.
+  const TERM_NAMES = ['입춘', '경칩', '청명', '입하', '망종', '소서', '입추', '백로', '한로', '입동', '대설', '소한'];
+  function termWarning(info, saju) {
+    const [y, m, d] = saju.solarBirth.split('-').map(Number);
+    let from, to;
+    if (info.hour) { const c = _birthInstant(y, m, d, info.hour); from = c - 3600000; to = c + 3600000; }
+    else { from = Date.UTC(y, m - 1, d) - 9 * 3600000; to = from + 86400000; }
+    for (const by of [y - 1, y]) {
+      const terms = _yearTermDates(by);
+      for (let i = 0; i < terms.length; i++) {
+        const t = +terms[i];
+        if (t >= from && t < to) {
+          const k = new Date(t + 9 * 3600000);
+          const when = `${k.getUTCMonth() + 1}월 ${k.getUTCDate()}일 ${String(k.getUTCHours()).padStart(2, '0')}:${String(k.getUTCMinutes()).padStart(2, '0')}`;
+          return `${TERM_NAMES[i]} 절입 시각(${when}, 한국시간·오차 약 15분 이내)이 ${info.hour ? '입력한 ' + info.hour + ' 안' : '출생일 하루 안'}에 있어요. 정확한 출생 시각(분)에 따라 ${i === 0 ? '년주와 월주가' : '월주가'} 바뀔 수 있으니 고객에게 출생 시각을 꼭 확인하세요. 지금 계산은 ${info.hour ? '시진 가운데 시각' : '정오'} 기준(${i === 0 ? saju.yp + '년 ' : ''}${saju.mp}월)입니다.`;
+        }
+      }
+    }
+    return '';
   }
 
   // ── 장(章) 구성 ──
@@ -188,6 +211,9 @@ ${ch.facts ? '\n[이 장의 추가 자료]\n' + ch.facts + '\n' : ''}
     const re = /([갑을병정무기경신임계][자축인묘진사오미신유술해])\s?(년|월|일주|대운|세운|월운)/g;
     let m;
     while ((m = re.exec(text))) if (!allowed.includes(m[1])) bad.add(m[1] + m[2]);
+    // "2027년 병오년"처럼 연도와 간지를 잘못 짝지은 경우
+    const yr = /((?:19|20)\d{2})년\s*\(?\s*([갑을병정무기경신임계][자축인묘진사오미신유술해])/g;
+    while ((m = yr.exec(text))) { const right = _gz(+m[1] - 1984); if (m[2] !== right) bad.add(`${m[1]}년 ${m[2]}(실제 ${right})`); }
     return [...bad];
   }
 
@@ -249,6 +275,7 @@ ${ch.facts ? '\n[이 장의 추가 자료]\n' + ch.facts + '\n' : ''}
       <div class="card">
         <div class="card-title">🧭 핵심 판단 확인 — 리포트 전체가 이 판단을 따릅니다</div>
         <p style="font-size:.75rem;color:var(--muted);line-height:1.7;margin-bottom:10px">AI가 확정 자료로 내린 판단이에요. 상담사님 판단과 다르면 고친 뒤 리포트 쓰기를 누르세요.</p>
+        ${R.data.termWarn ? `<p style="font-size:.78rem;color:var(--red);line-height:1.7;margin-bottom:10px;border:1px solid var(--red);border-radius:8px;padding:8px 10px">⚠️ 절입 경계 출생 — ${esc(R.data.termWarn)}</p>` : ''}
         <div class="row2">
           <div class="field"><label>강약</label><select id="pStrength">${['신강', '신약', '중화'].map(x => `<option${x === p.strength ? ' selected' : ''}>${x}</option>`).join('')}</select></div>
           <div class="field"><label>격국</label><input id="pGyeok" value="${esc(p.gyeokguk)}"></div>
@@ -473,6 +500,7 @@ ${ch.facts ? '\n[이 장의 추가 자료]\n' + ch.facts + '\n' : ''}
         <table class="rp-table rp-luck"><tr><th>나이</th><th>대운</th><th>천간</th><th>지지</th><th>십이운성</th></tr>
           ${data.daeun.map(d => `<tr${d.current ? ' class="on"' : ''}><td>${d.startAge}~${d.endAge}세</td><td><b>${d.pillar}</b></td><td>${d.stemGod}</td><td>${d.branchGod}</td><td>${d.stage}</td></tr>`).join('')}
         </table>
+        <p class="rp-note">대운 나이는 태어난 날부터 가장 가까운 절기까지의 날수로 계산한 대운수 기준이며, 이 리포트의 나이는 모두 연 나이(그해 연도 − 태어난 해)입니다. 색칠된 줄이 지금 지나고 있는 대운입니다.</p>
         ${P ? `<h3 class="rp-h3">10년 연운표</h3>
         <table class="rp-table rp-luck"><tr><th>연도</th><th>나이</th><th>세운</th><th>천간</th><th>지지</th><th>대운</th></tr>
           ${data.years.map(y => `<tr><td>${y.year}</td><td>${y.age}세</td><td><b>${y.gz}</b></td><td>${y.stemGod}</td><td>${y.branchGod}</td><td>${y.daeun}</td></tr>`).join('')}
