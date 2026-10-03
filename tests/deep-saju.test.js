@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { analyze, tenGod, twelveStage, gongmang } = require('../public/deep-saju.js');
+const { analyze, tenGod, twelveStage, gongmang, luckFacts, chartTable } = require('../public/deep-saju.js');
 
 // 십성 — 일간 갑 기준
 assert.equal(tenGod('갑', '기'), '정재');
@@ -38,5 +38,22 @@ assert(!noHour.hasHour);
 assert(!noHour.text.includes('시주 정묘'));
 assert(noHour.text.includes('3주 6자'));
 assert(noHour.text.includes('6글자 기준'));
+
+// PDF 리포트용 — 운 한 개의 확정 자료
+const lf = luckFacts(base, '경자', '2032년 세운');
+assert.equal(lf.stemGod, '편관');
+assert.equal(lf.branchGod, '정인');
+assert.equal(lf.stage, '목욕');
+assert(lf.relations.includes('2032년 세운 지지 자와 일주 지지 오가 충'));
+assert(lf.relations.includes('2032년 세운 지지 자와 시주 지지 묘가 형'));
+assert(lf.text.startsWith('2032년 세운 경자: 천간 경(금, 편관)'));
+
+// 원국 표 — 시주·일주·월주·년주 순, 시간 모름이면 시주 비움
+const ct = chartTable(base);
+assert.deepEqual(ct.rows.map(r => r.label), ['시주', '일주', '월주', '년주']);
+assert.equal(ct.rows[1].stemGod, '일간');
+assert.equal(ct.rows[2].branchGod, '정관');
+assert.deepEqual(ct.count, { 목:2, 화:2, 토:1, 금:2, 수:1 });
+assert(chartTable(Object.assign({}, base, { hp:'미상' })).rows[0].missing);
 
 console.log('deep saju tests passed');

@@ -182,7 +182,51 @@
     };
   }
 
-  const api = { analyze, tenGod, twelveStage, gongmang };
+  // PDF 리포트용 — 대운·연운·월운 한 개(간지 gz)가 원국과 만날 때의 확정 자료 한 줄
+  function luckFacts(saju, gz, label) {
+    const day = saju.dp[0];
+    const pillars = [['년주', saju.yp], ['월주', saju.mp], ['일주', saju.dp]];
+    if (saju.hp && saju.hp !== '미상') pillars.push(['시주', saju.hp]);
+    const ps = pillars.map(([l, p]) => ({ label: l, stem: p[0], branch: p[1] }));
+    const l = { label, stem: gz[0], branch: gz[1] };
+    const rel = [];
+    ps.forEach(p => rel.push(...relations(l, p)));
+    const inner = samhap(ps.map(p => p.branch), '원국');
+    rel.push(...samhap([...ps.map(p => p.branch), l.branch], label + ' 포함').filter(t => !inner.includes(t.replace(label + ' 포함', '원국'))));
+    const sal = [];
+    [['년지', saju.yp[1]], ['일지', saju.dp[1]]].forEach(([bl, b]) => sal.push(...sinsal(b, bl, [l])));
+    if (gongmang(saju.dp).includes(l.branch)) sal.push('일주 기준 공망 글자');
+    const stemGod = tenGod(day, l.stem), branchGod = tenGod(day, JIJANGGAN[l.branch].slice(-1)[0]);
+    return {
+      stemGod, branchGod, stage: twelveStage(day, l.branch),
+      stemEl: stemEl(l.stem), branchEl: branchEl(l.branch),
+      relations: rel, sinsal: sal,
+      text: `${label} ${gz}: 천간 ${l.stem}(${stemEl(l.stem)}, ${stemGod}) / 지지 ${l.branch}(${branchEl(l.branch)}, ${branchGod}, 십이운성 ${twelveStage(day, l.branch)})` +
+        (rel.length ? ` / 원국과의 작용: ${rel.join(', ')}` : ' / 원국과 눈에 띄는 합충 없음') +
+        (sal.length ? ` / 신살: ${sal.join(', ')}` : ''),
+    };
+  }
+
+  // 원국 표용 — 기둥별 십성·십이운성·지장간, 오행 개수
+  function chartTable(saju) {
+    const day = saju.dp[0];
+    const cols = [['시주', saju.hp], ['일주', saju.dp], ['월주', saju.mp], ['년주', saju.yp]];
+    const count = { 목:0, 화:0, 토:0, 금:0, 수:0 };
+    const rows = cols.map(([label, p]) => {
+      if (!p || p === '미상') return { label, missing: true };
+      count[stemEl(p[0])]++; count[branchEl(p[1])]++;
+      const jj = JIJANGGAN[p[1]];
+      return {
+        label, stem: p[0], branch: p[1], stemEl: stemEl(p[0]), branchEl: branchEl(p[1]),
+        stemGod: label === '일주' ? '일간' : tenGod(day, p[0]),
+        branchGod: tenGod(day, jj[jj.length - 1]),
+        stage: twelveStage(day, p[1]), jijanggan: jj.join(' '),
+      };
+    });
+    return { rows, count };
+  }
+
+  const api = { analyze, tenGod, twelveStage, gongmang, luckFacts, chartTable };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.CheonunDeepSaju = api;
 })(typeof window !== 'undefined' ? window : globalThis);

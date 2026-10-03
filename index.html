@@ -175,6 +175,7 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
   .client-btn-row .btn-sm{flex:1 1 100%;}
 }
 </style>
+<link rel="stylesheet" href="/report.css">
 </head>
 <body>
 
@@ -191,6 +192,7 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
   <div class="tab" onclick="go('quick')">⚡ 질문바로</div>
   <div class="tab" onclick="go('call')">📞 전화상담</div>
   <div class="tab" onclick="go('why')">🤔 왜요?</div>
+  <div class="tab" onclick="go('report')">📕 PDF 리포트</div>
   <div class="tab" onclick="location.href='/ziwei.html'">⭐ 자미두수</div>
   <div class="tab" onclick="location.href='/clients.html'">📁 고객관리</div>
 </div>
@@ -528,6 +530,54 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
   <div id="whyResult" class="why-result"></div>
 </div>
 
+<!-- ══════════════════════════════════════
+     PDF 리포트 탭 (판매용 기본 30쪽 / 프리미엄 100쪽, 로직은 /report.js, 디자인은 /report.css)
+══════════════════════════════════════ -->
+<div id="reportPage" class="page">
+  <div class="card">
+    <div class="card-title">📕 PDF 사주 리포트 만들기</div>
+    <p style="font-size:.76rem;color:var(--muted);margin-bottom:12px;line-height:1.7">
+      ① 명식 계산과 핵심 판단(강약·용신)을 확인하고 → ② 리포트를 쓰고 → ③ 화면에서 고친 뒤 PDF로 저장해요.<br>
+      간지·대운·연운·월운은 모두 만세력 엔진이 계산하고, AI는 그 자료로 풀이만 씁니다.
+    </p>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px">
+      <button class="btn btn-ghost btn-sm" onclick="reportFromConsulting()" style="font-size:.75rem">📋 상담 탭 내담자 가져오기</button>
+      <button class="btn btn-ghost btn-sm" onclick="reportRestore()" style="font-size:.75rem">↩ 마지막 리포트 불러오기</button>
+    </div>
+    <div class="field"><label>상품</label>
+      <div class="spread-sel" id="rTier">
+        <button type="button" class="sp-btn on" data-v="basic" onclick="setReportTier(this)">📗 기본 사주 (약 30쪽)</button>
+        <button type="button" class="sp-btn" data-v="premium" onclick="setReportTier(this)">📕 프리미엄 사주 (약 100쪽)</button>
+      </div>
+    </div>
+    <div class="field"><label>이름</label><input id="rName" placeholder="예) 김미나"></div>
+    <div class="row2">
+      <div class="field"><label>성별</label><select id="rGender"><option value="여성">여성</option><option value="남성">남성</option></select></div>
+      <div class="field"><label>디자인</label><select id="rTheme"><option value="auto">성별에 맞춰 자동</option><option value="female">여성용 (베이지·로즈)</option><option value="male">남성용 (네이비·골드)</option></select></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>양/음력</label><select id="rLunar" onchange="toggleReportLeap()"><option value="양력">양력</option><option value="음력">음력</option></select></div>
+      <div class="field"><label>생년월일</label><input id="rBirth" type="date"></div>
+    </div>
+    <label id="rLeapWrap" style="display:none;align-items:center;gap:6px;color:var(--muted);font-size:.75rem;margin-bottom:10px"><input id="rLeap" type="checkbox" style="width:auto"> 음력 윤달</label>
+    <div class="row2">
+      <div class="field"><label>태어난 시간</label>
+        <select id="rHour">
+          <option value="">모름</option><option value="자시">자시 (23:30~01:29)</option><option value="축시">축시 (01:30~03:29)</option><option value="인시">인시 (03:30~05:29)</option><option value="묘시">묘시 (05:30~07:29)</option><option value="진시">진시 (07:30~09:29)</option><option value="사시">사시 (09:30~11:29)</option><option value="오시">오시 (11:30~13:29)</option><option value="미시">미시 (13:30~15:29)</option><option value="신시">신시 (15:30~17:29)</option><option value="유시">유시 (17:30~19:29)</option><option value="술시">술시 (19:30~21:29)</option><option value="해시">해시 (21:30~23:29)</option>
+        </select>
+      </div>
+      <div class="field"><label>상담 주제</label>
+        <select id="rTopic"><option>종합운</option><option>재회운 ⭐</option><option>연애운</option><option>결혼운/결혼시기</option><option>재물/돈버는시기</option><option>직업/사업운</option><option>이직/취업</option><option>건강운</option><option>합격운</option></select>
+      </div>
+    </div>
+    <div class="field"><label>고객 질문 (선택 — 프리미엄은 한 장을 따로 씀)</label><textarea id="rQ" placeholder="예) 올해 안에 이직해도 될까요?"></textarea></div>
+    <button class="btn btn-gold" id="rPlanBtn" onclick="reportPlan()">① 명식 계산 + 핵심 판단 받기</button>
+  </div>
+  <div id="rPlan"></div>
+  <div id="rStatus"></div>
+  <div id="rDocWrap"><div id="reportDoc"></div></div>
+</div>
+
 <!-- DB 설정은 하단 dbModal에서 처리 -->
 
 <div class="snack" id="snack"></div>
@@ -644,7 +694,7 @@ function go(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   document.getElementById(id+'Page').classList.add('on');
-  const tabs = ['consulting','quick','call','why'];
+  const tabs = ['consulting','quick','call','why','report'];
   document.querySelectorAll('.tab')[tabs.indexOf(id)].classList.add('on');
   if(id==='why') updateWhyContextBanner();
 }
@@ -2377,6 +2427,7 @@ setWcat(document.querySelector('.wcat.on'), 'fortune');
 </script>
 <script src="/quick.js"></script>
 <script src="/deep-saju.js"></script>
+<script src="/report.js"></script>
 
 <!-- ── Supabase DB 설정 모달 ── -->
 <div id="dbModal" style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:600;display:none;align-items:center;justify-content:center;padding:16px">

@@ -1,0 +1,96 @@
+/* 📕 PDF 리포트 — 여성용(베이지·로즈) / 남성용(네이비·골드). 화면 미리보기와 A4 인쇄를 같은 크기(mm·pt)로 맞춘다. */
+@import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Serif+KR:wght@500;700;900&display=swap');
+
+#reportPage { max-width: 900px; }
+#rDocWrap { display: none; overflow-x: auto; padding-bottom: 20px; }
+
+.rp-doc {
+  --ink: #3a2e2a; --muted: #8a7a72; --accent: #b5677d; --accent2: #d9a5b3; --paper: #fffdfa; --tint: #f8eee9;
+  --cover-bg: linear-gradient(160deg, #fbf3ec 0%, #f4e1dc 55%, #ecd3d6 100%); --cover-ink: #6b3a4a;
+  --body-font: 'Gowun Batang', 'Nanum Myeongjo', serif;
+  color: var(--ink); font-family: var(--body-font); width: 210mm; margin: 0 auto;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.rp-doc.rp-male {
+  --ink: #1d2433; --muted: #6b7385; --accent: #b08a2e; --accent2: #d8bf7a; --paper: #fdfcf8; --tint: #eef0f5;
+  --cover-bg: linear-gradient(160deg, #0f1a33 0%, #18264a 60%, #22325c 100%); --cover-ink: #e9d49a;
+  --body-font: 'Nanum Myeongjo', serif;
+}
+
+.rp-cover, .rp-sheet { background: var(--paper); box-shadow: 0 2px 14px rgba(0,0,0,.35); margin-bottom: 14px; }
+.rp-sheet { position: relative; padding: 18mm 17mm; min-height: 297mm; box-sizing: border-box; }
+.rp-cover { width: 210mm; height: 297mm; box-sizing: border-box; padding: 16mm; background: var(--cover-bg); color: var(--cover-ink); }
+.rp-cover-in { height: 100%; box-sizing: border-box; border: 1.2pt solid var(--accent2); outline: .6pt solid var(--accent2); outline-offset: -3.5mm;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; position: relative; }
+.rp-cover-mark { font-size: 40pt; color: var(--accent); margin-bottom: 10mm; }
+.rp-male .rp-cover-mark { color: var(--accent2); }
+.rp-cover-kicker { font-family: 'Noto Serif KR', serif; letter-spacing: .45em; font-size: 9pt; opacity: .8; margin-bottom: 8mm; }
+.rp-cover h1 { font-family: 'Noto Serif KR', serif; font-weight: 900; font-size: 30pt; line-height: 1.45; margin: 0; }
+.rp-cover-line { width: 28mm; height: 1pt; background: var(--accent2); margin: 12mm auto; }
+.rp-cover-pillars { display: flex; gap: 5mm; font-family: 'Noto Serif KR', serif; font-size: 15pt; letter-spacing: .15em; }
+.rp-cover-pillars span { writing-mode: vertical-rl; border: .6pt solid var(--accent2); padding: 4mm 2mm; border-radius: 1.5mm; }
+.rp-cover-foot { position: absolute; bottom: 14mm; font-size: 9.5pt; letter-spacing: .2em; opacity: .85; }
+
+.rp-chap { font-family: 'Noto Serif KR', serif; font-size: 8.5pt; letter-spacing: .35em; color: var(--accent); margin-bottom: 3mm; }
+.rp-h2 { font-family: 'Noto Serif KR', serif; font-weight: 900; font-size: 19pt; color: var(--ink); margin: 0 0 2mm; padding-bottom: 3mm; border-bottom: 1.4pt solid var(--accent); }
+.rp-sub { font-size: 10.5pt; color: var(--muted); margin: 2mm 0 7mm; }
+.rp-h3 { font-family: 'Noto Serif KR', serif; font-size: 12pt; color: var(--accent); margin: 8mm 0 3mm; padding-left: 3mm; border-left: 3pt solid var(--accent2); }
+
+.rp-body { font-size: 11pt; line-height: 1.95; text-align: justify; word-break: keep-all; outline: none; }
+.rp-body p { margin: 0 0 4.2mm; text-indent: .6em; }
+.rp-body p:first-child::first-letter { font-size: 1.5em; color: var(--accent); font-weight: 700; }
+.rp-body:focus { background: rgba(255, 230, 150, .12); }
+.rp-wait { color: var(--muted); font-style: italic; text-indent: 0 !important; }
+.rp-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: -3mm 0 5mm; font-size: 8.5pt; color: var(--muted); font-family: sans-serif; }
+.rp-tools button { font-size: 8.5pt; padding: 3px 9px; border-radius: 6px; border: 1px solid var(--accent2); background: #fff; color: var(--ink); cursor: pointer; }
+
+.rp-toc { counter-reset: toc; list-style: none; padding: 0; margin: 8mm 0; font-size: 12pt; }
+.rp-toc li { counter-increment: toc; padding: 3.2mm 0; border-bottom: .5pt dotted var(--accent2); }
+.rp-toc li::before { content: counter(toc, decimal-leading-zero); color: var(--accent); font-family: 'Noto Serif KR', serif; font-weight: 700; margin-right: 5mm; }
+.rp-toc li span { color: var(--muted); font-size: 9.5pt; margin-left: 2mm; }
+.rp-note { font-size: 9pt; color: var(--muted); background: var(--tint); padding: 4mm 5mm; border-radius: 2mm; line-height: 1.75; margin-top: 6mm; }
+
+.rp-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin: 3mm 0 2mm; }
+.rp-table th, .rp-table td { border: .5pt solid #d8cfc8; padding: 2.2mm 2mm; text-align: center; }
+.rp-male .rp-table th, .rp-male .rp-table td { border-color: #cfd4de; }
+.rp-table th { background: var(--tint); color: var(--ink); font-weight: 700; }
+.rp-info td { text-align: left; }
+.rp-info th { width: 22mm; white-space: nowrap; }
+.rp-chart { margin-top: 6mm; }
+.rp-chart td { vertical-align: middle; }
+.rp-rowh { background: var(--tint); font-weight: 700; width: 18mm; }
+.rp-gz { width: 15mm; height: 15mm; margin: 0 auto; border-radius: 2mm; color: #fff; font-family: 'Noto Serif KR', serif; font-size: 17pt; font-weight: 700;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+.rp-gz small { font-size: 7pt; font-weight: 400; margin-top: 1mm; opacity: .9; }
+.rp-gz.rp-none { background: #e5e0dc; color: #9a918b; }
+.rp-luck tr.on td { background: #fff4d6; font-weight: 700; }
+
+.rp-bars { margin: 2mm 0; }
+.rp-bar { display: flex; align-items: center; gap: 3mm; margin: 2mm 0; font-size: 10pt; }
+.rp-bar-l { width: 20mm; }
+.rp-bar-t { flex: 1; height: 4.5mm; background: var(--tint); border-radius: 2.5mm; overflow: hidden; }
+.rp-bar-t span { display: block; height: 100%; border-radius: 2.5mm; }
+.rp-bar-n { width: 6mm; text-align: right; font-weight: 700; }
+.rp-bar em { font-style: normal; font-size: 8pt; padding: .6mm 2mm; border-radius: 3mm; background: var(--accent); color: #fff; }
+.rp-bar em.g { background: #8a8a8a; }
+.rp-reason { font-size: 10.5pt; line-height: 1.85; margin: 3mm 0; }
+.rp-facts { font-size: 9pt; line-height: 1.75; color: var(--ink); padding-left: 5mm; }
+.rp-end { text-align: center; margin-top: 14mm; color: var(--accent); font-family: 'Noto Serif KR', serif; letter-spacing: .3em; font-size: 10pt; }
+
+/* ── 인쇄: 리포트만 A4로 ── */
+@page { size: A4; margin: 18mm 17mm; @bottom-center { content: counter(page); font-size: 8pt; color: #999; } }
+@page cover { margin: 0; @bottom-center { content: none; } }
+@media print {
+  body.report-printing { background: #fff !important; }
+  body.report-printing .topbar, body.report-printing .tabs, body.report-printing .page:not(#reportPage),
+  body.report-printing #reportPage > *:not(#rDocWrap), body.report-printing .rp-noprint,
+  body.report-printing .snack, body.report-printing #dbModal { display: none !important; }
+  body.report-printing #reportPage, body.report-printing #rDocWrap { display: block !important; padding: 0 !important; margin: 0 !important; max-width: none !important; overflow: visible !important; }
+  body.report-printing .rp-doc { width: auto; }
+  body.report-printing .rp-cover { page: cover; width: 210mm; height: 297mm; box-shadow: none; margin: 0; break-after: page; }
+  body.report-printing .rp-sheet { padding: 0; min-height: 0; box-shadow: none; margin: 0; break-before: page; background: none; }
+  body.report-printing .rp-body:focus { background: none; }
+  .rp-table tr, .rp-bar, .rp-gz { break-inside: avoid; }
+  .rp-h2, .rp-h3 { break-after: avoid; }
+  .rp-body p { orphans: 3; widows: 3; }
+}
