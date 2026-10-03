@@ -188,6 +188,7 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
 <!-- 탭 -->
 <div class="tabs">
   <div class="tab on" onclick="go('consulting')">💬 상담</div>
+  <div class="tab" onclick="go('quick')">⚡ 질문바로</div>
   <div class="tab" onclick="go('call')">📞 전화상담</div>
   <div class="tab" onclick="go('why')">🤔 왜요?</div>
   <div class="tab" onclick="location.href='/ziwei.html'">⭐ 자미두수</div>
@@ -331,6 +332,32 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
       <button class="chat-send" onclick="sendChat()">전송</button>
     </div>
   </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     질문바로 탭 (스레드·인스타 댓글/DM → 사주+자미두수+타로 즉시 답변, 로직은 /quick.js)
+══════════════════════════════════════ -->
+<div id="quickPage" class="page">
+  <div class="card">
+    <div class="card-title">⚡ 질문바로 — 댓글·DM 그대로 붙여넣기</div>
+    <p style="font-size:.76rem;color:var(--muted);margin-bottom:12px;line-height:1.7">
+      생년월일과 질문이 같이 온 글을 통째로 붙여넣으면 사주·자미두수·타로를 한 번에 엮어서 바로 답변해요.<br>
+      생년월일이 없으면 답변하지 않고, 생년월일 요청 문구를 만들어 드려요.
+    </p>
+    <div class="field"><label>댓글 / DM 내용</label>
+      <textarea id="quickText" style="min-height:110px" placeholder="예) 95.3.12 여자 오후 2시쯤 태어났어요! 헤어진 남친이랑 다시 연락 올까요?"></textarea>
+    </div>
+    <div class="field"><label>닉네임 (선택 — 답변 호칭용)</label><input id="qNick" placeholder="예) 미나"></div>
+    <div class="field"><label>답변 형식</label>
+      <div class="spread-sel" id="quickFormatChips">
+        <button type="button" class="sp-btn on" onclick="setQuickFormat(this,'thread')">🧵 스레드 댓글 (짧게, 500자 이내)</button>
+        <button type="button" class="sp-btn" onclick="setQuickFormat(this,'dm')">📩 인스타·DM (자세히)</button>
+      </div>
+    </div>
+    <button class="btn btn-gold" id="quickBtn" onclick="quickAnswer()">⚡ 바로 답변 받기</button>
+  </div>
+  <div id="quickInfo"></div>
+  <div id="quickResult"></div>
 </div>
 
 <!-- ══════════════════════════════════════
@@ -616,7 +643,7 @@ function go(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   document.getElementById(id+'Page').classList.add('on');
-  const tabs = ['consulting','call','why'];
+  const tabs = ['consulting','quick','call','why'];
   document.querySelectorAll('.tab')[tabs.indexOf(id)].classList.add('on');
   if(id==='why') updateWhyContextBanner();
 }
@@ -2309,6 +2336,7 @@ loadDbConfig();    // Supabase 설정 복원
 loadClients();     // 내담자 목록 로드
 setWcat(document.querySelector('.wcat.on'), 'fortune');
 </script>
+<script src="/quick.js"></script>
 
 <!-- ── Supabase DB 설정 모달 ── -->
 <div id="dbModal" style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:600;display:none;align-items:center;justify-content:center;padding:16px">
