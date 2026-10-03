@@ -156,8 +156,8 @@ if (typeof window !== 'undefined') {
   }
 
   function _drawQuickCards() {
-    const shuffled = [...TAROT_78].sort(() => Math.random() - .5);
-    return shuffled.slice(0, 3).map(c => Math.random() < 0.5 ? c + '(역방향)' : c);
+    const shuffled = shuffleDeck(TAROT_78);
+    return shuffled.slice(0, 3).map(c => _rand() < 0.5 ? c + '(역방향)' : c);
   }
 
   function _renderQuickInfo(info) {
