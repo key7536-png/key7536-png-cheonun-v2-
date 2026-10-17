@@ -42,8 +42,8 @@
 
   <main>
     <section class="intro">
-      <h1>⭐ 자미두수 상담</h1>
-      <p>기존 사주·타로 기능과 분리된 독립 상담 화면입니다. 자미두수는 출생시간에 따라 명반이 달라지므로 시간을 모르면 상담을 시작하지 않습니다.</p>
+      <h1>⭐ 자미두수 평생 풀이</h1>
+      <p>평생사주와 함께 드릴 자미두수 전체 풀이를 만듭니다. 성격·평생운·재물·직업·결혼·가족·건강·대운 흐름·올해 운을 모두 담습니다. 자미두수는 출생시간에 따라 명반이 달라지므로 시간을 모르면 만들지 않습니다.</p>
     </section>
 
     <section class="card">
@@ -57,11 +57,10 @@
         <div class="field"><label>태어난 시간</label>
           <select id="zHour"><option value="">시간을 선택하세요</option><option>자시</option><option>축시</option><option>인시</option><option>묘시</option><option>진시</option><option>사시</option><option>오시</option><option>미시</option><option>신시</option><option>유시</option><option>술시</option><option>해시</option></select>
         </div>
-        <div class="field"><label>상담 주제</label><select id="zTopic"><option>종합운</option><option>직업/사업운</option><option>재물운</option><option>연애/결혼</option><option>인간관계</option><option>가족관계</option><option>이동/변화</option><option>현재 대운</option><option>올해 운세</option></select></div>
       </div>
       <label id="leapWrap" class="inline-check" style="display:none"><input id="zLeap" type="checkbox"> 음력 윤달</label>
-      <div class="field" style="margin-top:10px"><label>구체적인 질문</label><textarea id="zQuestion" placeholder="궁금한 점을 구체적으로 적어주세요."></textarea></div>
-      <button id="zStart" class="btn" onclick="startZiwei()">⭐ 명반 계산 및 상담 시작</button>
+      <div class="field" style="margin-top:10px"><label>특히 더 자세히 봐 줄 부분 (선택)</label><textarea id="zQuestion" placeholder="예) 재혼 가능성, 노후 재물. 비워 두면 전체를 고르게 풀이합니다."></textarea></div>
+      <button id="zStart" class="btn" onclick="startZiwei()">⭐ 명반 계산 및 평생 풀이 만들기</button>
       <div id="zError" class="error"></div>
     </section>
 
@@ -119,7 +118,6 @@
       document.getElementById('zBirth').value=r.birth||'';
       document.getElementById('zHour').value=r.birthHour||'';
       document.getElementById('zLeap').checked=!!r.leap;
-      document.getElementById('zTopic').value=topicMap[(r.topics||[])[0]]||'종합운';
       document.getElementById('zQuestion').value=r.question||r.reason||'';
       document.getElementById('zError').textContent='고객정보를 불러왔습니다.';
     }
@@ -141,50 +139,77 @@
       return data.text || '';
     }
 
-    function buildZiweiPrompt(name, topic, question, chart){
-      return `당신은 자미두수 전통 삼합파를 공부하고 실제 상담에 적용하는 상담사 천운입니다.
-지금 ${name}님과 카카오톡으로 자미두수 상담 중입니다.
+    // 평생 풀이는 길어서 3부분으로 나눠 동시에 만든 뒤 순서대로 이어 붙인다 (한 번에 만들면 잘리거나 오래 걸림)
+    const ZIWEI_REPORT_PARTS = [
+      { title:'타고난 성격과 평생운', sections:[
+        '## 1. 명반 한눈에 보기 — 명궁·신궁의 주성과 사화로 본 삶의 큰 틀 (전문용어는 쉬운 뜻을 붙여서)',
+        '## 2. 타고난 성격과 기질 — 겉으로 보이는 모습과 속마음, 장점과 조심할 점',
+        '## 3. 평생운의 큰 흐름 — 초년·청년·중년·말년으로 나눠 어떤 삶을 살게 되는지',
+        '## 4. 형제·친구·대인관계 — 형제궁·노복궁(교우궁)으로 본 사람 복과 인간관계'
+      ]},
+      { title:'재물·직업·결혼·가족·건강', sections:[
+        '## 5. 재물운 — 재백궁·전택궁: 돈이 들어오는 방식, 모으는 법, 새는 곳, 부동산·노후 재물',
+        '## 6. 직업·사업운 — 관록궁: 잘 맞는 일과 분야, 직장형인지 사업형인지, 성공하는 방식',
+        '## 7. 결혼·애정운 — 부처궁: 배우자 성향, 결혼 시기 흐름, 부부 관계에서 조심할 점, 재혼·인연 흐름',
+        '## 8. 자녀·가족운 — 자녀궁·부모궁·전택궁: 자녀 인연, 부모와의 관계, 집안 분위기',
+        '## 9. 건강운 — 질액궁: 약하게 타고난 부분과 생활 관리법 (병명 단정 금지, 생활 습관 중심)'
+      ]},
+      { title:'대운 흐름과 올해 운', sections:[
+        '## 10. 10년 대운 흐름 — 명반의 대한을 처음부터 80대까지 순서대로, 각 대한마다 나이 범위·좋은 점·조심할 점 (지나간 대한은 짧게, 현재와 앞으로의 대한은 자세히)',
+        '## 11. 현재 대운 자세히 — 지금 지나고 있는 대한에서 꼭 알아야 할 것',
+        '## 12. 올해 운세 — 올해 유년으로 본 재물·일·관계·건강 흐름과 주의점',
+        '## 13. 평생 개운법과 마무리 — 이 명반을 가진 분이 운을 살리는 방법 3~5가지와 따뜻한 마무리 인사'
+      ]}
+    ];
 
-━━━ 계산된 명반 ━━━
+    function buildZiweiReportPrompt(name, gender, question, chart, part){
+      return `당신은 자미두수 전통 삼합파를 공부하고 실제 상담에 적용하는 상담사 천운입니다.
+${name}님(${gender})께 평생사주와 함께 드릴 "자미두수 평생 풀이" 원고 가운데 일부를 씁니다.
+이 글은 상담 대화가 아니라 고객이 두고두고 읽는 풀이 문서입니다.
+
+━━━ 계산된 명반 (그대로 사용, 임의 재계산 금지) ━━━
 ${CheonunZiwei.toPrompt(chart)}
 
-상담 주제: ${topic}
-질문: ${question || '명반의 핵심 구조와 현재 흐름을 알고 싶음'}
+${question ? '특히 자세히 봐 달라는 부분: ' + question + '\n(관련된 장에서 더 깊게 다룰 것)\n' : ''}
+━━━ 이번에 쓸 부분: ${part.title} ━━━
+아래 제목을 그대로 쓰고, 그 순서대로 각 장을 작성한다.
+${part.sections.join('\n')}
 
-━━━ 해석 순서 ━━━
-1. 명궁·신궁으로 기본 구조를 읽는다.
-2. 질문과 관련된 궁을 중심으로 보되 반드시 삼방사정을 함께 본다.
-3. 생년 사화와 현재 대한·유년을 원국 위에 겹쳐 읽는다.
-4. 단일 별 하나만으로 길흉을 단정하지 않는다.
-5. 명반에 없는 별·궁·사화를 만들어내지 않는다.
-6. 미래 사건을 확정하거나 공포를 조장하지 않고 현실적인 선택지를 제시한다.
-7. 의료·법률·투자·수명은 단정하지 않는다.
-8. 질문의 겉말보다 내담자가 진짜 알고 싶은 핵심 고민을 먼저 짚고, 결과를 가장 크게 좌우하는 핵심 1가지를 근거와 함께 말한다.
-9. 근거 없는 정확한 날짜·퍼센트는 만들지 않으며, 마지막 말풍선에는 지금 바로 할 수 있는 구체적 행동 1가지를 넣는다.
+━━━ 해석 규칙 ━━━
+• 각 장은 해당 궁의 주성·보좌성·사화를 근거로 삼고, 반드시 삼방사정(마주 보는 궁과 삼합 궁)을 함께 본다.
+• 근거가 된 궁과 별을 문장 속에 자연스럽게 밝힌다. (예: "재백궁의 무곡성(재물을 다루는 별)이…")
+• 명반에 없는 별·궁·사화를 만들어내지 않는다. 별 하나만으로 길흉을 단정하지 않는다.
+• 근거 없는 정확한 날짜·퍼센트는 만들지 않는다. 나이·시기는 명반의 대한·유년 범위 안에서만 말한다.
+• 의료·법률·투자·수명은 단정하지 않는다. "무조건", "반드시 일어난다", "큰일 난다" 같은 단정·공포 표현 금지.
+• 좋은 점과 조심할 점을 균형 있게 쓰고, 조심할 점에는 현실적인 대처법을 붙인다.
 
-━━━ 말투와 출력 ━━━
-• [말풍선] 태그로 정확히 6개 작성한다.
-• 각 말풍선은 2~4문장으로 짧고 구체적으로 쓴다.
-• 1번: 명궁·신궁 첫인상
-• 2번: 질문과 관련된 핵심 궁과 주성
-• 3번: 삼방사정과 사화
-• 4번: 현재 대한
-• 5번: 올해 유년과 현실적인 주의점
-• 6번: 실행할 수 있는 조언과 따뜻한 마무리
-• 어려운 한자는 피하고, 전문용어에는 바로 쉬운 뜻을 붙인다.
-• “무조건”, “반드시 일어난다”, “큰일 난다” 같은 단정은 금지한다.`;
+━━━ 문체와 분량 ━━━
+• 따뜻하고 정중한 존댓말 문서체. ${name}님을 직접 부르며 쓴다.
+• 각 장은 2~4문단, 장마다 600자 이상으로 충분히 자세하게 쓴다.
+• 제목 줄은 "## "로 시작하고, 본문에는 다른 마크다운 기호(**, *, 표)를 쓰지 않는다.
+• 어려운 한자는 피하고 전문용어에는 괄호로 쉬운 뜻을 붙인다.
+• 인사말이나 "다음 부분에서…" 같은 연결 문장 없이 제목부터 바로 시작한다.`;
     }
 
     function escapeHtml(value){
       return String(value == null ? '' : value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
     }
 
-    function renderBubbles(text){
-      const parts = text.split(/\[말풍선\]/).map(function(x){return x.trim();}).filter(function(x){return x.length>5;});
-      return '<div class="card"><div class="card-title">💬 자미두수 상담 결과</div>' + parts.map(function(part){
-        const cleanPart=part.replace(/^\[?말풍선\]?\s*\d*\s*[:：.-]?\s*/,'').trim();
-        return '<div class="bubble"><button class="copy" onclick="copyBubble(this)">복사</button>'+escapeHtml(cleanPart).replace(/\n/g,'<br>')+'</div>';
+    let ziweiReportText = '';
+
+    function renderZiweiReport(name, text){
+      const sections = text.split(/^##\s*/m).map(function(x){return x.trim();}).filter(function(x){return x.length>5;});
+      return '<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center">⭐ '+escapeHtml(name)+'님 자미두수 평생 풀이<button class="copy" style="float:none;font-size:.78rem;color:var(--gold2)" onclick="copyZiweiReport(this)">전체 복사</button></div>' + sections.map(function(sec){
+        const lines = sec.split('\n');
+        const title = lines.shift().trim();
+        const body = lines.join('\n').replace(/\*\*/g,'').trim();
+        return '<div class="bubble"><button class="copy" onclick="copyBubble(this)">복사</button><b style="display:block;color:var(--gold2);margin-bottom:6px">'+escapeHtml(title)+'</b>'+escapeHtml(body).replace(/\n{2,}/g,'<br><br>').replace(/\n/g,'<br>')+'</div>';
       }).join('') + '</div>';
+    }
+
+    function copyZiweiReport(button){
+      navigator.clipboard.writeText(ziweiReportText.replace(/^##\s*/gm,'■ ').replace(/\*\*/g,''));
+      button.textContent = '복사 완료'; setTimeout(function(){button.textContent='전체 복사';},1200);
     }
 
     function copyBubble(button){
@@ -197,7 +222,7 @@ ${CheonunZiwei.toPrompt(chart)}
       const error = document.getElementById('zError');
       const button = document.getElementById('zStart');
       const name = document.getElementById('zName').value.trim() || '내담자';
-      const topic = document.getElementById('zTopic').value;
+      const gender = document.getElementById('zGender').value;
       const question = document.getElementById('zQuestion').value.trim();
       error.textContent = '';
       try{
@@ -210,18 +235,21 @@ ${CheonunZiwei.toPrompt(chart)}
           targetDate: new Date()
         });
         document.getElementById('zChart').innerHTML = CheonunZiwei.render(chart,name);
-        document.getElementById('zResult').innerHTML = '<div class="card loading">명반을 바탕으로 상담 내용을 정리하고 있습니다…</div>';
-        button.disabled=true; button.textContent='상담 생성 중…';
-        const prompt = buildZiweiPrompt(name,topic,question,chart);
-        const text = await callAi(prompt,4096);
-        document.getElementById('zResult').innerHTML = renderBubbles(text);
+        document.getElementById('zResult').innerHTML = '<div class="card loading">명반을 바탕으로 평생 풀이를 쓰고 있습니다… (1~2분 걸릴 수 있어요)</div>';
+        button.disabled=true; button.textContent='평생 풀이 작성 중…';
+        const texts = await Promise.all(ZIWEI_REPORT_PARTS.map(function(part){
+          return callAi(buildZiweiReportPrompt(name,gender,question,chart,part),8192);
+        }));
+        const text = texts.map(function(t){return t.trim();}).join('\n\n');
+        ziweiReportText = text;
+        document.getElementById('zResult').innerHTML = renderZiweiReport(name,text);
 
         // 후속 채팅 세션 시작 — 명반과 최초 문답을 대화 기록에 남겨서 이어지는 질문에서도 맥락 유지
         ziweiChart = chart;
         ziweiName = name;
         ziweiHistory = [
-          { role:'user', content: question || (topic + ' 관련 초기 상담 요청') },
-          { role:'assistant', content: text.replace(/\[말풍선\]/g,' ').trim() }
+          { role:'user', content: question || '자미두수 평생 풀이 요청' },
+          { role:'assistant', content: text.replace(/^##\s*/gm,'').trim() }
         ];
         document.getElementById('zChatLog').innerHTML = '';
         document.getElementById('zChatError').textContent = '';
@@ -230,7 +258,7 @@ ${CheonunZiwei.toPrompt(chart)}
         error.textContent = e.message;
         document.getElementById('zResult').innerHTML='';
       }finally{
-        button.disabled=false; button.textContent='⭐ 명반 계산 및 상담 시작';
+        button.disabled=false; button.textContent='⭐ 명반 계산 및 평생 풀이 만들기';
       }
     }
 
