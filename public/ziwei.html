@@ -172,8 +172,8 @@ ${CheonunZiwei.toPrompt(chart)}
 
 ${question ? '특히 자세히 봐 달라는 부분: ' + question + '\n(관련된 장에서 더 깊게 다룰 것)\n' : ''}
 ━━━ 이번에 쓸 부분: ${part.title} ━━━
-아래 제목을 그대로 쓰고, 그 순서대로 각 장을 작성한다.
-${part.sections.join('\n')}
+아래 순서대로 각 장을 작성한다. 제목 줄에는 "## 번호. 짧은 제목"만 쓰고, → 뒤의 안내 문구는 제목에 넣지 말고 본문 내용으로만 반영한다.
+${part.sections.map(function(s){ const i=s.indexOf(' — '); return s.slice(0,i) + '\n   → 쓸 내용: ' + s.slice(i+3); }).join('\n')}
 
 ━━━ 해석 규칙 ━━━
 • 각 장은 해당 궁의 주성·보좌성·사화를 근거로 삼고, 반드시 삼방사정(마주 보는 궁과 삼합 궁)을 함께 본다.
@@ -240,7 +240,7 @@ ${part.sections.join('\n')}
         const texts = await Promise.all(ZIWEI_REPORT_PARTS.map(function(part){
           return callAi(buildZiweiReportPrompt(name,gender,question,chart,part),8192);
         }));
-        const text = texts.map(function(t){return t.trim();}).join('\n\n');
+        const text = texts.map(function(t){return t.trim();}).join('\n\n').replace(/^(##[^\n]*?)\s*(?:—|→|\(|:)[^\n]*$/gm,'$1');
         ziweiReportText = text;
         document.getElementById('zResult').innerHTML = renderZiweiReport(name,text);
 
