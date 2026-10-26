@@ -7,6 +7,8 @@
 <title>✦ 천운 상담도구</title>
 <script src="/korean-lunar.js"></script>
 <script src="/vendor/iztro-v2.6.0.min.js"></script>
+<script src="/vendor/html2pdf.bundle.min.js"></script>
+<script src="/consult-pdf.js"></script>
 <script src="/ziwei.js"></script>
 <style>
 :root{
@@ -938,6 +940,8 @@ async function startConsulting(){
 
     const fixedSaju = consultMode==='tarot' ? null : calcSaju(birth,hour,gender,calendar,isLeap);
     lastConsultInfo = {name, gender, birth, hour, calendar, isLeap, topic, q, mode: consultMode, cards: drawnCards.join('/'), saju:fixedSaju};
+    window.cheOnunConsultInfo = lastConsultInfo;
+    if(window.addConsultPdfButton) window.addConsultPdfButton();
     renderWhyLink(lastConsultInfo);
     chatHistory = [{role:'assistant', content: bubs.join('\n\n')}];
     document.getElementById('chatBox').innerHTML = '';
