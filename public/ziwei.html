@@ -245,7 +245,7 @@ ${part.sections.map(function(s){ const i=s.indexOf(' — '); return s.slice(0,i)
           return callAi(buildZiweiReportPrompt(name,gender,question,chart,part),8192);
         }));
         const text = texts.map(function(t){return t.trim();}).join('\n\n').replace(/^(##[^\n]*?)\s*(?:—|→|\(|:)[^\n]*$/gm,'$1');
-        ziweiReportText = text;
+        ziweiReportText = text; window.ziweiReportText = text;
         document.getElementById('zResult').innerHTML = renderZiweiReport(name,text);
 
         // 후속 채팅 세션 시작 — 명반과 최초 문답을 대화 기록에 남겨서 이어지는 질문에서도 맥락 유지
@@ -367,5 +367,7 @@ ${question}
     }
   </script>
 <script src="/ziwei-ui-cleanup.js"></script>
+<script src="/vendor/html2pdf.bundle.min.js"></script>
+<script src="/ziwei-pdf.js"></script>
 </body>
 </html>
