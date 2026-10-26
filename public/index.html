@@ -671,18 +671,35 @@ async function sbFetch(method, path, body){
 // ── AI 호출 — Vercel Serverless Function ──
 async function ai(prompt, maxT){
   maxT = maxT || 4096;
-  const res = await fetch(API_BASE + '/api/ai', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, maxTokens: maxT })
-  });
-  if(!res.ok){
-    const err = await res.json().catch(()=>({error:'서버 오류'}));
-    throw new Error(err.error || 'AI 응답 오류');
+  let lastErr = null;
+  for(let attempt=0; attempt<3; attempt++){
+    const controller = new AbortController();
+    const timeout = setTimeout(()=>controller.abort(), 90000);
+    try{
+      const res = await fetch(API_BASE + '/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, maxTokens: maxT }),
+        signal: controller.signal
+      });
+      const errData = res.ok ? null : await res.json().catch(()=>({error:'서버 오류'}));
+      if(!res.ok){
+        const err = new Error(errData.error || 'AI 응답 오류');
+        err.status = res.status;
+        throw err;
+      }
+      const data = await res.json();
+      if(data.source === 'paid') snack('유료 예비 키 사용 중');
+      if(!data.text) throw new Error('빈 답변이 도착했습니다.');
+      return data.text;
+    }catch(e){
+      lastErr = e.name === 'AbortError' ? new Error('응답 시간이 길어 재시도합니다.') : e;
+      const retryable = !e.status || [429,500,502,503,504].includes(e.status) || e.name === 'AbortError';
+      if(!retryable || attempt===2) break;
+      await new Promise(r=>setTimeout(r, (attempt+1)*2500));
+    }finally{ clearTimeout(timeout); }
   }
-  const data = await res.json();
-  if(data.source === 'paid') snack('💎 유료 키 사용 중');
-  return data.text || '';
+  throw lastErr || new Error('AI 응답을 받지 못했습니다.');
 }
 
 // 구버전 호환 더미 (쓰이지 않지만 에러 방지)
@@ -946,9 +963,11 @@ async function startConsulting(){
     chatHistory = [{role:'assistant', content: bubs.join('\n\n')}];
     document.getElementById('chatBox').innerHTML = '';
     document.getElementById('consultChat').style.display = 'block';
-    snack('분석 완료! 💬 추가 질문 가능 / 💾 내담자 저장 가능');
+    saveConsultDraft();
+    snack('분석 완료! 추가 질문 가능 / 상담 내용 자동 저장 중');
   } catch(e){
-    document.getElementById('consultResult').innerHTML = `<div class="card" style="color:var(--red)">오류: ${e.message}</div>`;
+    document.getElementById('consultResult').innerHTML = `<div class="card" style="color:var(--red)">상담 연결이 잠시 끊겼습니다.<br><span style="font-size:.8rem">${escapeHtml(e.message)}</span><button class="btn btn-ghost" onclick="startConsulting()" style="margin-top:10px">다시 시도</button></div>`;
+    saveConsultDraft();
   }
   btn.disabled=false; btn.textContent='✦ 상담 시작';
 }
@@ -1617,6 +1636,51 @@ function copyText(txt){
   navigator.clipboard.writeText(clean).then(()=>snack('복사됨 ✓'));
 }
 
+const CONSULT_DRAFT_KEY = 'cheonun_consult_draft_v2';
+function saveConsultDraft(){
+  try{
+    const draft = {
+      savedAt: Date.now(),
+      fields: {
+        name: document.getElementById('cName')?.value || '',
+        gender: document.getElementById('cGender')?.value || '여성',
+        calendar: document.getElementById('cLunar')?.value || '양력',
+        birth: document.getElementById('cBirth')?.value || '',
+        hour: document.getElementById('cHour')?.value || '',
+        topic: document.getElementById('cTopic')?.value || '',
+        question: document.getElementById('cQ')?.value || ''
+      },
+      mode: consultMode,
+      info: lastConsultInfo,
+      history: chatHistory,
+      resultHTML: document.getElementById('consultResult')?.innerHTML || '',
+      sajuHTML: document.getElementById('sajuTableWrap')?.innerHTML || '',
+      chatHTML: document.getElementById('chatBox')?.innerHTML || ''
+    };
+    localStorage.setItem(CONSULT_DRAFT_KEY, JSON.stringify(draft));
+  }catch(e){ console.warn('상담 임시저장 실패:', e.message); }
+}
+function restoreConsultDraft(){
+  try{
+    const draft = JSON.parse(localStorage.getItem(CONSULT_DRAFT_KEY) || 'null');
+    if(!draft || !draft.savedAt || Date.now()-draft.savedAt > 24*60*60*1000) return;
+    const f = draft.fields || {};
+    if(document.getElementById('cName')) document.getElementById('cName').value=f.name||'';
+    if(document.getElementById('cGender')) document.getElementById('cGender').value=f.gender||'여성';
+    if(document.getElementById('cLunar')) document.getElementById('cLunar').value=f.calendar||'양력';
+    if(document.getElementById('cBirth')) document.getElementById('cBirth').value=f.birth||'';
+    if(document.getElementById('cHour')) document.getElementById('cHour').value=f.hour||'';
+    if(document.getElementById('cTopic')) document.getElementById('cTopic').value=f.topic||'';
+    if(document.getElementById('cQ')) document.getElementById('cQ').value=f.question||'';
+    if(draft.info) { lastConsultInfo=draft.info; window.cheOnunConsultInfo=lastConsultInfo; }
+    if(Array.isArray(draft.history)) chatHistory=draft.history;
+    if(draft.resultHTML) document.getElementById('consultResult').innerHTML=draft.resultHTML;
+    if(draft.sajuHTML){ const s=document.getElementById('sajuTableWrap'); s.innerHTML=draft.sajuHTML; s.style.display='block'; }
+    if(draft.chatHTML){ const c=document.getElementById('chatBox'); c.innerHTML=draft.chatHTML; document.getElementById('consultChat').style.display='block'; }
+    if(draft.resultHTML || draft.chatHTML){ if(window.addConsultPdfButton) window.addConsultPdfButton(); snack('이전 상담 내용을 복구했습니다. 이어서 질문할 수 있어요.'); }
+  }catch(e){ console.warn('상담 임시복구 실패:', e.message); }
+}
+
 // ── 채팅 이어서 ──
 async function sendChat(){
   const input = document.getElementById('chatInput');
@@ -1654,8 +1718,10 @@ ${ctx}
     box.innerHTML += `<div class="msg ai"><div class="bubble">${escapeHtml(answer).replace(/\n/g,'<br>')}<br><button onclick="navigator.clipboard.writeText(this.parentElement.innerText.replace('복사','').trim()).then(()=>snack('복사됨 ✓'))" style="font-size:.65rem;color:var(--muted);background:none;border:none;cursor:pointer;margin-top:4px">복사</button></div></div>`;
     box.scrollTop = box.scrollHeight;
     chatHistory.push({role:'assistant', content: answer});
+    saveConsultDraft();
   } catch(e){
-    box.innerHTML += `<div class="msg ai"><div class="bubble" style="color:var(--red)">오류: ${e.message}</div></div>`;
+    box.innerHTML += `<div class="msg ai"><div class="bubble" style="color:var(--red)">연결이 잠시 끊겼습니다. 잠시 후 같은 질문을 다시 보내 주세요.<br><small>${escapeHtml(e.message)}</small></div></div>`;
+    saveConsultDraft();
   }
 }
 
@@ -2442,6 +2508,7 @@ function toggleCallClientList(){
 loadDbConfig();    // Supabase 설정 복원
 loadClients();     // 내담자 목록 로드
 setWcat(document.querySelector('.wcat.on'), 'fortune');
+restoreConsultDraft();
 </script>
 <script src="/quick.js"></script>
 <script src="/deep-saju.js"></script>
