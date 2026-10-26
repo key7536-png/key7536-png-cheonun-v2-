@@ -301,7 +301,7 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
 
     <!-- 타로 뽑기 영역 (타로/둘다 모드일 때) -->
     <div id="tarotSection" style="display:none">
-      <div class="card-title" style="margin-top:8px">🔮 타로 스프레드</div>
+      <div class="card-title" style="margin-top:8px">🔮 타로 스프레드</div><div style="font-size:.7rem;color:var(--muted);line-height:1.6;margin:-4px 0 9px">Rider-Waite 계열 78장 · 암호학적 셔플 · 정·역방향 균등 처리 · 가까운 3개월 참고용</div>
       <div class="spread-sel" id="spreadSel">
         <button class="sp-btn on" onclick="setSpread(this,1)">원카드</button>
         <button class="sp-btn" onclick="setSpread(this,3)">쓰리카드</button>
@@ -992,6 +992,7 @@ function renderSajuTable(birth, hour, gender, name, calendar='양력', isLeap=fa
         </tbody>
       </table>
       <div style="font-size:.7rem;color:var(--muted);margin-bottom:6px">입력 ${calendar} ${birth}${isLeap?'(윤달)':''}${calendar==='음력'?' → 계산 기준 양력 '+saju.solarBirth:''}</div>
+      <div style="font-size:.7rem;color:var(--muted);line-height:1.7;margin-bottom:6px">계산 엔진 ${saju.engineVersion} · ${saju.calendarVersion} · ${saju.timePolicy}</div>
       <div style="font-size:.74rem;color:var(--muted);line-height:1.9">
         일간 <span style="color:var(--gold2);font-weight:700">${saju.dp[0]}</span> · 
         현재 대운 <span style="color:var(--purple2);font-weight:700">${saju.curDaeun}</span>(${saju.curDaeunAge}세~) · 
@@ -1637,7 +1638,7 @@ ${ctx}
   try{
     const txt = await ai(prompt, 4096);
     const answer = txt.replace(/\[말풍선\]/g,'').trim();
-    box.innerHTML += `<div class="msg ai"><div class="bubble">${answer.replace(/\n/g,'<br>')}<br><button onclick="navigator.clipboard.writeText(this.parentElement.innerText.replace('복사','').trim()).then(()=>snack('복사됨 ✓'))" style="font-size:.65rem;color:var(--muted);background:none;border:none;cursor:pointer;margin-top:4px">복사</button></div></div>`;
+    box.innerHTML += `<div class="msg ai"><div class="bubble">${escapeHtml(answer).replace(/\n/g,'<br>')}<br><button onclick="navigator.clipboard.writeText(this.parentElement.innerText.replace('복사','').trim()).then(()=>snack('복사됨 ✓'))" style="font-size:.65rem;color:var(--muted);background:none;border:none;cursor:pointer;margin-top:4px">복사</button></div></div>`;
     box.scrollTop = box.scrollHeight;
     chatHistory.push({role:'assistant', content: answer});
   } catch(e){
@@ -1856,7 +1857,7 @@ ${ziweiPrompt ? '7' : '6'}. [타로 보강] 위에서 뽑힌 타로 카드를 "�
       bDiv.className = 'bub';
       bDiv.style.paddingTop = '20px';
       const NL = String.fromCharCode(10);
-      bDiv.innerHTML = `<span class="bub-num">${i+1}</span>${b.split(NL).join('<br>')}
+      bDiv.innerHTML = `<span class="bub-num">${i+1}</span>${escapeHtml(b).split(NL).join('<br>')}
         <button class="bub-copy">복사</button>`;
       bDiv.querySelector('.bub-copy').onclick = () => copyText(b); // 여러 줄 전체 복사
       ansDiv.appendChild(bDiv);
@@ -2432,6 +2433,9 @@ setWcat(document.querySelector('.wcat.on'), 'fortune');
 <script src="/quick.js"></script>
 <script src="/deep-saju.js"></script>
 <script src="/report.js"></script>
+<script src="/vendor/lunar-javascript-1.7.7.js"></script>
+<script src="/saju-engine.js"></script>
+<script src="/consult-ui-cleanup.js"></script>
 
 <!-- ── Supabase DB 설정 모달 ── -->
 <div id="dbModal" style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:600;display:none;align-items:center;justify-content:center;padding:16px">

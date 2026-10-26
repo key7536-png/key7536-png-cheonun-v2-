@@ -177,3 +177,92 @@
     hourIndex: function (hour) { return HOUR_INDEX[hour]; }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
+
+
+/* 천운 업그레이드: iztro 계산 결과의 근거 필드를 누락 없이 노출 */
+(function(root){
+  'use strict';
+  var api = root.CheonunZiwei;
+  if(!api || !api.calculate) return;
+  var legacyCalculate = api.calculate;
+  function starLine(star){
+    if(!star) return '';
+    var bits = [star.name];
+    if(star.brightness) bits.push('밝기 ' + star.brightness);
+    if(star.mutagen) bits.push(star.mutagen);
+    return bits.join(' ');
+  }
+  function enrich(chart){
+    chart.engineVersion = 'iztro 2.6.0';
+    chart.calendarVersion = '한국 음력표(KARI 기준)';
+    chart.timePolicy = '12지 시진 입력, 분 단위 출생시각 미입력';
+    if(chart.raw && chart.raw.palaces){
+      chart.palaces = chart.raw.palaces.map(function(p){
+        return {
+          index:p.index,
+          name:p.name,
+          stemBranch:p.heavenlyStem + p.earthlyBranch,
+          branch:p.earthlyBranch,
+          isBodyPalace:!!p.isBodyPalace,
+          majorStars:(p.majorStars||[]).map(function(s){return {name:s.name,brightness:s.brightness||'',mutagen:s.mutagen ? ({'록':'화록','권':'화권','과':'화과','기':'화기'}[s.mutagen]||s.mutagen) : ''};}),
+          minorStars:(p.minorStars||[]).map(function(s){return s.name;}).filter(Boolean),
+          adjectiveStars:(p.adjectiveStars||[]).map(function(s){return s.name;}).filter(Boolean),
+          changsheng12:p.changsheng12||'',
+          boshi12:p.boshi12||'',
+          jiangqian12:p.jiangqian12||'',
+          suiqian12:p.suiqian12||'',
+          ages:Array.isArray(p.ages)?p.ages.slice():[],
+          decadalRange:p.decadal && p.decadal.range ? p.decadal.range.join('~') : ''
+        };
+      });
+    }
+    return chart;
+  }
+  api.calculate = function(options){ return enrich(legacyCalculate(options)); };
+  api.toPrompt = function(chart){
+    var palaceLines = chart.palaces.map(function(p){
+      var body = p.isBodyPalace ? ' / 신궁' : '';
+      var major = p.majorStars.length ? p.majorStars.map(starLine).join(' · ') : '주성 없음';
+      var minor = p.minorStars.length ? ' / 보조성:' + p.minorStars.join('·') : '';
+      var adj = p.adjectiveStars.length ? ' / 부가성:' + p.adjectiveStars.join('·') : '';
+      var cycles = [p.changsheng12 && '12운성:'+p.changsheng12, p.boshi12 && '박사12신:'+p.boshi12, p.jiangqian12 && '장전12신:'+p.jiangqian12, p.suiqian12 && '세전12신:'+p.suiqian12].filter(Boolean).join(' / ');
+      return '- ' + p.name + '(' + p.stemBranch + body + ', 대한 ' + (p.decadalRange||'미상') + '세): ' + major + minor + adj + (cycles ? ' / ' + cycles : '');
+    }).join('\n');
+    return [
+      '자미두수 명반 (iztro 2.6.0 계산 완료, 임의 재계산 금지):',
+      '양력 ' + chart.solarDate + ' / 음력 ' + chart.lunarDate + ' / ' + chart.time,
+      '계산 기준: ' + chart.calendarVersion + ' / ' + chart.timePolicy,
+      '명궁:' + chart.soulPalace + ' / 신궁:' + chart.bodyPalace + ' / 오행국:' + chart.fiveElementsClass,
+      '명주:' + chart.soulStar + ' / 신주:' + chart.bodyStar,
+      palaceLines,
+      '현재 대한:' + chart.current.decadalPalace + '(' + chart.current.decadalStemBranch + ', 허세 ' + chart.current.nominalAge + '세)',
+      '현재 유년명궁:' + chart.current.yearlyPalace + '(' + chart.current.yearlyStemBranch + ')',
+      '현재 대한 사화 별 순서[록·권·과·기]: ' + (chart.current.decadalMutagens||[]).join('·'),
+      '현재 유년 사화 별 순서[록·권·과·기]: ' + (chart.current.yearlyMutagens||[]).join('·')
+    ].join('\n');
+  };
+  api.render = function(chart, name){
+    function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+    function stars(p){
+      var major = p.majorStars.length ? p.majorStars.map(starLine).join(' · ') : '주성 없음';
+      var minor = p.minorStars.length ? '<div style="margin-top:5px;color:#b99af8">보조성 · '+esc(p.minorStars.join(' · '))+'</div>' : '';
+      var adj = p.adjectiveStars.length ? '<div style="margin-top:4px;color:#8d869e">부가성 · '+esc(p.adjectiveStars.join(' · '))+'</div>' : '';
+      return '<div class="zw-stars">'+esc(major)+'</div>'+minor+adj;
+    }
+    var rows = chart.palaces.map(function(p){
+      return '<div class="zw-palace'+(p.name==='명궁'?' soul':'')+'" data-palace="'+esc(p.name)+'">'+
+        '<div class="zw-palace-head"><b>'+esc(p.name)+'</b><span>'+esc(p.stemBranch)+(p.isBodyPalace?' · 신궁':'')+'</span></div>'+
+        stars(p)+(p.decadalRange?'<div class="zw-decade">대한 '+esc(p.decadalRange)+'세</div>':'')+
+        '<div style="margin-top:5px;color:#817b8e;font-size:.62rem">'+esc([p.changsheng12&&('12운성 '+p.changsheng12),p.boshi12&&('박사12신 '+p.boshi12)].filter(Boolean).join(' · '))+'</div></div>';
+    }).join('');
+    var starCount = chart.palaces.reduce(function(n,p){return n+p.majorStars.length+p.minorStars.length+p.adjectiveStars.length;},0);
+    return '<div class="card zw-card">'+
+      '<div class="card-title">⭐ '+esc(name||'내담자')+'님 자미두수 명반</div>'+ 
+      '<div class="zw-summary"><span>양력 '+esc(chart.solarDate)+'</span><span>음력 '+esc(chart.lunarDate)+'</span><span>명궁 '+esc(chart.soulPalace)+'</span><span>신궁 '+esc(chart.bodyPalace)+'</span><span>'+esc(chart.fiveElementsClass)+'</span></div>'+ 
+      '<div class="zw-current">현재 대한 <b>'+esc(chart.current.decadalPalace)+'</b> · 유년명궁 <b>'+esc(chart.current.yearlyPalace)+'</b></div>'+ 
+      '<div class="zw-data-strip"><b>계산 기준</b> '+esc(chart.engineVersion)+' · '+esc(chart.calendarVersion)+' · 근거 성요 '+starCount+'개 · '+esc(chart.timePolicy)+'</div>'+ 
+      '<div class="zw-grid">'+rows+'</div>'+ 
+      '<p class="zw-note">명반 계산과 해석을 분리했습니다. 아래 풀이의 사실 근거는 이 명반의 궁·별·밝기·사화·대한 범위이며, 출생시간이 달라지면 결과도 달라집니다.</p>'+ 
+      '</div>';
+  };
+})(typeof window!=='undefined'?window:globalThis);
