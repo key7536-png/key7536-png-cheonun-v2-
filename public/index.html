@@ -1603,6 +1603,15 @@ function renderBubs(bubs, targetId){
   document.getElementById(targetId).appendChild(wrap);
 }
 
+function escapeHtml(value){
+  return String(value == null ? '' : value)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/\"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+
 function copyText(txt){
   const clean = txt.replace(/복사$/,'').trim();
   navigator.clipboard.writeText(clean).then(()=>snack('복사됨 ✓'));
