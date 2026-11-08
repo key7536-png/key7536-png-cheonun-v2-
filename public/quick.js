@@ -82,7 +82,9 @@
     else if (period === '낮' && h < 7) h += 12;
     if (h === 24) h = 0;
     const note = !period && h >= 1 && h <= 11 ? '오전/오후 표기가 없어 ' + h + '시(오전)로 봤어요' : '';
-    return { hour: clockToBranch(h, m), note };
+    // 밤 23:30~23:59는 다음 날 일주로 보는 '밤 자시'(사주랩 만세력과 같은 기준)
+    if (h * 60 + m >= 23 * 60 + 30) return { hour: '야자시', note: note || '밤 11시 30분 이후라 다음 날 일주(밤 자시)로 봤어요', clock: [h, m] };
+    return { hour: clockToBranch(h, m), note, clock: [h, m] };
   }
 
   function extractGender(text) {
@@ -103,6 +105,16 @@
     const src = String(text || '').replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
     const { dates, masked } = extractDates(src, now);
     const hourInfo = extractHour(masked);
+    // 서머타임(1948~51·1955~60·1987~88)·UTC+8:30(1954~61) 시기는 시계 시각과 시진 경계가 다르므로 출생일 기준으로 다시 맞춘다.
+    if (hourInfo.clock && dates[0] && root.CheonunTime) {
+      try {
+        const dp = dates[0].split('-').map(Number);
+        const r = root.CheonunTime.resolveBirthMoment(dp[0], dp[1], dp[2], pad2(hourInfo.clock[0]) + ':' + pad2(hourInfo.clock[1]));
+        const sameDay = r.lmt.d === dp[2];
+        const fixed = r.lateZi ? (sameDay ? '야자시' : '자시') : r.branch;
+        if (fixed !== hourInfo.hour) { hourInfo.hour = fixed; hourInfo.note = (hourInfo.note ? hourInfo.note + ' · ' : '') + (r.note || '출생 당시 표준시 기준으로 시진을 맞췄어요'); }
+      } catch (e) {}
+    }
     const gender = extractGender(src);
     return {
       birth: dates[0] || '',
@@ -161,8 +173,8 @@ if (typeof window !== 'undefined') {
   }
 
   function _renderQuickInfo(info) {
-    const hourOpts = ['', '자시','축시','인시','묘시','진시','사시','오시','미시','신시','유시','술시','해시']
-      .map(h => `<option value="${h}"${h === info.hour ? ' selected' : ''}>${h || '모름'}</option>`).join('');
+    const hourOpts = ['', '야자시', '자시','축시','인시','묘시','진시','사시','오시','미시','신시','유시','술시','해시']
+      .map(h => `<option value="${h}"${h === info.hour ? ' selected' : ''}>${h === '야자시' ? '밤 자시(23:30~)' : (h || '모름')}</option>`).join('');
     const topics = ['재회운 ⭐','연애운','속마음 확인','짝사랑/고백','결혼운/결혼시기','궁합','재물/돈버는시기','직업/사업운','이직/취업','건강운','가족관계','이사시기','합격운','종합운']
       .map(t => `<option${t === info.topic ? ' selected' : ''}>${t}</option>`).join('');
     const notes = [];

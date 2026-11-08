@@ -34,12 +34,12 @@
     const today = koreaToday();
     const daeunOf = age => { let cur = saju.daeunList[0]; saju.daeunList.forEach(d => { if (age >= d.startAge) cur = d; }); return age < saju.daeunList[0].startAge ? null : cur; };
 
-    const daeun = saju.daeunList.map(d => Object.assign({ endAge: d.startAge + 9, fromYear: saju.year + d.startAge, current: d.pillar === saju.curDaeun },
+    const daeun = saju.daeunList.map(d => Object.assign({ endAge: d.startAge + 9, fromYear: saju.year + d.startAge - 1, current: d.pillar === saju.curDaeun },
       d, D.luckFacts(saju, d.pillar, `${d.startAge}~${d.startAge + 9}세 대운`)));
 
     const years = [];
     for (let k = 0; k < 10; k++) {
-      const Y = saju.thisYear + k, gz = _gz(Y - 1984), age = Y - saju.year, du = daeunOf(age);
+      const Y = saju.thisYear + k, gz = _gz(Y - 1984), age = Y - saju.year + 1, du = daeunOf(age); // 세는나이(사주랩 만세력과 같은 기준)
       years.push(Object.assign({ year: Y, gz, age, daeun: du ? du.pillar : '대운 전' }, D.luckFacts(saju, gz, `${Y}년 세운`)));
     }
 
@@ -173,7 +173,7 @@ JSON 한 줄로만 답하십시오. 설명·코드블록 금지.
 이름 ${info.name} / 성별 ${info.gender} / 태어난 시간 ${info.hour || '모름(시주 없음 — 시주를 만들어 넣지 말 것)'}
 ${s.pillarsText}
 ${data.factsText}
-현재 대운 ${s.curDaeun}(${s.curDaeunAge}세부터) / 올해 나이(연도 차이 기준) ${s.age}세
+현재 대운 ${s.curDaeun}(${s.curDaeunAge}세부터) / 올해 나이(세는나이) ${s.age}세 — 대운 나이도 세는나이 기준
 오늘: ${today.y}년 ${today.m}월 ${today.d}일
 ${ch.facts ? '\n[이 장의 추가 자료]\n' + ch.facts + '\n' : ''}
 ━━━ 고정된 핵심 판단 (리포트 전체가 이 판단을 따름 — 바꾸지 말 것) ━━━

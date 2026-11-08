@@ -257,7 +257,7 @@ if (typeof window !== 'undefined') {
 이름: ${name} / 성별: ${gender}
 ${saju.pillarsText}
 현재 대운: ${saju.curDaeun}(${saju.curDaeunAge}세부터 10년) / ${saju.thisYear}년 세운 ${saju.seun2026} / ${saju.nextYear}년 세운 ${saju.seun2027}
-올해 나이: 태어난 해와 올해의 연도 차이로 ${saju.age}세(대운 나이도 같은 기준)
+올해 나이: 세는나이 ${saju.age}세(대운 나이도 같은 세는나이 기준)
 ${facts.text}
 ${ziwei ? '\n[보조 자료] ' + ziwei + '\n자미두수는 타고난 성향을 설명할 때 한두 문장 보조 근거로만 쓸 것.' : ''}
 상담 주제: ${topic}${partnerInfo || ''}

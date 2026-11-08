@@ -266,3 +266,165 @@
       '</div>';
   };
 })(typeof window!=='undefined'?window:globalThis);
+
+
+/* 천운 정확도 패치 v3 (2026-11-08 재검증)
+ * 1) 양력으로 넣어도 한국 음력(KARI)으로 바꿔 명반을 세운다. 예전에는 iztro가 중국 음력으로 바꿔 계산해서,
+ *    한국·중국 음력이 하루 다른 날(1900~2049년 중 약 3.6%)은 양력 입력과 음력 입력의 명반이 서로 달랐다.
+ * 2) 시간: 사주 엔진과 같은 규칙(한국 경도 보정 -30분, 서머타임, 밤 11시 이후는 다음 날 자시)으로 맞춘다.
+ * 3) 밝기 표기 [+3] 등을 묘·왕·득·리·평·불·함으로 바꿔 해석 근거가 흔들리지 않게 한다.
+ * 4) 사주 대운과 자미두수 대한의 나이 구간이 다른 이유를 프롬프트에 고정해 '두 결과가 안 맞는다'는 혼선을 막는다.
+ */
+(function(root){
+  'use strict';
+  var api=root.CheonunZiwei;
+  if(!api || !api.calculate) return;
+  var BR=['자시','축시','인시','묘시','진시','사시','오시','미시','신시','유시','술시','해시'];
+  var BRIGHT={'[+3]':'묘','[+2]':'왕','[+1]':'득','[0]':'리','[-1]':'평','[-2]':'불','[-3]':'함'};
+  var MUT={'록':'화록','권':'화권','과':'화과','기':'화기'};
+  var LMT=510;
+  function pad(n){return (n<10?'0':'')+n;}
+  var _fmt=null;
+  function offsetAt(utcMs){
+    try{ if(!_fmt) _fmt=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Seoul',hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+      var o={}; _fmt.formatToParts(new Date(utcMs)).forEach(function(x){o[x.type]=x.value;});
+      return Math.round((Date.UTC(+o.year,+o.month-1,+o.day,+o.hour%24,+o.minute)-utcMs)/60000);
+    }catch(e){return 540;}
+  }
+  function wallToUtc(y,m,d,h,mi){var w=Date.UTC(y,m-1,d,h,mi),off=540;for(var i=0;i<3;i++)off=offsetAt(w-off*60000);return {utc:w-off*60000,offset:off};}
+  // 시간 입력 → {date:'Y-M-D'(자미두수에 쓸 날짜), index(0~11), note}
+  function moment(y,m,d,hourStr){
+    if(root.CheonunTime && root.CheonunTime.resolveBirthMoment){
+      var r=root.CheonunTime.resolveBirthMoment(y,m,d,hourStr);
+      var t=new Date(Date.UTC(r.lmt.y,r.lmt.m-1,r.lmt.d)+(r.lateZi?86400000:0));
+      return {y:t.getUTCFullYear(),m:t.getUTCMonth()+1,d:t.getUTCDate(),index:r.branchIndex,known:r.known,note:r.note,lateZi:r.lateZi};
+    }
+    var hs=String(hourStr||'').trim(), c=hs.match(/^(\d{1,2}):(\d{2})$/), utc, note='', late=hs==='야자시';
+    if(c){var w=wallToUtc(y,m,d,+c[1],+c[2]);utc=w.utc;if(w.offset!==540)note='출생 당시 한국 시각 UTC+'+Math.floor(w.offset/60)+(w.offset%60?':'+pad(w.offset%60):'')+' 반영';}
+    else{var idx=late?0:BR.indexOf(hs);if(idx<0)return {y:y,m:m,d:d,index:-1,known:false,note:''};utc=Date.UTC(y,m-1,d,0,0)+(late?(23*60+30):(idx===0?30:idx*120))*60000-LMT*60000;}
+    var l=new Date(utc+LMT*60000),min=l.getUTCHours()*60+l.getUTCMinutes(),lz=min>=23*60;
+    var t2=new Date(Date.UTC(l.getUTCFullYear(),l.getUTCMonth(),l.getUTCDate())+(lz?86400000:0));
+    return {y:t2.getUTCFullYear(),m:t2.getUTCMonth()+1,d:t2.getUTCDate(),index:Math.floor(((min+60)%1440)/120),known:true,note:note,lateZi:lz};
+  }
+  function bright(b){return BRIGHT[b]||b||'';}
+  function starObj(s){return {name:s.name,brightness:bright(s.brightness),mutagen:s.mutagen?(MUT[s.mutagen]||s.mutagen):''};}
+
+  function calculate(options){
+    if(!root.iztro||!root.iztro.astro) throw new Error('자미두수 계산 모듈을 불러오지 못했습니다.');
+    if(!root.KoreanLunar){ // 한국 음력표가 없는 환경(단독 테스트 등): 예전 방식으로 계산하고 밝기만 한글로
+      var lc=legacyCalc(options);
+      lc.palaces.forEach(function(pl){pl.majorStars.forEach(function(s){s.brightness=bright(s.brightness);});});
+      lc.warning='한국 음력표 없이 계산됨'; return lc;
+    }
+    var birth=String(options.birth||'').trim();
+    if(!birth) throw new Error('생년월일을 입력해주세요.');
+    var hourStr=options.hour;
+    if(!hourStr) throw new Error('자미두수는 태어난 시간이 필요합니다.');
+    var p=birth.split(/[-.\/]/).map(Number);
+    var solar = options.calendar==='음력' ? root.KoreanLunar.lunarToSolar(p[0],p[1],p[2],!!options.isLeap) : p.join('-');
+    var sp=solar.split('-').map(Number);
+    if(sp.length!==3||sp.some(function(n){return !Number.isFinite(n);})) throw new Error('생년월일 형식을 확인해 주세요.');
+    solar=sp.join('-');
+    var mo=moment(sp[0],sp[1],sp[2],hourStr);
+    if(!mo.known||mo.index<0) throw new Error('자미두수는 태어난 시간이 필요합니다.');
+    var gender=(options.gender==='남성'||options.gender==='남')?'男':'女';
+    var k=root.KoreanLunar.solarToLunar(mo.y,mo.m,mo.d);
+    // 윤달은 전통 관례(iztro fixLeap과 같음): 15일까지는 그 달, 16일부터는 다음 달로 본다.
+    var ly=k.year, lm=k.month, ld=k.day, warn='';
+    if(k.isLeap && ld>15){ lm+=1; if(lm>12){lm=12;warn='윤12월 16일 이후 출생: 다음 해 1월로 볼지 전문가 확인 필요';} }
+    var chart, basis='한국 음력 '+k.year+'년 '+(k.isLeap?'윤':'')+k.month+'월 '+k.day+'일', yearShift=0;
+    try{
+      chart=root.iztro.astro.byLunar(ly+'-'+lm+'-'+ld, mo.index, gender, false, true, 'ko-KR');
+    }catch(e){
+      // 한국 음력에는 30일이 있는데 중국 달력에는 29일까지인 달: 별 배치는 해의 간지·월·일·시만 쓰므로
+      // 간지가 같은 60년 전후 해에서 같은 월 30일로 명반을 세우고, 현재 운을 볼 날짜도 같은 만큼 옮겨 나이를 맞춘다.
+      [-60,60,-120,120].some(function(dy){
+        try{ chart=root.iztro.astro.byLunar((ly+dy)+'-'+lm+'-'+ld, mo.index, gender, false, true, 'ko-KR'); yearShift=dy; return true; }catch(e2){ return false; }
+      });
+      if(!chart){
+        chart=root.iztro.astro.bySolar(mo.y+'-'+mo.m+'-'+mo.d, mo.index, gender, true, 'ko-KR');
+        warn='한국 음력 날짜('+basis+')가 계산 모듈 달력에 없어 양력 기준으로 계산했습니다. 별 배치를 전문가가 한 번 더 확인해 주세요.';
+      }
+    }
+    var target=options.targetDate?new Date(options.targetDate):new Date();
+    if(yearShift) target=new Date(target.getFullYear()+yearShift, target.getMonth(), target.getDate());
+    var horoscope=chart.horoscope(target);
+    var palaces=chart.palaces.map(function(pl){
+      return {index:pl.index,name:pl.name,stemBranch:pl.heavenlyStem+pl.earthlyBranch,branch:pl.earthlyBranch,isBodyPalace:!!pl.isBodyPalace,
+        majorStars:(pl.majorStars||[]).map(starObj),
+        minorStars:(pl.minorStars||[]).map(function(s){return s.name+(s.mutagen?'('+(MUT[s.mutagen]||s.mutagen)+')':'');}).filter(Boolean),
+        adjectiveStars:(pl.adjectiveStars||[]).map(function(s){return s.name;}).filter(Boolean),
+        changsheng12:pl.changsheng12||'',boshi12:pl.boshi12||'',jiangqian12:pl.jiangqian12||'',suiqian12:pl.suiqian12||'',
+        ages:Array.isArray(pl.ages)?pl.ages.slice():[],decadalRange:pl.decadal&&pl.decadal.range?pl.decadal.range.join('~'):''};
+    });
+    var dec=palaces.find(function(x){return x.index===horoscope.decadal.index;});
+    var yr=palaces.find(function(x){return x.index===horoscope.yearly.index;});
+    var firstDecade=palaces.map(function(x){return x.decadalRange;}).filter(Boolean).map(function(r){return +r.split('~')[0];}).sort(function(a,b){return a-b;})[0];
+    var targetText=options.targetDate?new Date(options.targetDate):new Date();
+    targetText=targetText.getFullYear()+'-'+(targetText.getMonth()+1)+'-'+targetText.getDate();
+    return {
+      raw:chart, solarDate:solar, yearShift:yearShift, lunarDate:k.year+'년 '+(k.isLeap?'윤':'')+k.month+'월 '+k.day+'일'+(mo.lateZi?' (밤 자시 → 다음 날 기준)':''),
+      chineseDate:chart.chineseDate, time:BR[mo.index]+(mo.lateZi?'(밤 자시)':''), soulPalace:chart.earthlyBranchOfSoulPalace, bodyPalace:chart.earthlyBranchOfBodyPalace,
+      soulStar:chart.soul, bodyStar:chart.body, fiveElementsClass:chart.fiveElementsClass, palaces:palaces,
+      firstDecadeAge:firstDecade,
+      engineVersion:'iztro 2.6.0 · 한국 음력 보정 v3', calendarVersion:'한국 음력표(KARI 기준) — 양력 입력도 한국 음력으로 환산',
+      timePolicy:'한국 경도 보정(표준시 -30분)·서머타임 반영, 밤 11시 이후는 다음 날 자시', calcBasis:basis+' '+BR[mo.index]+(lm!==k.month?' (윤달 16일 이후라 '+lm+'월로 배치)':''),
+      timeNote:mo.note||'', warning:warn,
+      current:{targetSolarDate:targetText,nominalAge:horoscope.age.nominalAge,
+        decadalPalace:dec?dec.name:'',decadalStemBranch:horoscope.decadal.heavenlyStem+horoscope.decadal.earthlyBranch,decadalMutagens:horoscope.decadal.mutagen||[],
+        yearlyPalace:yr?yr.name:'',yearlyStemBranch:horoscope.yearly.heavenlyStem+horoscope.yearly.earthlyBranch,yearlyMutagens:horoscope.yearly.mutagen||[]}
+    };
+  }
+  var oldPrompt=api.toPrompt, oldRender=api.render, legacyCalc=api.calculate;
+  api.calculate=calculate;
+  api.toPrompt=function(chart){
+    var base=oldPrompt(chart);
+    return base+'\n'+[
+      '계산 근거 날짜: '+(chart.calcBasis||'')+(chart.timeNote?' / '+chart.timeNote:''),
+      chart.warning?'⚠️ '+chart.warning:'',
+      '밝기 순서(높음→낮음): 묘 > 왕 > 득 > 리 > 평 > 불 > 함. 명반에 적힌 밝기만 쓸 것.',
+      '자미두수 대한은 오행국('+chart.fiveElementsClass+') 기준 '+(chart.firstDecadeAge||'')+'세부터 10년 단위(세는나이)라 사주 대운(대운수 기준)과 나이 구간이 다르다. 두 체계의 나이·구간을 섞거나 같다고 말하지 말고, 자미두수 시기는 반드시 위 대한 범위로만 말할 것.',
+      '자미두수의 해(띠·사화)는 음력 설 기준이고 사주의 해는 입춘 기준이라, 설과 입춘 사이 출생자는 두 체계의 해 간지가 다를 수 있다. 이 경우 둘 중 하나가 틀린 것이 아님.'
+    ].filter(Boolean).join('\n');
+  };
+  api.render=function(chart,name){
+    var html=oldRender(chart,name);
+    var extra='<div class="zw-data-strip"><b>계산 근거</b> '+String(chart.calcBasis||'').replace(/</g,'&lt;')+(chart.timeNote?' · '+chart.timeNote:'')+'</div>'+
+      (chart.warning?'<div class="zw-data-strip" style="color:#e57373"><b>확인 필요</b> '+String(chart.warning).replace(/</g,'&lt;')+'</div>':'');
+    return html.replace('<div class="zw-grid">',extra+'<div class="zw-grid">');
+  };
+  api.hourIndex=function(hour){return hour==='야자시'?0:BR.indexOf(hour);};
+  api.moment=moment;
+
+  // 시간 선택칸: '밤 자시(23:30~24:00, 다음 날)' 추가 + 출생일에 맞춘 시계 시각 표시(서머타임·UTC+8:30 시기 자동 반영)
+  function labelFor(dateStr,idx,late){
+    var p=String(dateStr||'').split(/[-.\/]/).map(Number), y=p[0]||2000,m=p[1]||6,d=p[2]||15;
+    var noon=wallToUtc(y,m,d,12,0).offset, shift=noon-LMT; // 지방시 → 출생일 벽시계
+    function f(min){min=((min%1440)+1440)%1440;return pad(Math.floor(min/60))+':'+pad(min%60);}
+    if(late) return shift>=60 ? '밤 자시 (이 날짜는 서머타임이라 해당 없음)' : '밤 자시 ('+f(23*60+shift)+'~23:59, 다음 날 일주)';
+    if(idx===0) return '자시 ('+f(Math.max(0,shift-60))+'~'+f(60+shift-1)+')';
+    var s=idx*120-60+shift; return BR[idx]+' ('+f(s)+'~'+f(s+119)+')';
+  }
+  var PAIRS={cHour:'cBirth',callHour:'callBirth',rHour:'rBirth',zHour:'zBirth',pHour:'pBirth',birthHour:'birth'};
+  function upgradeSelect(sel){
+    if(!sel||sel.dataset.cheonunHour) return; sel.dataset.cheonunHour='1';
+    // value 속성이 없는 <option>자시</option>은 글자를 바꾸면 값도 바뀌므로 먼저 값을 고정한다.
+    Array.prototype.forEach.call(sel.options,function(o){ if(o.getAttribute('value')===null){ var t=o.text.trim().split(' ')[0]; o.setAttribute('value', BR.indexOf(t)>=0?t:(t==='시간을'||t==='모름'?'':o.text.trim())); } });
+    var zi=Array.prototype.find.call(sel.options,function(o){return o.value==='자시';});
+    if(zi && !Array.prototype.some.call(sel.options,function(o){return o.value==='야자시';})){
+      var late=document.createElement('option'); late.value='야자시'; late.text='밤 자시'; sel.insertBefore(late,zi);
+    }
+    var birth=document.getElementById(PAIRS[sel.id]);
+    function relabel(){
+      var ds=birth&&birth.value; var cal=document.getElementById(sel.id==='zHour'?'zCalendar':sel.id==='cHour'?'cLunar':'');
+      if(ds && cal && cal.value==='음력' && root.KoreanLunar){ try{var q=ds.split(/[-.\/]/).map(Number);ds=root.KoreanLunar.lunarToSolar(q[0],q[1],q[2],false);}catch(e){} }
+      Array.prototype.forEach.call(sel.options,function(o){var i=BR.indexOf(o.value); if(o.value==='야자시') o.text=labelFor(ds,0,true); else if(i>=0) o.text=labelFor(ds,i,false);});
+    }
+    relabel(); if(birth){birth.addEventListener('change',relabel);birth.addEventListener('input',relabel);}
+  }
+  function upgradeAll(){ Object.keys(PAIRS).forEach(function(id){upgradeSelect(document.getElementById(id));}); }
+  if(typeof document!=='undefined'){
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',upgradeAll); else upgradeAll();
+    root.CheonunUpgradeHourSelects=upgradeAll;
+  }
+})(typeof window!=='undefined'?window:globalThis);

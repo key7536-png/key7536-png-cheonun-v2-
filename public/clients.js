@@ -21,3 +21,6 @@
   window.importData=function(event){var file=event.target.files[0];event.target.value='';if(!file)return;var reader=new FileReader();reader.onload=function(){try{var data=JSON.parse(reader.result);if(!data||data.format!=='cheonun-client-backup'||!Array.isArray(data.records))throw new Error('형식 오류');if(!confirm('현재 '+records.length+'명의 기록을 백업 파일의 '+data.records.length+'명 기록으로 교체할까요?'))return;records=normalizeRecords(data.records).records;write();newClient();el('saveStatus').textContent='백업을 복원했습니다. 중복 고객 식별값도 안전하게 정리했습니다.';}catch(e){alert('천운 고객 백업 파일이 아니거나 파일이 손상되었습니다.');}};reader.readAsText(file);};
   read();newClient();
 })();
+
+/* 2026-11-08: 밤 자시(23:30~23:59, 다음 날 일주) 선택지 */
+(function(){var s=document.getElementById('birthHour');if(!s)return;var z=Array.prototype.find.call(s.options,function(o){return (o.value||o.text)==='자시';});if(z&&!Array.prototype.some.call(s.options,function(o){return o.value==='야자시';})){var o=document.createElement('option');o.value='야자시';o.text='밤 자시 (23:30~23:59, 다음 날 일주)';s.insertBefore(o,z);}})();
