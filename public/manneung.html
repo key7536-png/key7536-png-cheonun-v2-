@@ -64,7 +64,7 @@ details.mn-details summary{cursor:pointer;color:#c9bfe0;font-size:.85rem;margin:
   <main>
     <section class="intro">
       <h1>🧞 만능이 질문답변</h1>
-      <p>고객을 고르고 질문만 적으면 바로 답변이 나옵니다. 사주·자미두수 자료는 앱이 자동으로 계산해 넣고, 사주랩 1300줄 데이터가 있으면 붙여 넣어 더 자세히 볼 수 있습니다. ChatGPT의 카라반 만능이로 보내는 버튼도 있습니다.</p>
+      <p>고객을 고르고 질문만 적으면 바로 답변이 나옵니다. 사주·자미두수 자료는 앱이 자동으로 계산해 넣고, 사주랩 1300줄 데이터가 있으면 붙여 넣어 더 자세히 볼 수 있습니다. 답변 순서와 문체는 사주랩 자료실의 카라반 만능 질문답변기 실제 답변과 같게 맞췄고, ChatGPT 만능이로 바로 보내는 버튼도 있습니다.</p>
     </section>
 
     <section class="card">
@@ -88,7 +88,8 @@ details.mn-details summary{cursor:pointer;color:#c9bfe0;font-size:.85rem;margin:
       <div id="mPresets"></div>
       <textarea id="mQuestion" class="mn-q" placeholder="고객 질문을 그대로 붙여 넣으세요. (Ctrl+Enter로 바로 답변)"></textarea>
       <div style="margin:8px 0 4px;font-size:.8rem;color:#c9bfe0">답변 길이</div>
-      <div id="mLen"><span class="mn-chip" data-len="short">짧게 · 카톡용 (약 600자)</span><span class="mn-chip on" data-len="mid">보통 (약 1,500자)</span><span class="mn-chip" data-len="long">길게 · 추가답변용 (약 4,000자)</span></div>
+      <div id="mLen"><span class="mn-chip on" data-len="long">만능이 기본 · 추가답변용 (약 5,000자)</span><span class="mn-chip" data-len="mid">보통 (약 3,000자)</span><span class="mn-chip" data-len="short">짧게 · 카톡용 (약 1,000자)</span></div>
+      <label class="inline-check" style="margin-top:8px"><input id="mZiwei" type="checkbox"> 자미두수도 함께 보기 (원래 만능이는 사주로만 답해요)</label>
       <div class="mn-row" style="margin-top:12px">
         <button id="mGo" class="btn" onclick="mnAsk()">🧞 만능이 답변 받기</button>
         <button class="btn ghost" onclick="mnOpenGpt()">ChatGPT 만능이로 보내기</button>
