@@ -1,3 +1,5 @@
+/* 2026-11-08: 주소 뒤 #import=… 로 받은 고객 목록을 이 브라우저 고객관리에 합친다(같은 이름+생년월일은 건너뜀). 자료는 서버로 전송되지 않는다. */
+(function(){try{var h=location.hash;if(h.indexOf('#import=')!==0)return;var b=h.slice(8).replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';var bin=atob(b),bytes=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);var data=JSON.parse(new TextDecoder().decode(bytes));var KEY='cheonun.clients.v1';var list=JSON.parse(localStorage.getItem(KEY)||'[]');var added=0;(data.records||[]).forEach(function(r){if(list.some(function(x){return x.name===r.name&&x.birth===r.birth;}))return;list.push(r);added++;});localStorage.setItem(KEY,JSON.stringify(list));history.replaceState(null,'',location.pathname);window.__cheonunImported=added;}catch(e){window.__cheonunImported='오류: '+e.message;}})();
 (function(){
   'use strict';
   var KEY='cheonun.clients.v1';
@@ -24,3 +26,6 @@
 
 /* 2026-11-08: 밤 자시(23:30~23:59, 다음 날 일주) 선택지 */
 (function(){var s=document.getElementById('birthHour');if(!s)return;var z=Array.prototype.find.call(s.options,function(o){return (o.value||o.text)==='자시';});if(z&&!Array.prototype.some.call(s.options,function(o){return o.value==='야자시';})){var o=document.createElement('option');o.value='야자시';o.text='밤 자시 (23:30~23:59, 다음 날 일주)';s.insertBefore(o,z);}})();
+
+/* 가져오기 결과 표시 */
+(function(){if(window.__cheonunImported===undefined)return;var s=document.getElementById('saveStatus');if(s)s.textContent='고객 '+window.__cheonunImported+'명을 불러왔습니다.';})();

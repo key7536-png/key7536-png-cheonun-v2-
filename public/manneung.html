@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="theme-color" content="#0d0d0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="여명당 상담">
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>🧞 만능이 질문답변 · 여명당 상담</title>
+  <style>
+    :root{--bg:#09090e;--card:#12121a;--line:#292938;--text:#eeeaf7;--muted:#9792a6;--gold:#d9a53b;--gold2:#ffd879;--purple:#7658bc;--purple2:#b99af8;--red:#ff7b83}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif}
+    .topbar{height:58px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 18px;gap:16px;position:sticky;top:0;background:rgba(9,9,14,.96);z-index:10}
+    .brand{font-weight:800;color:var(--gold2);white-space:nowrap}.tabs{display:flex;gap:5px;overflow-x:auto}.tab{border:1px solid transparent;border-radius:9px;padding:8px 11px;color:var(--muted);font-size:.78rem;text-decoration:none;white-space:nowrap}.tab.on{color:var(--gold2);border-color:#59431f;background:#211b11}
+    main{max-width:980px;margin:0 auto;padding:20px 14px 60px}.intro{margin-bottom:16px}.intro h1{font-size:1.35rem;margin:0 0 7px}.intro p{font-size:.8rem;color:var(--muted);line-height:1.55;margin:0}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:17px;margin-bottom:13px}.card-title{font-weight:800;color:var(--gold2);font-size:.92rem;margin-bottom:14px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}.field{margin-bottom:11px}.field label{display:block;color:#bbb5c9;font-size:.73rem;margin-bottom:6px}input,select,textarea{width:100%;background:#0b0b11;border:1px solid #30303e;border-radius:9px;color:var(--text);padding:10px 11px;font:inherit;font-size:.84rem}textarea{min-height:84px;resize:vertical}.inline-check{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:.75rem}.inline-check input{width:auto}
+    .btn{width:100%;border:0;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#b77a14,#e3b34e);color:#15100a}.btn:disabled{opacity:.55;cursor:wait}.error{color:var(--red);font-size:.78rem;margin-top:9px}
+    .zw-summary{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.zw-summary span{font-size:.69rem;color:#d8cfeb;background:#1b1825;border:1px solid #352d4b;border-radius:999px;padding:5px 8px}.zw-current{font-size:.76rem;color:var(--purple2);margin:10px 0}.zw-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.zw-palace{min-height:96px;border:1px solid #302b3d;border-radius:10px;padding:9px;background:#0d0c13}.zw-palace.soul{border-color:var(--gold);box-shadow:0 0 0 1px rgba(217,165,59,.16) inset}.zw-palace-head{display:flex;justify-content:space-between;gap:5px;font-size:.74rem}.zw-palace-head b{color:var(--gold2)}.zw-palace-head span{color:var(--muted);font-size:.65rem}.zw-stars{font-size:.76rem;line-height:1.45;margin-top:8px}.zw-decade{font-size:.63rem;color:#817b8e;margin-top:7px}.zw-note{font-size:.67rem;color:var(--muted);line-height:1.5;margin:11px 0 0}.zw-data-strip{margin:10px 0;padding:9px 10px;border:1px solid #3a304b;border-radius:9px;background:#171321;color:#b9afc8;font-size:.68rem;line-height:1.55}.zw-report-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:10px 0 14px}.zw-report-meta div{border:1px solid #352d47;border-radius:9px;padding:9px;background:#0d0c13;font-size:.7rem;color:#bcb4c9}.zw-report-meta b{display:block;color:#ffd879;margin-bottom:3px}.zw-overall{border:1px solid #6e4f1e;background:linear-gradient(135deg,#21180c,#15120d);border-radius:12px;padding:13px;margin-bottom:12px}.zw-overall h3{margin:0 0 7px;color:#ffd879;font-size:.92rem}.zw-evidence{font-size:.66rem;color:#988ea4;margin-top:8px;padding-top:7px;border-top:1px dashed #3a304b}@media(max-width:680px){.zw-report-meta{grid-template-columns:1fr 1fr}}
+    .bubble{border-left:3px solid var(--purple);background:#0d0d14;border-radius:5px 12px 12px 5px;padding:12px 13px;margin:9px 0;font-size:.84rem;line-height:1.65}.bubble-num{display:block;color:var(--purple2);font-size:.64rem;font-weight:800;margin-bottom:4px}.copy{float:right;background:none;border:0;color:var(--muted);font-size:.68rem;cursor:pointer}.loading{color:var(--muted);font-size:.8rem;text-align:center;padding:16px}
+    .zw-chat-log{max-height:52vh;overflow-y:auto;display:flex;flex-direction:column;gap:9px;margin-bottom:4px}
+    .zw-chat-msg{border-radius:12px;padding:10px 12px;font-size:.83rem;line-height:1.6;max-width:88%}
+    .zw-chat-msg b{display:block;font-size:.66rem;color:var(--muted);margin-bottom:3px;font-weight:700}
+    .zw-chat-msg.me{align-self:flex-end;background:#1c1730;border:1px solid #352c55;color:var(--text)}
+    .zw-chat-msg.me b{color:var(--purple2)}
+    .zw-chat-msg.ai{align-self:flex-start;background:#0d0d14;border:1px solid var(--line)}
+    .zw-chat-msg.ai b{color:var(--gold2)}
+    .zw-chat-actions{display:flex;gap:8px;margin-top:10px}
+    .zw-chat-actions .btn.ghost{background:transparent;border:1px solid #30303e;color:var(--muted);font-weight:700}
+    #zFollowup{min-height:56px}
+    @media(max-width:680px){.grid2{grid-template-columns:1fr}.zw-grid{grid-template-columns:repeat(2,1fr)}.topbar{padding:0 10px}.brand{font-size:.83rem}.zw-chat-msg{max-width:96%}.zw-chat-log{max-height:44vh}}
+  </style>
+<style>
+.mn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.mn-row .btn{flex:1;min-width:150px}
+.mn-q{min-height:110px;font-size:.95rem}
+.mn-data{min-height:120px;font-size:.75rem;font-family:ui-monospace,Consolas,monospace}
+.mn-answer{white-space:pre-wrap;line-height:1.85;font-size:.92rem;background:rgba(255,255,255,.03);border:1px solid rgba(240,192,96,.25);border-radius:12px;padding:16px;margin-top:10px}
+.mn-q-bubble{white-space:pre-wrap;font-size:.85rem;color:#f0c060;margin-top:18px}
+.mn-meta{font-size:.75rem;color:#8d869e;margin-top:6px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.mn-chip{display:inline-block;padding:6px 12px;border-radius:999px;border:1px solid rgba(240,192,96,.35);cursor:pointer;font-size:.8rem;margin:2px}
+.mn-chip.on{background:rgba(240,192,96,.18);color:#f6d58a}
+details.mn-details summary{cursor:pointer;color:#c9bfe0;font-size:.85rem;margin:6px 0}
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">✦ 천운 상담도구</div>
+    <nav class="tabs">
+      <a class="tab" href="/">💬 상담</a>
+      <a class="tab" href="/#call">📞 전화상담</a>
+      <a class="tab" href="/#why">🤔 왜요?</a>
+      <a class="tab" href="/ziwei.html">⭐ 자미두수</a>
+      <a class="tab on" href="/manneung.html">🧞 만능이</a>
+      <a class="tab" href="/clients.html">📁 고객관리</a>
+    </nav>
+  </header>
+  <main>
+    <section class="intro">
+      <h1>🧞 만능이 질문답변</h1>
+      <p>고객을 고르고 질문만 적으면 바로 답변이 나옵니다. 사주·자미두수 자료는 앱이 자동으로 계산해 넣고, 사주랩 1300줄 데이터가 있으면 붙여 넣어 더 자세히 볼 수 있습니다. ChatGPT의 카라반 만능이로 보내는 버튼도 있습니다.</p>
+    </section>
+
+    <section class="card">
+      <div class="card-title">👤 고객</div>
+      <div class="field"><label>고객관리에서 고르기</label><select id="mClient" onchange="mnLoadClient()"><option value="">고객을 선택하세요 (또는 아래에 직접 입력)</option></select></div>
+      <div class="grid2">
+        <div class="field"><label>이름 / 닉네임</label><input id="mName" placeholder="예) 김미나"></div>
+        <div class="field"><label>성별</label><select id="mGender"><option value="여성">여성</option><option value="남성">남성</option></select></div>
+        <div class="field"><label>양력 / 음력</label><select id="mCalendar"><option value="양력">양력</option><option value="음력">음력</option></select></div>
+        <div class="field"><label>생년월일</label><input id="mBirth" placeholder="예) 1989-03-06"></div>
+        <div class="field"><label>태어난 시간</label><select id="mHour"><option value="">모름</option><option value="야자시">밤 자시 (23:30~)</option><option>자시</option><option>축시</option><option>인시</option><option>묘시</option><option>진시</option><option>사시</option><option>오시</option><option>미시</option><option>신시</option><option>유시</option><option>술시</option><option>해시</option></select></div>
+        <div class="field" style="display:flex;align-items:flex-end"><label class="inline-check"><input id="mLeap" type="checkbox"> 음력 윤달</label></div>
+      </div>
+      <details class="mn-details"><summary>📊 사주랩 1300줄 데이터 붙여넣기 (선택 — 없으면 앱 계산 자료로 답변)</summary>
+        <textarea id="mData" class="mn-data" placeholder="사주랩 주문관리 → 📊데이터 → 전체 복사한 내용을 붙여 넣으세요."></textarea>
+      </details>
+    </section>
+
+    <section class="card">
+      <div class="card-title">❓ 질문</div>
+      <div id="mPresets"></div>
+      <textarea id="mQuestion" class="mn-q" placeholder="고객 질문을 그대로 붙여 넣으세요. (Ctrl+Enter로 바로 답변)"></textarea>
+      <div style="margin:8px 0 4px;font-size:.8rem;color:#c9bfe0">답변 길이</div>
+      <div id="mLen"><span class="mn-chip" data-len="short">짧게 · 카톡용 (약 600자)</span><span class="mn-chip on" data-len="mid">보통 (약 1,500자)</span><span class="mn-chip" data-len="long">길게 · 추가답변용 (약 4,000자)</span></div>
+      <div class="mn-row" style="margin-top:12px">
+        <button id="mGo" class="btn" onclick="mnAsk()">🧞 만능이 답변 받기</button>
+        <button class="btn ghost" onclick="mnOpenGpt()">ChatGPT 만능이로 보내기</button>
+      </div>
+      <div id="mError" class="error"></div>
+      <div id="mHint" style="font-size:.75rem;color:#8d869e;margin-top:6px"></div>
+    </section>
+
+    <section id="mResult"></section>
+  </main>
+  <script src="/korean-lunar.js"></script>
+  <script src="/vendor/iztro-v2.6.0.min.js"></script>
+  <script src="/ziwei.js"></script>
+  <script src="/vendor/lunar-javascript-1.7.7.js"></script>
+  <script src="/saju-engine.js"></script>
+  <script src="/deep-saju.js"></script>
+  <script src="/manneung.js"></script>
+</body>
+</html>
