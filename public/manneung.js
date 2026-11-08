@@ -5,7 +5,7 @@
   'use strict';
   var KEY = 'cheonun.clients.v1';
   // 사주랩 자료실 5번 '만능 질문답변기 gpts' 공식 주소 (2026-11-08 확인)
-  var GPT_URL = 'https://chatgpt.com/g/g-693357ce305c8191b397c43d47f4af64-karaban-manneung-jilmundabbyeongi';
+  var GEM_URL = 'https://gemini.google.com/gem/269b5ee5df6e';
   // 실제 만능이 답변(2026-11-08 상상님 건, 5,931자·26문단) 패턴을 기준으로 한 분량
   var LEN = { short: ['카카오톡용 요약본', '공백 포함 900~1,300자, 문단 5~7개. 같은 순서를 짧게 줄이고 연도별 세운은 한 문단으로 묶을 것'], mid: ['상담 답변', '공백 포함 2,500~3,200자, 문단 12~16개'], long: ['만능이 기본(사주랩 추가답변·고객 발송용)', '공백 포함 4,500~6,000자, 문단 22~26개, 문단마다 170~300자'] };
   var KO = {'甲':'갑','乙':'을','丙':'병','丁':'정','戊':'무','己':'기','庚':'경','辛':'신','壬':'임','癸':'계','子':'자','丑':'축','寅':'인','卯':'묘','辰':'진','巳':'사','午':'오','未':'미','申':'신','酉':'유','戌':'술','亥':'해'};
@@ -177,14 +177,26 @@
     fillClients(); el('mHint').textContent = p.name + '님 고객 기록에 질문과 답변을 저장했어요.';
   };
 
-  window.mnOpenGpt = function () {
+  window.mnOpenGem = function () {
     var p = info(), q = el('mQuestion').value.trim(), labData = el('mData').value.trim();
     var facts = ''; try { facts = appFacts(p); } catch (e) {}
-    var text = (labData ? labData : facts) + '\n\n[고객 질문]\n' + (q || '(질문을 적어 주세요)') + '\n\n고객 이름: ' + p.name + ' / 성별: ' + p.gender;
+    var nm = String(p.name || '의뢰자').replace(/\s*\(.*\)\s*$/, '').trim();
+    var instructions = [
+      '[작성 규칙 추가]',
+      '- 첫 문장은 반드시 "의뢰자님의 사주를 좀 더 세심히 살펴보았습니다."로 시작하고 바로 본론으로 들어가기.',
+      '- 자료·파일·데이터를 언급하지 않고 상담사가 직접 살펴본 글처럼 쓰기.',
+      '- 고객 질문에 먼저 충분히 답하고, 확인용 나이·대운·세운·삼재는 제공된 정보와 똑같이 쓰며 없는 정보를 만들지 않기.',
+      '- 실제 교운 월일을 모르면 연도 전후로만 표현하기.',
+      '- 기본 답변은 4,500~6,000자 안팎, 소제목·번호·표·한자 없이 20~26개 안팎의 자연스러운 문단으로 작성하기.',
+      '- 질문에 맞는 성향과 재능, 부족한 점, 현재·다음 대운, 올해부터 5년 세운(한 해에 한 문단), 생활 습관상 건강관리, 삼재, 장점·주의, 종합 순으로 설명하기.',
+      '- 질환이나 사건을 단정하지 말고 가능성과 현실적인 조언을 함께 제시하기.',
+      '- 정중한 존댓말로 쓰고 마지막 문단은 "' + nm + '님께 가장 중요한 것은"으로 시작해 현실적인 조언으로 마무리하기.'
+    ].join('\n');
+    var text = (labData ? labData + '\n\n' : '[사주 확인용 정보 — 가능한 경우 사주랩 1300줄 원본도 붙여 주세요]\n' + facts + '\n\n') + '[고객 질문]\n' + (q || '(질문을 적어 주세요)') + '\n\n고객 이름: ' + nm + ' / 성별: ' + p.gender + '\n\n' + instructions;
     navigator.clipboard.writeText(text).then(function () {
-      el('mHint').textContent = (labData ? '사주랩 데이터' : '앱 계산 자료') + '와 질문을 복사했어요. 열린 ChatGPT 만능이 입력칸에 Ctrl+V로 붙여 넣고 보내세요.';
-    }).catch(function () { el('mHint').textContent = '복사가 막혔어요. 자료를 직접 복사해 주세요.'; });
-    window.open(GPT_URL, '_blank');
+      el('mHint').textContent = (labData ? '사주랩 1300줄 데이터' : '앱 계산 확인용 정보') + '와 질문, 만능이 작성 규칙을 복사했어요. 열린 Gemini Gem에 붙여 넣고 보내세요.';
+    }).catch(function () { el('mHint').textContent = '복사가 막혔어요. 입력 내용과 작성 규칙을 직접 복사해 주세요.'; });
+    window.open(GEM_URL, '_blank');
   };
 
   document.addEventListener('DOMContentLoaded', function () {
