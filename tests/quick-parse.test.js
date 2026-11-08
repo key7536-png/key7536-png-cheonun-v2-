@@ -46,7 +46,7 @@ assert.equal(r.topic, '궁합');
 
 r = p('03년 5월 7일 밤 11시 40분 남 합격할까요');
 assert.equal(r.birth, '2003-05-07');
-assert.equal(r.hour, '자시');
+assert.equal(r.hour, '야자시'); // 밤 23:30 이후 → 다음 날 일주(사주랩 기준)
 assert.equal(r.gender, '남성');
 
 console.log('quick parse tests passed');

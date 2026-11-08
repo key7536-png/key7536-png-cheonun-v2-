@@ -43,7 +43,7 @@ assert.throws(
 
 const prompt = context.CheonunZiwei.toPrompt(chart);
 assert.match(prompt, /명궁:오/);
-assert.match(prompt, /무곡\(화록\)/);
+assert.match(prompt, /무곡 밝기 득 화록/); // 2026-11-08: 밝기는 묘·왕·득·리·평·불·함으로 표기
 assert.match(prompt, /현재 대한:노복/);
 
 const lunarChart = context.CheonunZiwei.calculate({
