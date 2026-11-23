@@ -130,7 +130,112 @@
     };
   }
 
-  const api = { parseQuickText, clockToBranch, extractDates };
+  // ════════════════════════════════
+  // ⚡ 3단계 순차 출력 — 선진님의 실제 당근/스레드 응대 순서를 그대로 옮긴다.
+  //  1단계: 공감 + 사주 일간·대운 + 타로 3개월 정체/주의점 + 후기 유도 멘트 → 바로 1차 발송
+  //  2단계: 타로 카드별 구체 흐름 + 마음가짐/조언 보충
+  //  3단계: 후기를 받은 뒤 자미두수 명궁·부처궁 + 구체적 시기 + 배우자상 + 마무리 인사
+  // 프롬프트 조립은 브라우저/노드 공용(tests/quick-stage.test.js).
+  // ════════════════════════════════
+  const QUICK_STAGE_SPREAD = ['현재 상황', '숨은 흐름', '3개월 안 결과'];
+
+  const QUICK_STAGES = [
+    { n: 1, title: '1단계 — 1차 발송 (후기 전)', maxTokens: 1600, target: '공백 포함 330~450자' },
+    { n: 2, title: '2단계 — 타로 보충 (1차에 이어서)', maxTokens: 2400, target: '공백 포함 420~650자' },
+    { n: 3, title: '3단계 — 후기 후 2차 결론', maxTokens: 3000, target: '공백 포함 550~900자' },
+  ];
+
+  const QUICK_STAGE_FIRST_CLOSING = '그러나 좋은 시기는 반드시 옵니다. 그게 언제일지 시기를 알고 싶으시죠? 후기를 남겨주시면 정확한 시기와 인연까지 알려드릴게요^^';
+  const QUICK_STAGE_LAST_CLOSING = '좋은 기운을 전하게 되어 저 또한 기쁜 마음입니다. 늘 행복하세요^^';
+
+  function buildQuickStagePrompts(ctx) {
+    ctx = ctx || {};
+    const name = (ctx.nick || '').trim();
+    const call = name ? name + '님' : '님';
+    const cards = ctx.cards || [];
+    const cardLines = cards.map((c, i) => `${c.pos || QUICK_STAGE_SPREAD[i]}: ${c.label} — ${c.meaning || '일반 의미로 해석'}`).join('\n');
+    const today = ctx.today instanceof Date ? ctx.today : new Date();
+    const monthsAhead = [1, 2, 3].map(k => (today.getMonth() + k) % 12 + 1 + '월').join('·');
+    const labelRule = name
+      ? `호칭은 "${call}".`
+      : '닉네임이 없으니 이름 호칭 없이 자연스럽게 쓸 것("님" 한 글자만 단독으로 쓰지 말 것).';
+
+    const dataBlock = `━━━ 계산 완료된 자료 (임의 재계산·임의 별자리·임의 카드 금지) ━━━
+성별: ${ctx.gender || '여성'} / 상담 주제: ${ctx.topic || '종합운'}
+사주: ${ctx.pillarsText || ''} | 일간 ${ctx.ilgan || ''} | 현재 대운 ${ctx.curDaeun || ''}(${ctx.curDaeunAge || ''}세~) | 올해(${ctx.thisYear || today.getFullYear()}) 세운 ${ctx.seunThis || ''} / 내년(${ctx.nextYear || today.getFullYear() + 1}) 세운 ${ctx.seunNext || ''} | 현재 ${ctx.age || ''}세
+${ctx.zPrompt ? ctx.zPrompt : '자미두수: 태어난 시간을 몰라 생략 — 자미두수 이야기는 하지 말 것.'}
+${ctx.partnerBirth ? '상대방 생년월일(글에 적혀 있음): ' + ctx.partnerBirth : ''}
+타로 3장(이번 질문으로 뽑은 카드, 라이더-웨이트 키워드):
+${cardLines}`;
+
+    const bodies = {
+      1: `━━━ 이번에 쓸 것: 1단계 (지금 바로 1차 발송하는 글) ━━━
+① 질문에 대한 공감 한 줄 — 고객이 쓴 말을 한 번 받아주며 시작
+② 사주로 본 핵심 — 일간(日干)의 기질 한 줄 + 지금 대운의 흐름 1~2줄, "쉽게 말하면"으로 풀어서
+③ 타로로 본 지금~가까운 3개월 — 뽑힌 카드 이름을 자연스럽게 언급하며, 지금 왜 답답하고 정체되어 있는지 + 무엇을 조심하면 되는지
+④ 마지막 한 줄은 반드시 이 선진님 실제 멘트 흐름 그대로:
+   "${QUICK_STAGE_FIRST_CLOSING}"
+
+━━━ 1단계 절대 금지 ━━━
+• 구체적인 시기(몇 월·몇 살·올해 말·내년 봄) 절대 금지 — 시기는 후기를 받은 뒤 3단계에서 말한다.
+• 배우자·인연의 결론(만날지, 언제, 어떤 사람인지) 금지.
+• 자미두수·명궁·부처궁 이야기 금지(3단계에서).
+• "좋아질 겁니다"처럼 시기를 단정하는 말 금지 — 정체와 주의점까지만.
+• 후기 유도 외의 다른 부탁(추가 결제·전화·오픈채팅) 금지.`,
+      2: `━━━ 이번에 쓸 것: 2단계 (1차 답장에 이어 보내는 타로 보충) ━━━
+① 뽑힌 카드 3장을 하나씩 — 각 카드가 지금 이 사람의 마음·상황에서 무엇을 보여주는지 (카드 이름 그대로)
+② 세 장이 만드는 흐름 — 3개월 안에 마음이 어떻게 움직이는지, 지금 마음가짐에서 놓치고 있는 것 한 가지
+③ 지금 바로 할 수 있는 구체적인 행동 1~2가지 (연락·정리·표현 방식 등 실제로 할 수 있는 것)
+④ 마지막은 짧은 격려 한 줄
+
+━━━ 2단계 절대 금지 ━━━
+• 구체적인 시기(몇 월)와 배우자 결론은 아직 금지 — 3단계로 남긴다.
+• 1단계에서 이미 쓴 문장을 그대로 반복하지 말 것(고객이 두 번 읽는다).
+• 자미두수 해석 금지 — 여기서는 타로만.
+• 후기 유도 멘트를 또 넣지 말 것.`,
+      3: `━━━ 이번에 쓸 것: 3단계 (후기를 남긴 고객에게 보내는 2차 답장) ━━━
+① 후기를 남겨준 데 대한 짧은 감사 한 줄
+② 자미두수 — 명궁(命宮) 주성으로 타고난 성향·인연의 결을, 부처궁(夫妻宮)으로 배우자·인연의 모양을 짚기 (아래 자미두수 자료의 근거만 사용)
+③ 구체적인 시기 — "○월쯤"처럼 몇 월인지 분명하게, 왜 그 달인지 대운·세운 흐름과 함께
+④ 배우자상 / 상대의 특징 — 어떤 사람인지, 어디서 어떻게 만나게 되는지, 어떤 점을 조심하면 좋은지
+⑤ 지금 할 일 한 가지
+⑥ 마지막은 반드시 이 인사 그대로:
+   "${QUICK_STAGE_LAST_CLOSING}"
+
+━━━ 3단계 규칙 ━━━
+• 자미두수 자료가 없으면(태어난 시간 모름) 자미두수·배우자 궁 이야기를 지어내지 말고 사주 대운·세운으로만 시기와 인연을 말할 것.
+• 시기는 반드시 오늘 이후(${monthsAhead} 또는 그 뒤 1년 안)에서 말할 것.
+• 1·2단계 문장을 반복하지 말고 이어 읽히게 쓸 것.
+• 3단계만 읽어도 결론이 분명해야 한다.`,
+    };
+
+    return QUICK_STAGES.map(stage => {
+      const n = stage.n;
+      const prompt = `당신은 30년 경력 명리학·자미두수·타로 통합 상담사 천운입니다.
+한 사람의 상담 답장을 3단계로 나눠 쓰고 있고, 이번에 쓸 것은 그중 ${n}단계 하나뿐입니다.
+선진(상담사)이 이 글을 그대로 복사해서 고객에게 보냅니다. 1·2단계는 지금 고객이 바로 읽는 글이고, 3단계는 고객이 후기를 남긴 뒤에 보내는 2차 답장입니다.
+이 단계 하나만 읽어도 자연스럽게 완결된 글이어야 하고, 앞 단계의 문장을 그대로 반복하지 마세요.
+
+━━━ 질문 원문 ━━━
+${ctx.question || ''}
+
+${dataBlock}
+
+${bodies[n]}
+
+━━━ 공통 규칙 ━━━
+• ${stage.target} 안에서 쓸 것. 문단은 4~7개, 문단마다 1~3문장, 문단 사이 빈 줄.
+• 한자 절대 금지. [말풍선] 같은 태그·제목·번호·마크다운(**, #) 쓰지 말 것.
+• 오늘은 ${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일. 시기는 반드시 오늘 이후로 말하고, 타로의 "가까운 3개월"은 ${monthsAhead}이다.
+• ${labelRule}
+• 공개된 글이 될 수 있으니 생년월일·나이·태어난 시간 같은 개인정보를 답변에 다시 적지 말 것.
+• "~나타냅니다" "~의미합니다" "~시사합니다" "종합적으로" 같은 보고서 말투 금지. 밤하늘·파도·씨앗 같은 일반 비유 금지.
+${ctx.honestRules || ''}`;
+      return { n, title: stage.title, target: stage.target, maxTokens: stage.maxTokens, prompt };
+    });
+  }
+
+  const api = { parseQuickText, clockToBranch, extractDates, buildQuickStagePrompts, QUICK_STAGES, QUICK_STAGE_SPREAD, QUICK_STAGE_FIRST_CLOSING, QUICK_STAGE_LAST_CLOSING };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.CheonunQuick = api;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -138,9 +243,44 @@
 
 // ── 이하 브라우저 UI 전용 ──
 if (typeof window !== 'undefined') {
-  const QUICK_SPREAD = ['현재 상황', '숨은 흐름', '3개월 안 결과'];
+  const QUICK_SPREAD = CheonunQuick.QUICK_STAGE_SPREAD;
+  const Q3_KEY = 'cheonun_quick_3step';
   let quickFormat = 'thread';
+  let quick3Step = true;   // 3단계 순차 출력 기본 ON
   let quickInfo = null;
+  let quickStageCtx = null;
+  let quickStagePrompts = null;
+
+  function _q3Enabled() {
+    // 스레드 댓글용(500자)은 한 번에 짧게 나가는 게 편하므로 3단계를 쓰지 않는다.
+    return quick3Step && quickFormat !== 'thread';
+  }
+
+  function _syncQuick3StepUI() {
+    const box = document.getElementById('q3Step');
+    const note = document.getElementById('q3StepNote');
+    if (box) box.disabled = quickFormat === 'thread';
+    if (note) {
+      note.style.display = quickFormat === 'thread' ? 'block' : 'none';
+      note.textContent = '🧵 스레드 댓글 모드는 500자 안으로 한 번에 나갑니다 — 3단계는 인스타·당근(DM) 모드에서 씁니다.';
+    }
+  }
+
+  window.setQuick3Step = function (on) {
+    quick3Step = !!on;
+    try { localStorage.setItem(Q3_KEY, quick3Step ? '1' : '0'); } catch (e) {}
+  };
+
+  // 저장된 설정 복원 (스크립트는 본문 끝에서 불리므로 입력칸이 이미 있다)
+  try {
+    const saved = localStorage.getItem(Q3_KEY);
+    if (saved === '0') quick3Step = false;
+  } catch (e) {}
+  (function _initQuick3StepUI() {
+    const box = document.getElementById('q3Step');
+    if (box) box.checked = quick3Step;
+    _syncQuick3StepUI();
+  })();
 
   function _qEsc(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -150,6 +290,7 @@ if (typeof window !== 'undefined') {
     quickFormat = fmt;
     document.querySelectorAll('#quickFormatChips .sp-btn').forEach(b => b.classList.remove('on'));
     el.classList.add('on');
+    _syncQuick3StepUI();
   };
 
   // 정규식으로 생년월일을 못 찾았을 때만 AI에게 추출을 맡긴다(예: "구오년 삼월 십이일").
@@ -258,6 +399,96 @@ ${lengthRule}
 ${HONEST_STYLE_RULES}`;
   }
 
+  function _stageShell(stage) {
+    return `<div class="card qstage" id="qStage${stage.n}" style="border-color:${stage.n === 1 ? 'var(--gold)' : 'var(--border)'}">
+      <div class="card-title">${stage.n === 1 ? '✦' : '·'} ${_qEsc(stage.title)}</div>
+      <div class="qstage-body">
+        <div class="loading" style="padding:14px"><div class="dot-spin"><span></span><span></span><span></span></div>${stage.n === 1 ? '1단계 먼저 쓰는 중...' : stage.n + '단계 대기 중 — 앞 단계가 끝나면 바로 이어서 씁니다'}</div>
+      </div>
+    </div>`;
+  }
+
+  function _stageLoading(n) {
+    return `<div class="loading" style="padding:14px"><div class="dot-spin"><span></span><span></span><span></span></div>${n}단계 쓰는 중...</div>`;
+  }
+
+  window.copyQuickStage = function (btn) {
+    const card = btn.closest('.qstage');
+    const el = card && card.querySelector('.why-bub');
+    if (!el) return;
+    navigator.clipboard.writeText(el.innerText).then(() => snack('복사됨 ✓'));
+  };
+
+  window.retryQuickStage = async function (btn, n) {
+    if (!quickStageCtx || !quickStagePrompts) return;
+    const stage = quickStagePrompts[Number(n) - 1];
+    const card = document.getElementById('qStage' + n);
+    if (!stage || !card) return;
+    btn.disabled = true;
+    const body = card.querySelector('.qstage-body');
+    body.innerHTML = _stageLoading(stage.n);
+    await _fillQuickStage(stage, body);
+  };
+
+  // 1단계가 끝나는 즉시 첫 번째 카드로 보여 주고, 나머지는 이어서 채운다.
+  async function _runQuickStages(info, saju, zPrompt, cards, nick, out) {
+    const promptCtx = {
+      question: info.question,
+      gender: info.gender,
+      topic: info.topic,
+      age: saju.age,
+      thisYear: saju.thisYear,
+      nextYear: saju.nextYear,
+      pillarsText: saju.pillarsText,
+      ilgan: saju.ilgan,
+      curDaeun: saju.curDaeun,
+      curDaeunAge: saju.curDaeunAge,
+      seunThis: saju.seun2026,
+      seunNext: saju.seun2027,
+      zPrompt,
+      partnerBirth: info.partnerBirth,
+      nick,
+      cards: cards.map((c, i) => ({ pos: QUICK_SPREAD[i], label: c, meaning: _tarotMeaningFor(c) })),
+      honestRules: HONEST_STYLE_RULES,
+      today: new Date(),
+    };
+    const stages = CheonunQuick.buildQuickStagePrompts(promptCtx);
+    quickStageCtx = promptCtx;
+    quickStagePrompts = stages;
+    out.innerHTML = `
+      <div class="card" style="padding:11px 14px">
+        <div style="font-size:.72rem;color:var(--muted);line-height:1.7">
+          사주 ${_qEsc(saju.pillarsText)}${zPrompt ? ' · 자미두수 포함' : ' · 자미두수 생략(시간 모름)'}<br>
+          타로 ${cards.map((c, i) => QUICK_SPREAD[i] + ' ' + _qEsc(c)).join(' / ')}
+        </div>
+      </div>` + stages.map(_stageShell).join('');
+
+    for (const stage of stages) {
+      const body = document.querySelector('#qStage' + stage.n + ' .qstage-body');
+      if (!body) continue;
+      if (stage.n > 1) body.innerHTML = _stageLoading(stage.n);
+      await _fillQuickStage(stage, body);
+    }
+  }
+
+  async function _fillQuickStage(stage, body) {
+    const t0 = Date.now();
+    try {
+      const raw = await ai(stage.prompt, stage.maxTokens);
+      const answer = raw.replace(/\[말풍선\]/g, '').replace(/\*\*/g, '').trim();
+      const sec = ((Date.now() - t0) / 1000).toFixed(1);
+      body.innerHTML = `
+        <div class="why-bub" style="white-space:pre-wrap;line-height:1.75;font-size:.85rem">${_qEsc(answer)}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px">
+          <span style="font-size:.72rem;color:var(--muted)">${answer.length}자 · ${sec}초</span>
+          <button class="copy-all-btn" style="width:auto;margin:0;padding:8px 14px" onclick="copyQuickStage(this)">📋 복사</button>
+        </div>`;
+    } catch (e) {
+      body.innerHTML = `<div style="color:var(--red);font-size:.8rem;line-height:1.7">${stage.n}단계 오류: ${_qEsc(e.message)}</div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="retryQuickStage(this,${stage.n})">🔄 ${stage.n}단계만 다시</button>`;
+    }
+  }
+
   async function _runQuick(info) {
     const nick = document.getElementById('qNick').value.trim();
     const btn = document.getElementById('quickBtn');
@@ -273,13 +504,21 @@ ${HONEST_STYLE_RULES}`;
         catch (e) { console.warn('자미두수 계산 실패:', e.message); }
       }
       const cards = _drawQuickCards();
+
+      if (_q3Enabled()) {
+        btn.textContent = '1단계부터 순서대로 쓰는 중...';
+        await _runQuickStages(info, saju, zPrompt, cards, nick, out);
+        btn.disabled = false; btn.textContent = '⚡ 바로 답변 받기';
+        return;
+      }
+
       const raw = await ai(_buildQuickPrompt(info, saju, zPrompt, cards, nick), quickFormat === 'thread' ? 4096 : 8192);
       const answer = raw.replace(/\[말풍선\]/g, '').replace(/\*\*/g, '').trim();
       const len = answer.length;
       const over = quickFormat === 'thread' && len > 500;
       out.innerHTML = `
         <div class="card">
-          <div class="card-title">✦ 바로 답변 ${quickFormat === 'thread' ? '(스레드 댓글용)' : '(인스타·DM용)'}</div>
+          <div class="card-title">✦ 바로 답변 ${quickFormat === 'thread' ? '(스레드 댓글용)' : '(인스타·당근 DM용)'}</div>
           <div style="font-size:.72rem;color:var(--muted);margin-bottom:10px;line-height:1.7">
             사주 ${_qEsc(saju.pillarsText)}${zPrompt ? ' · 자미두수 포함' : ' · 자미두수 생략(시간 모름)'}<br>
             타로 ${cards.map((c, i) => QUICK_SPREAD[i] + ' ' + _qEsc(c)).join(' / ')}

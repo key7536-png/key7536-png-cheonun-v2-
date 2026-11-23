@@ -35,6 +35,9 @@ body{background:var(--bg);color:var(--text);font-family:'Apple SD Gothic Neo','M
 .topbar{background:rgba(13,13,15,.97);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;backdrop-filter:blur(10px);}
 .topbar-title{font-size:.95rem;font-weight:700;background:linear-gradient(90deg,var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
 .key-btn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 10px;font-size:.72rem;cursor:pointer;}
+/* 무료키 / ⚡유료키 전환 */
+.keytoggle{border:1px solid var(--border);background:var(--card2);color:var(--muted);border-radius:20px;padding:5px 11px;font-size:.68rem;font-weight:700;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;line-height:1.2;}
+.keytoggle.paid{border-color:var(--gold);background:linear-gradient(135deg,var(--gold2),var(--gold));color:#1a1000;box-shadow:0 0 10px rgba(240,192,96,.4);}
 
 /* ── 탭 ── */
 .tabs{display:flex;border-bottom:1px solid var(--border);background:rgba(13,13,15,.97);position:sticky;top:45px;z-index:199;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
@@ -194,8 +197,11 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
 <!-- 상단바 -->
 <div class="topbar">
   <span class="topbar-title">✦ 천운 상담도구</span>
-  <span id="syncBadge" style="font-size:.65rem;border:1px solid #222;border-radius:4px;padding:3px 7px;color:#444;opacity:.6" title="Supabase 동기화 상태">☁</span>
-  <span id="dbSetupBtn" onclick="openDbModal()" style="font-size:.65rem;border:1px solid var(--border);border-radius:4px;padding:3px 7px;color:var(--muted);cursor:pointer;margin-left:4px" title="DB 설정">⚙</span>
+  <div style="display:flex;align-items:center;gap:6px">
+    <button type="button" id="keyModeBtn" class="keytoggle" onclick="toggleKeyMode()" title="무료키 / 유료키 전환">무료키</button>
+    <span id="syncBadge" style="font-size:.65rem;border:1px solid #222;border-radius:4px;padding:3px 7px;color:#444;opacity:.6" title="Supabase 동기화 상태">☁</span>
+    <span id="dbSetupBtn" onclick="openDbModal()" style="font-size:.65rem;border:1px solid var(--border);border-radius:4px;padding:3px 7px;color:var(--muted);cursor:pointer" title="DB 설정">⚙</span>
+  </div>
 </div>
 
 <!-- 탭 -->
@@ -367,8 +373,13 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
     <div class="field"><label>답변 형식</label>
       <div class="spread-sel" id="quickFormatChips">
         <button type="button" class="sp-btn on" onclick="setQuickFormat(this,'thread')">🧵 스레드 댓글 (짧게, 500자 이내)</button>
-        <button type="button" class="sp-btn" onclick="setQuickFormat(this,'dm')">📩 인스타·DM (자세히)</button>
+        <button type="button" class="sp-btn" onclick="setQuickFormat(this,'dm')">📩 인스타·당근(DM) (자세히)</button>
       </div>
+      <label style="display:flex;align-items:center;gap:7px;color:var(--gold2);font-size:.76rem;margin-bottom:4px">
+        <input id="q3Step" type="checkbox" checked style="width:auto" onchange="setQuick3Step(this.checked)">
+        ⚡ 3단계 순차 출력 <span style="color:var(--muted);font-weight:400">(1단계 후기 유도 → 2단계 타로 보충 → 3단계 후기 후 결론)</span>
+      </label>
+      <p id="q3StepNote" style="display:none;font-size:.72rem;color:var(--muted);line-height:1.6;margin-bottom:2px"></p>
     </div>
     <button class="btn btn-gold" id="quickBtn" onclick="quickAnswer()">⚡ 바로 답변 받기</button>
   </div>
@@ -679,8 +690,32 @@ async function sbFetch(method, path, body){
 }
 
 // ── AI 호출 — Vercel Serverless Function ──
+// 상단 토글(무료키 / ⚡유료키) 상태를 모든 요청에 함께 보낸다.
+// 유료키 모드로 켜 두면 무료 키 대기 없이 api/ai.js가 GEMINI_PAID_KEY로 직행한다.
+const PREFER_PAID_KEY = 'cheonun_prefer_paid';
+function preferPaid(){
+  try{ return localStorage.getItem(PREFER_PAID_KEY) === '1'; }catch(e){ return false; }
+}
+function renderKeyMode(){
+  const b = document.getElementById('keyModeBtn');
+  if(!b) return;
+  const paid = preferPaid();
+  b.textContent = paid ? '⚡ 유료키' : '무료키';
+  b.classList.toggle('paid', paid);
+  b.title = paid
+    ? '지금은 유료키로 바로 답변합니다 — 누르면 무료키로 돌아갑니다'
+    : '지금은 무료키로 답변합니다 — 급할 때 누르면 유료키로 바로 전환합니다';
+}
+function toggleKeyMode(){
+  const next = !preferPaid();
+  try{ localStorage.setItem(PREFER_PAID_KEY, next ? '1' : '0'); }catch(e){}
+  renderKeyMode();
+  snack(next ? '⚡ 유료키 모드 — 무료키 대기 없이 바로 답변합니다' : '무료키 모드로 돌아왔습니다');
+}
+
 async function ai(prompt, maxT){
   maxT = maxT || 4096;
+  const usePaid = preferPaid();
   let lastErr = null;
   for(let attempt=0; attempt<3; attempt++){
     const controller = new AbortController();
@@ -689,7 +724,7 @@ async function ai(prompt, maxT){
       const res = await fetch(API_BASE + '/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, maxTokens: maxT }),
+        body: JSON.stringify({ prompt, maxTokens: maxT, preferPaid: usePaid }),
         signal: controller.signal
       });
       const errData = res.ok ? null : await res.json().catch(()=>({error:'서버 오류'}));
@@ -699,11 +734,13 @@ async function ai(prompt, maxT){
         throw err;
       }
       const data = await res.json();
-      if(data.source === 'paid') snack('유료 예비 키 사용 중');
+      if(data.source === 'paid' && !usePaid) snack('유료 예비 키로 답변했습니다');
       if(!data.text) throw new Error('빈 답변이 도착했습니다.');
       return data.text;
     }catch(e){
       lastErr = e.name === 'AbortError' ? new Error('응답 시간이 길어 재시도합니다.') : e;
+      // 키 설정 자체가 없는 오류는 다시 시도해도 같으니 바로 알린다.
+      if(/GEMINI_PAID_KEY|GEMINI_KEY_1/.test(e.message || '')) break;
       const retryable = !e.status || [429,500,502,503,504].includes(e.status) || e.name === 'AbortError';
       if(!retryable || attempt===2) break;
       await new Promise(r=>setTimeout(r, (attempt+1)*2500));
@@ -2519,6 +2556,7 @@ loadDbConfig();    // Supabase 설정 복원
 loadClients();     // 내담자 목록 로드
 setWcat(document.querySelector('.wcat.on'), 'fortune');
 restoreConsultDraft();
+renderKeyMode();
 </script>
 <script src="/quick.js"></script>
 <script src="/deep-saju.js"></script>
