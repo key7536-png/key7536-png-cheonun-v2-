@@ -3,9 +3,15 @@
 // GEMINI_KEY_1 ~ GEMINI_KEY_30, (선택) GEMINI_PAID_KEY 이름으로 등록해서 process.env로 읽는다.
 // 무료 키 한도(429)나 일시 장애(503)를 만나면 다음 키로 자동 전환하고,
 // 등록된 일반 키가 모두 실패하면 마지막으로 예비 키(있으면)를 시도한다.
+//
+// 2026-11: 급할 때 무료 키 대기 없이 바로 유료 키로 보낼 수 있게 preferPaid를 받는다.
+//     preferPaid === true → 무료 키를 한 번도 돌지 않고 GEMINI_PAID_KEY로 직행.
+//     429/503으로 막힌 무료 키는 60초 쿨다운에 넣어, 몰릴 때 매 요청마다 막힌 키를
+//     다시 찔러 느려지는 현상을 막는다(모든 키가 쿨다운일 때만 재시도/유료 폴백).
 
 const MODEL = 'gemini-3.6-flash';
 const MAX_KEYS = 30;
+const COOLDOWN_MS = 60 * 1000;
 
 function loadKeys() {
   const keys = [];
@@ -17,6 +23,21 @@ function loadKeys() {
 }
 
 let keyIdx = 0;
+
+// 한도 초과(429)·일시 장애(503)로 막힌 키는 60초 동안 건너뛴다.
+// (서버 함수 인스턴스가 살아 있는 동안 메모리에 남는다 — 인스턴스가 새로 뜨면 비어 있는 상태로 시작)
+const cooldownUntil = new Map();
+
+function isCooling(key, now) {
+  const until = cooldownUntil.get(key);
+  if (!until) return false;
+  if (until <= now) { cooldownUntil.delete(key); return false; }
+  return true;
+}
+
+function markCooldown(key) {
+  cooldownUntil.set(key, Date.now() + COOLDOWN_MS);
+}
 
 // 이 앱의 generateContent 엔드포인트와 현재 발급 키 조합에서 검증된 query key 방식을 사용한다.
 // 키는 브라우저가 아닌 Vercel 서버 함수에서만 붙으므로 클라이언트 화면에는 노출되지 않는다.
@@ -65,11 +86,30 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { prompt, maxTokens } = req.body;
+    const body = req.body || {};
+    const { prompt, maxTokens } = body;
+    const preferPaid = body.preferPaid === true || body.preferPaid === 'true';
     if (!prompt) return res.status(400).json({ error: '프롬프트가 없습니다.' });
 
     const KEYS = loadKeys();
-    const PAID = process.env.GEMINI_PAID_KEY;
+    const PAID = (process.env.GEMINI_PAID_KEY || '').trim();
+
+    // ── 급할 때: 무료 키를 한 번도 돌지 않고 유료 키로 바로 간다 ──
+    if (preferPaid) {
+      if (!PAID) {
+        return res.status(500).json({
+          error: 'Vercel 환경변수에 GEMINI_PAID_KEY가 등록되어 있지 않습니다. Vercel 프로젝트 → Settings → Environment Variables에 유료 키를 등록한 뒤 Redeploy 해주세요.'
+        });
+      }
+      try {
+        const text = await callGemini(PAID, prompt, maxTokens);
+        return res.status(200).json({ text, source: 'paid' });
+      } catch (e) {
+        return res.status(500).json({
+          error: '유료 키(GEMINI_PAID_KEY) 호출에 실패했습니다(' + (e.message || '알 수 없는 오류') + '). Vercel의 유료 키와 Google AI Studio 할당량을 확인해 주세요.'
+        });
+      }
+    }
 
     if (KEYS.length === 0 && !PAID) {
       return res.status(500).json({
@@ -77,12 +117,29 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const start = keyIdx % (KEYS.length || 1);
+    // 쿨다운 중인 키는 이번 요청에서 건너뛴다. 전부 쿨다운이면 마지막 수단으로 다시 돌린다.
+    const now = Date.now();
+    const start = KEYS.length ? keyIdx % KEYS.length : 0;
+    let order = [];
+    for (let i = 0; i < KEYS.length; i++) {
+      const idx = (start + i) % KEYS.length;
+      if (!isCooling(KEYS[idx], now)) order.push(idx);
+    }
+    if (KEYS.length > 0 && order.length === 0) {
+      // 모든 무료 키가 60초 쿨다운 중 — 유료 키가 있으면 기다리지 말고 바로 유료로 보낸다.
+      if (PAID) {
+        try {
+          const text = await callGemini(PAID, prompt, maxTokens);
+          return res.status(200).json({ text, source: 'paid' });
+        } catch (e) { /* 유료도 실패하면 아래에서 쿨다운 무료 키를 다시 시도한다 */ }
+      }
+      order = KEYS.map((_, i) => (start + i) % KEYS.length);
+    }
+
     let lastErr = null;
     let authFailures = 0;
     let quotaFailures = 0;
-    for (let i = 0; i < KEYS.length; i++) {
-      const idx = (start + i) % KEYS.length;
+    for (const idx of order) {
       try {
         const text = await callGemini(KEYS[idx], prompt, maxTokens);
         // 성공한 키를 계속 사용하고, 실제 한도/장애가 발생할 때만 다음 키로 이동한다.
@@ -93,7 +150,12 @@ module.exports = async function handler(req, res) {
         const authError = e.code === 401 ||
           ((e.code === 400 || e.code === 403) && /api key not valid|invalid authentication|access token|credential/i.test(e.message || ''));
         if (authError) { authFailures++; keyIdx = idx + 1; continue; }
-        if (e.code === 429 || e.code === 503 || e.code === 403) { quotaFailures++; keyIdx = idx + 1; continue; }
+        if (e.code === 429 || e.code === 503 || e.code === 403) {
+          quotaFailures++;
+          markCooldown(KEYS[idx]); // 막힌 키는 60초 쉬게 한다
+          keyIdx = idx + 1;
+          continue;
+        }
         throw e;
       }
     }
@@ -107,7 +169,7 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    if (authFailures === KEYS.length) {
+    if (authFailures === order.length) {
       return res.status(401).json({ error: '등록된 Gemini 키가 모두 인증에 실패했습니다. Vercel 환경변수에는 OAuth 토큰이 아니라 Google AI Studio에서 발급한 Gemini API 키를 넣어주세요.' });
     }
     if (quotaFailures > 0) {
