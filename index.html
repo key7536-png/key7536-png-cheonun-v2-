@@ -960,6 +960,10 @@ async function startConsulting(){
     snack('카드를 먼저 뽑아주세요.'); return;
   }
 
+  // 고객 정보를 넣고 상담을 시작하는 순간 내담자로 자동 저장 — 창을 닫거나 새로고침해도 남는다.
+  // 같은 이름+생년월일이면 새로 만들지 않고 그 기록만 갱신한다. (생년월일이 없으면 저장하지 않음)
+  autoSaveClient({name, gender, birth, hour, calendar, leap:isLeap, topic, question:q}, {source:'consult'});
+
   // 상대방 정보 수집
   let partnerInfo = '';
   if(document.getElementById('partnerToggle').checked){
@@ -2410,6 +2414,68 @@ async function loadClients(){
   }
 }
 
+// ════════════════════════════════
+// 내담자 자동 저장 — 💬 상담 시작 · ⚡ 질문바로
+// ════════════════════════════════
+// 상담 탭 내담자 목록(cheonun_clients_v1), 고객관리 화면 목록(cheonun.clients.v1),
+// Supabase(cheonun_clients, 설정한 경우)에 조용히 저장한다. 같은 고객은 중복 생성 없이 갱신.
+async function autoSaveClient(input, opts){
+  opts = opts || {};
+  if(typeof CheonunClients === 'undefined') return null;
+  const rec = CheonunClients.buildRecord(input || {}, opts);
+  if(!rec.birth) return null;   // 생년월일이 있어야 내담자 기록으로 남긴다
+
+  // 1) 상담 탭 내담자 목록
+  const res = CheonunClients.upsertConsultList(_clients, rec);
+  _clients = res.list;
+  lsSet(CK, JSON.stringify(_clients));
+
+  // 2) 고객관리 화면 목록
+  let mres = null;
+  try{
+    let managed = [];
+    try{ managed = JSON.parse(lsGet(MANAGED_CLIENT_KEY, '[]')); }catch(e){ managed = []; }
+    mres = CheonunClients.upsertManagedList(managed, rec, {lastAnswer: opts.lastAnswer});
+    lsSet(MANAGED_CLIENT_KEY, JSON.stringify(mres.list));
+  }catch(e){ console.warn('고객관리 저장 실패:', e.message); }
+
+  // 3) Supabase (설정한 경우만 · 실패해도 로컬 저장은 유지)
+  if(_sbReady){
+    const row = {
+      name: rec.name, gender: rec.gender || null, birth: rec.birth || null,
+      hour: rec.hour || null, topic: rec.topic, question: rec.question || null,
+      saved_at: rec.savedAt, updated_at: rec.updatedAt
+    };
+    (async()=>{
+      try{
+        if(res.existed && res.existed.id){
+          await sbFetch('PATCH', '/cheonun_clients?id=eq.' + encodeURIComponent(res.existed.id), row);
+        }else{
+          const rows = await sbFetch('POST', '/cheonun_clients', row);
+          const created = Array.isArray(rows) ? rows[0] : null;
+          if(created && created.id){
+            const at = _clients.findIndex(c => c.autoId === rec.autoId);
+            if(at >= 0){ _clients[at].id = created.id; lsSet(CK, JSON.stringify(_clients)); }
+          }
+        }
+      }catch(e){ console.warn('Supabase 자동 저장 실패:', e.message); }
+    })();
+  }
+
+  try{
+    const listEl = document.getElementById('clientList');
+    if(listEl && listEl.style.display !== 'none') renderClientList();
+  }catch(e){}
+
+  if(!opts.silent) snack('💾 내담자 자동 저장: ' + rec.name + '님');
+  return rec;
+}
+
+// ⚡ 질문바로에서 부르는 자동 저장 — 닉네임이 비어 있으면 "질문바로 고객 (생년월일)"으로 남긴다.
+window.autoSaveQuickClient = function(info, opts){
+  return autoSaveClient(info, Object.assign({source:'quick', defaultName:'질문바로 고객'}, opts || {}));
+};
+
 async function saveClient(){
   const name = document.getElementById('cName').value.trim();
   if(!name){ snack('이름을 입력해주세요.'); return; }
@@ -2556,6 +2622,7 @@ setWcat(document.querySelector('.wcat.on'), 'fortune');
 restoreConsultDraft();
 renderKeyMode();
 </script>
+<script src="/client-store.js"></script>
 <script src="/quick.js"></script>
 <script src="/deep-saju.js"></script>
 <script src="/report.js"></script>

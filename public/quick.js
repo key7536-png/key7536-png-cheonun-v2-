@@ -172,6 +172,25 @@ if (typeof window !== 'undefined') {
     return shuffled.slice(0, 3).map(c => _rand() < 0.5 ? c + '(역방향)' : c);
   }
 
+  // 내담자 자동 저장 — 생년월일이 확인된 고객을 상담 탭·고객관리 목록에 남긴다(같은 고객은 중복 없이 갱신).
+  // 닉네임이 비어 있으면 "질문바로 고객 (생년월일)" 이름으로 저장된다.
+  function _autoSaveQuickClient(info, extra) {
+    try {
+      if (typeof window.autoSaveQuickClient !== 'function') return;
+      const nickEl = document.getElementById('qNick');
+      window.autoSaveQuickClient({
+        name: nickEl ? nickEl.value : '',
+        birth: info.birth,
+        gender: info.gender,
+        calendar: info.calendar,
+        leap: info.isLeap,
+        hour: info.hour,
+        topic: info.topic,
+        question: info.question,
+      }, extra || {});
+    } catch (e) { console.warn('질문바로 자동 저장 실패:', e.message); }
+  }
+
   function _renderQuickInfo(info) {
     const hourOpts = ['', '야자시', '자시','축시','인시','묘시','진시','사시','오시','미시','신시','유시','술시','해시']
       .map(h => `<option value="${h}"${h === info.hour ? ' selected' : ''}>${h === '야자시' ? '밤 자시(23:30~)' : (h || '모름')}</option>`).join('');
@@ -267,6 +286,8 @@ ${HONEST_STYLE_RULES}`;
     try {
       const saju = calcSaju(info.birth, info.hour, info.gender, info.calendar, info.isLeap);
       if (!saju) throw new Error('생년월일을 계산할 수 없어요. 날짜를 확인해 주세요.');
+      // 답변을 만들기 전에 내담자로 먼저 저장 — 창을 닫아도 고객이 남는다.
+      _autoSaveQuickClient(info);
       let zPrompt = '';
       if (info.hour && window.CheonunZiwei) {
         try { zPrompt = CheonunZiwei.toPrompt(CheonunZiwei.calculate(info)); }
@@ -275,6 +296,7 @@ ${HONEST_STYLE_RULES}`;
       const cards = _drawQuickCards();
       const raw = await ai(_buildQuickPrompt(info, saju, zPrompt, cards, nick), quickFormat === 'thread' ? 4096 : 8192);
       const answer = raw.replace(/\[말풍선\]/g, '').replace(/\*\*/g, '').trim();
+      _autoSaveQuickClient(info, { lastAnswer: answer, silent: true });
       const len = answer.length;
       const over = quickFormat === 'thread' && len > 500;
       out.innerHTML = `
