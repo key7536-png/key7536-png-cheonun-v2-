@@ -373,13 +373,8 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
     <div class="field"><label>답변 형식</label>
       <div class="spread-sel" id="quickFormatChips">
         <button type="button" class="sp-btn on" onclick="setQuickFormat(this,'thread')">🧵 스레드 댓글 (짧게, 500자 이내)</button>
-        <button type="button" class="sp-btn" onclick="setQuickFormat(this,'dm')">📩 인스타·당근(DM) (자세히)</button>
+        <button type="button" class="sp-btn" onclick="setQuickFormat(this,'dm')">📩 인스타·DM (자세히)</button>
       </div>
-      <label style="display:flex;align-items:center;gap:7px;color:var(--gold2);font-size:.76rem;margin-bottom:4px">
-        <input id="q3Step" type="checkbox" checked style="width:auto" onchange="setQuick3Step(this.checked)">
-        ⚡ 3단계 순차 출력 <span style="color:var(--muted);font-weight:400">(1단계 후기 유도 → 2단계 타로 보충 → 3단계 후기 후 결론)</span>
-      </label>
-      <p id="q3StepNote" style="display:none;font-size:.72rem;color:var(--muted);line-height:1.6;margin-bottom:2px"></p>
     </div>
     <button class="btn btn-gold" id="quickBtn" onclick="quickAnswer()">⚡ 바로 답변 받기</button>
   </div>
