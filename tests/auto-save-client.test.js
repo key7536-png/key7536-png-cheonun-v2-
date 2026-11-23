@@ -77,6 +77,13 @@ const storeJs = fs.readFileSync('public/client-store.js', 'utf8');
   assert.strictEqual(list[0].q, '질문1');
 }
 {
+  // 고객관리 화면에서 읽어온 읽기 전용 표시(managed)를 상담 탭 기록에 끌고 오지 않는다
+  let list = [{ id: 'c_1', name: '김미나', birth: '1995-03-12', managed: true, savedAt: '2026-11-20' }];
+  list = store.upsertConsultList(list, store.buildRecord({ name: '김미나', birth: '1995-03-12', topic: '연애운' })).list;
+  assert.strictEqual(list.length, 1);
+  assert.notStrictEqual(list[0].managed, true, '상담 탭 기록은 직접 삭제할 수 있어야 함(관리 버튼으로 고정되지 않아야 함)');
+}
+{
   // 50개 제한 유지
   let list = [];
   for (let i = 0; i < 60; i++) list = store.upsertConsultList(list, store.buildRecord({ name: '고객' + i, birth: '1990-01-01' })).list;

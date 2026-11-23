@@ -93,6 +93,7 @@
       updatedAt: rec.updatedAt,
       autoId: rec.autoId,
       autoSaved: true,
+      managed: false, // 고객관리 화면에서 읽어온 읽기 전용 표시를 끌어오지 않는다(상담 탭에서 직접 지울 수 있게)
     };
   }
 
@@ -107,6 +108,7 @@
       merged.gender = rec.gender || old.gender || '';
       merged.q = rec.question || old.q || '';
       merged.topic = rec.topic || old.topic || '종합운';
+      merged.managed = false;
       out[i] = merged;
       return { list: out, index: i, existed: old, created: false, record: merged };
     }
