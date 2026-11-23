@@ -3,10 +3,21 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="theme-color" content="#0d0d0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="여명당 상담">
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>✦ 천운 상담도구</title>
 <script src="/korean-lunar.js"></script>
 <script src="/vendor/iztro-v2.6.0.min.js"></script>
+<script src="/vendor/html2pdf.bundle.min.js"></script>
+<script src="/consult-pdf.js"></script>
 <script src="/ziwei.js"></script>
 <style>
 :root{
@@ -24,6 +35,9 @@ body{background:var(--bg);color:var(--text);font-family:'Apple SD Gothic Neo','M
 .topbar{background:rgba(13,13,15,.97);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;backdrop-filter:blur(10px);}
 .topbar-title{font-size:.95rem;font-weight:700;background:linear-gradient(90deg,var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
 .key-btn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 10px;font-size:.72rem;cursor:pointer;}
+/* 무료키 / ⚡유료키 전환 */
+.keytoggle{border:1px solid var(--border);background:var(--card2);color:var(--muted);border-radius:20px;padding:5px 11px;font-size:.68rem;font-weight:700;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;line-height:1.2;}
+.keytoggle.paid{border-color:var(--gold);background:linear-gradient(135deg,var(--gold2),var(--gold));color:#1a1000;box-shadow:0 0 10px rgba(240,192,96,.4);}
 
 /* ── 탭 ── */
 .tabs{display:flex;border-bottom:1px solid var(--border);background:rgba(13,13,15,.97);position:sticky;top:45px;z-index:199;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
@@ -183,8 +197,11 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
 <!-- 상단바 -->
 <div class="topbar">
   <span class="topbar-title">✦ 천운 상담도구</span>
-  <span id="syncBadge" style="font-size:.65rem;border:1px solid #222;border-radius:4px;padding:3px 7px;color:#444;opacity:.6" title="Supabase 동기화 상태">☁</span>
-  <span id="dbSetupBtn" onclick="openDbModal()" style="font-size:.65rem;border:1px solid var(--border);border-radius:4px;padding:3px 7px;color:var(--muted);cursor:pointer;margin-left:4px" title="DB 설정">⚙</span>
+  <div style="display:flex;align-items:center;gap:6px">
+    <button type="button" id="keyModeBtn" class="keytoggle" onclick="toggleKeyMode()" title="무료키 / 유료키 전환">무료키</button>
+    <span id="syncBadge" style="font-size:.65rem;border:1px solid #222;border-radius:4px;padding:3px 7px;color:#444;opacity:.6" title="Supabase 동기화 상태">☁</span>
+    <span id="dbSetupBtn" onclick="openDbModal()" style="font-size:.65rem;border:1px solid var(--border);border-radius:4px;padding:3px 7px;color:var(--muted);cursor:pointer" title="DB 설정">⚙</span>
+  </div>
 </div>
 
 <!-- 탭 -->
@@ -195,6 +212,7 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
   <div class="tab" onclick="go('why')">🤔 왜요?</div>
   <div class="tab" onclick="go('report')">📕 PDF 리포트</div>
   <div class="tab" onclick="location.href='/ziwei.html'">⭐ 자미두수</div>
+  <div class="tab" onclick="location.href='/manneung.html'">🧞 만능이</div>
   <div class="tab" onclick="location.href='/clients.html'">📁 고객관리</div>
 </div>
 
@@ -301,7 +319,7 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
 
     <!-- 타로 뽑기 영역 (타로/둘다 모드일 때) -->
     <div id="tarotSection" style="display:none">
-      <div class="card-title" style="margin-top:8px">🔮 타로 스프레드</div>
+      <div class="card-title" style="margin-top:8px">🔮 타로 스프레드</div><div style="font-size:.7rem;color:var(--muted);line-height:1.6;margin:-4px 0 9px">Rider-Waite 계열 78장 · 암호학적 셔플 · 정·역방향 균등 처리 · 가까운 3개월 참고용</div>
       <div class="spread-sel" id="spreadSel">
         <button class="sp-btn on" onclick="setSpread(this,1)">원카드</button>
         <button class="sp-btn" onclick="setSpread(this,3)">쓰리카드</button>
@@ -355,8 +373,13 @@ textarea{resize:vertical;min-height:70px;line-height:1.6;}
     <div class="field"><label>답변 형식</label>
       <div class="spread-sel" id="quickFormatChips">
         <button type="button" class="sp-btn on" onclick="setQuickFormat(this,'thread')">🧵 스레드 댓글 (짧게, 500자 이내)</button>
-        <button type="button" class="sp-btn" onclick="setQuickFormat(this,'dm')">📩 인스타·DM (자세히)</button>
+        <button type="button" class="sp-btn" onclick="setQuickFormat(this,'dm')">📩 인스타·당근(DM) (자세히)</button>
       </div>
+      <label style="display:flex;align-items:center;gap:7px;color:var(--gold2);font-size:.76rem;margin-bottom:4px">
+        <input id="q3Step" type="checkbox" checked style="width:auto" onchange="setQuick3Step(this.checked)">
+        ⚡ 3단계 순차 출력 <span style="color:var(--muted);font-weight:400">(1단계 후기 유도 → 2단계 타로 보충 → 3단계 후기 후 결론)</span>
+      </label>
+      <p id="q3StepNote" style="display:none;font-size:.72rem;color:var(--muted);line-height:1.6;margin-bottom:2px"></p>
     </div>
     <button class="btn btn-gold" id="quickBtn" onclick="quickAnswer()">⚡ 바로 답변 받기</button>
   </div>
@@ -667,20 +690,63 @@ async function sbFetch(method, path, body){
 }
 
 // ── AI 호출 — Vercel Serverless Function ──
+// 상단 토글(무료키 / ⚡유료키) 상태를 모든 요청에 함께 보낸다.
+// 유료키 모드로 켜 두면 무료 키 대기 없이 api/ai.js가 GEMINI_PAID_KEY로 직행한다.
+const PREFER_PAID_KEY = 'cheonun_prefer_paid';
+function preferPaid(){
+  try{ return localStorage.getItem(PREFER_PAID_KEY) === '1'; }catch(e){ return false; }
+}
+function renderKeyMode(){
+  const b = document.getElementById('keyModeBtn');
+  if(!b) return;
+  const paid = preferPaid();
+  b.textContent = paid ? '⚡ 유료키' : '무료키';
+  b.classList.toggle('paid', paid);
+  b.title = paid
+    ? '지금은 유료키로 바로 답변합니다 — 누르면 무료키로 돌아갑니다'
+    : '지금은 무료키로 답변합니다 — 급할 때 누르면 유료키로 바로 전환합니다';
+}
+function toggleKeyMode(){
+  const next = !preferPaid();
+  try{ localStorage.setItem(PREFER_PAID_KEY, next ? '1' : '0'); }catch(e){}
+  renderKeyMode();
+  snack(next ? '⚡ 유료키 모드 — 무료키 대기 없이 바로 답변합니다' : '무료키 모드로 돌아왔습니다');
+}
+
 async function ai(prompt, maxT){
   maxT = maxT || 4096;
-  const res = await fetch(API_BASE + '/api/ai', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, maxTokens: maxT })
-  });
-  if(!res.ok){
-    const err = await res.json().catch(()=>({error:'서버 오류'}));
-    throw new Error(err.error || 'AI 응답 오류');
+  const usePaid = preferPaid();
+  let lastErr = null;
+  for(let attempt=0; attempt<3; attempt++){
+    const controller = new AbortController();
+    const timeout = setTimeout(()=>controller.abort(), 90000);
+    try{
+      const res = await fetch(API_BASE + '/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, maxTokens: maxT, preferPaid: usePaid }),
+        signal: controller.signal
+      });
+      const errData = res.ok ? null : await res.json().catch(()=>({error:'서버 오류'}));
+      if(!res.ok){
+        const err = new Error(errData.error || 'AI 응답 오류');
+        err.status = res.status;
+        throw err;
+      }
+      const data = await res.json();
+      if(data.source === 'paid' && !usePaid) snack('유료 예비 키로 답변했습니다');
+      if(!data.text) throw new Error('빈 답변이 도착했습니다.');
+      return data.text;
+    }catch(e){
+      lastErr = e.name === 'AbortError' ? new Error('응답 시간이 길어 재시도합니다.') : e;
+      // 키 설정 자체가 없는 오류는 다시 시도해도 같으니 바로 알린다.
+      if(/GEMINI_PAID_KEY|GEMINI_KEY_1/.test(e.message || '')) break;
+      const retryable = !e.status || [429,500,502,503,504].includes(e.status) || e.name === 'AbortError';
+      if(!retryable || attempt===2) break;
+      await new Promise(r=>setTimeout(r, (attempt+1)*2500));
+    }finally{ clearTimeout(timeout); }
   }
-  const data = await res.json();
-  if(data.source === 'paid') snack('💎 유료 키 사용 중');
-  return data.text || '';
+  throw lastErr || new Error('AI 응답을 받지 못했습니다.');
 }
 
 // 구버전 호환 더미 (쓰이지 않지만 에러 방지)
@@ -938,13 +1004,17 @@ async function startConsulting(){
 
     const fixedSaju = consultMode==='tarot' ? null : calcSaju(birth,hour,gender,calendar,isLeap);
     lastConsultInfo = {name, gender, birth, hour, calendar, isLeap, topic, q, mode: consultMode, cards: drawnCards.join('/'), saju:fixedSaju};
+    window.cheOnunConsultInfo = lastConsultInfo;
+    if(window.addConsultPdfButton) window.addConsultPdfButton();
     renderWhyLink(lastConsultInfo);
     chatHistory = [{role:'assistant', content: bubs.join('\n\n')}];
     document.getElementById('chatBox').innerHTML = '';
     document.getElementById('consultChat').style.display = 'block';
-    snack('분석 완료! 💬 추가 질문 가능 / 💾 내담자 저장 가능');
+    saveConsultDraft();
+    snack('분석 완료! 추가 질문 가능 / 상담 내용 자동 저장 중');
   } catch(e){
-    document.getElementById('consultResult').innerHTML = `<div class="card" style="color:var(--red)">오류: ${e.message}</div>`;
+    document.getElementById('consultResult').innerHTML = `<div class="card" style="color:var(--red)">상담 연결이 잠시 끊겼습니다.<br><span style="font-size:.8rem">${escapeHtml(e.message)}</span><button class="btn btn-ghost" onclick="startConsulting()" style="margin-top:10px">다시 시도</button></div>`;
+    saveConsultDraft();
   }
   btn.disabled=false; btn.textContent='✦ 상담 시작';
 }
@@ -992,6 +1062,7 @@ function renderSajuTable(birth, hour, gender, name, calendar='양력', isLeap=fa
         </tbody>
       </table>
       <div style="font-size:.7rem;color:var(--muted);margin-bottom:6px">입력 ${calendar} ${birth}${isLeap?'(윤달)':''}${calendar==='음력'?' → 계산 기준 양력 '+saju.solarBirth:''}</div>
+      <div style="font-size:.7rem;color:var(--muted);line-height:1.7;margin-bottom:6px">계산 엔진 ${saju.engineVersion} · ${saju.calendarVersion} · ${saju.timePolicy}</div>
       <div style="font-size:.74rem;color:var(--muted);line-height:1.9">
         일간 <span style="color:var(--gold2);font-weight:700">${saju.dp[0]}</span> · 
         현재 대운 <span style="color:var(--purple2);font-weight:700">${saju.curDaeun}</span>(${saju.curDaeunAge}세~) · 
@@ -1598,9 +1669,63 @@ function renderBubs(bubs, targetId){
   document.getElementById(targetId).appendChild(wrap);
 }
 
+function escapeHtml(value){
+  return String(value == null ? '' : value)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/\"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+
 function copyText(txt){
   const clean = txt.replace(/복사$/,'').trim();
   navigator.clipboard.writeText(clean).then(()=>snack('복사됨 ✓'));
+}
+
+const CONSULT_DRAFT_KEY = 'cheonun_consult_draft_v2';
+function saveConsultDraft(){
+  try{
+    const draft = {
+      savedAt: Date.now(),
+      fields: {
+        name: document.getElementById('cName')?.value || '',
+        gender: document.getElementById('cGender')?.value || '여성',
+        calendar: document.getElementById('cLunar')?.value || '양력',
+        birth: document.getElementById('cBirth')?.value || '',
+        hour: document.getElementById('cHour')?.value || '',
+        topic: document.getElementById('cTopic')?.value || '',
+        question: document.getElementById('cQ')?.value || ''
+      },
+      mode: consultMode,
+      info: lastConsultInfo,
+      history: chatHistory,
+      resultHTML: document.getElementById('consultResult')?.innerHTML || '',
+      sajuHTML: document.getElementById('sajuTableWrap')?.innerHTML || '',
+      chatHTML: document.getElementById('chatBox')?.innerHTML || ''
+    };
+    localStorage.setItem(CONSULT_DRAFT_KEY, JSON.stringify(draft));
+  }catch(e){ console.warn('상담 임시저장 실패:', e.message); }
+}
+function restoreConsultDraft(){
+  try{
+    const draft = JSON.parse(localStorage.getItem(CONSULT_DRAFT_KEY) || 'null');
+    if(!draft || !draft.savedAt || Date.now()-draft.savedAt > 24*60*60*1000) return;
+    const f = draft.fields || {};
+    if(document.getElementById('cName')) document.getElementById('cName').value=f.name||'';
+    if(document.getElementById('cGender')) document.getElementById('cGender').value=f.gender||'여성';
+    if(document.getElementById('cLunar')) document.getElementById('cLunar').value=f.calendar||'양력';
+    if(document.getElementById('cBirth')) document.getElementById('cBirth').value=f.birth||'';
+    if(document.getElementById('cHour')) document.getElementById('cHour').value=f.hour||'';
+    if(document.getElementById('cTopic')) document.getElementById('cTopic').value=f.topic||'';
+    if(document.getElementById('cQ')) document.getElementById('cQ').value=f.question||'';
+    if(draft.info) { lastConsultInfo=draft.info; window.cheOnunConsultInfo=lastConsultInfo; }
+    if(Array.isArray(draft.history)) chatHistory=draft.history;
+    if(draft.resultHTML) document.getElementById('consultResult').innerHTML=draft.resultHTML;
+    if(draft.sajuHTML){ const s=document.getElementById('sajuTableWrap'); s.innerHTML=draft.sajuHTML; s.style.display='block'; }
+    if(draft.chatHTML){ const c=document.getElementById('chatBox'); c.innerHTML=draft.chatHTML; document.getElementById('consultChat').style.display='block'; }
+    if(draft.resultHTML || draft.chatHTML){ if(window.addConsultPdfButton) window.addConsultPdfButton(); snack('이전 상담 내용을 복구했습니다. 이어서 질문할 수 있어요.'); }
+  }catch(e){ console.warn('상담 임시복구 실패:', e.message); }
 }
 
 // ── 채팅 이어서 ──
@@ -1637,11 +1762,13 @@ ${ctx}
   try{
     const txt = await ai(prompt, 4096);
     const answer = txt.replace(/\[말풍선\]/g,'').trim();
-    box.innerHTML += `<div class="msg ai"><div class="bubble">${answer.replace(/\n/g,'<br>')}<br><button onclick="navigator.clipboard.writeText(this.parentElement.innerText.replace('복사','').trim()).then(()=>snack('복사됨 ✓'))" style="font-size:.65rem;color:var(--muted);background:none;border:none;cursor:pointer;margin-top:4px">복사</button></div></div>`;
+    box.innerHTML += `<div class="msg ai"><div class="bubble">${escapeHtml(answer).replace(/\n/g,'<br>')}<br><button onclick="navigator.clipboard.writeText(this.parentElement.innerText.replace('복사','').trim()).then(()=>snack('복사됨 ✓'))" style="font-size:.65rem;color:var(--muted);background:none;border:none;cursor:pointer;margin-top:4px">복사</button></div></div>`;
     box.scrollTop = box.scrollHeight;
     chatHistory.push({role:'assistant', content: answer});
+    saveConsultDraft();
   } catch(e){
-    box.innerHTML += `<div class="msg ai"><div class="bubble" style="color:var(--red)">오류: ${e.message}</div></div>`;
+    box.innerHTML += `<div class="msg ai"><div class="bubble" style="color:var(--red)">연결이 잠시 끊겼습니다. 잠시 후 같은 질문을 다시 보내 주세요.<br><small>${escapeHtml(e.message)}</small></div></div>`;
+    saveConsultDraft();
   }
 }
 
@@ -1856,7 +1983,7 @@ ${ziweiPrompt ? '7' : '6'}. [타로 보강] 위에서 뽑힌 타로 카드를 "�
       bDiv.className = 'bub';
       bDiv.style.paddingTop = '20px';
       const NL = String.fromCharCode(10);
-      bDiv.innerHTML = `<span class="bub-num">${i+1}</span>${b.split(NL).join('<br>')}
+      bDiv.innerHTML = `<span class="bub-num">${i+1}</span>${escapeHtml(b).split(NL).join('<br>')}
         <button class="bub-copy">복사</button>`;
       bDiv.querySelector('.bub-copy').onclick = () => copyText(b); // 여러 줄 전체 복사
       ansDiv.appendChild(bDiv);
@@ -2428,10 +2555,15 @@ function toggleCallClientList(){
 loadDbConfig();    // Supabase 설정 복원
 loadClients();     // 내담자 목록 로드
 setWcat(document.querySelector('.wcat.on'), 'fortune');
+restoreConsultDraft();
+renderKeyMode();
 </script>
 <script src="/quick.js"></script>
 <script src="/deep-saju.js"></script>
 <script src="/report.js"></script>
+<script src="/vendor/lunar-javascript-1.7.7.js"></script>
+<script src="/saju-engine.js"></script>
+<script src="/consult-ui-cleanup.js"></script>
 
 <!-- ── Supabase DB 설정 모달 ── -->
 <div id="dbModal" style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:600;display:none;align-items:center;justify-content:center;padding:16px">
