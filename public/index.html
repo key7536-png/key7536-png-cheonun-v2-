@@ -716,6 +716,7 @@ function toggleKeyMode(){
 async function ai(prompt, maxT){
   maxT = maxT || 4096;
   const usePaid = preferPaid();
+  const startedAt = Date.now();
   let lastErr = null;
   for(let attempt=0; attempt<3; attempt++){
     const controller = new AbortController();
@@ -735,6 +736,8 @@ async function ai(prompt, maxT){
       }
       const data = await res.json();
       if(data.source === 'paid' && !usePaid) snack('유료 예비 키로 답변했습니다');
+      // 무료 키가 밀려 한참 걸렸을 때는 다음 번에 상단 스위치로 바로 넘어가실 수 있게 알려준다.
+      if(!usePaid && (Date.now() - startedAt) > 20000) snack('무료키가 밀려 느렸습니다 — 상단 ⚡유료키로 바꾸면 바로 답변합니다');
       if(!data.text) throw new Error('빈 답변이 도착했습니다.');
       return data.text;
     }catch(e){
